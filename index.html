@@ -417,10 +417,15 @@
             
             document.getElementById('app-screen').classList.add('hidden');
             document.getElementById('auth-screen').classList.remove('hidden');
+            
+            // Fix: Force UI to show PIN screen and hide Setup screen
+            document.getElementById('setup-section').classList.add('hidden');
+            document.getElementById('pin-section').classList.remove('hidden');
+            document.getElementById('auth-branding').classList.remove('hidden');
+            
             document.getElementById('e2e-pin').value = '';
             document.getElementById('setup-company').value = '';
             document.getElementById('setup-pin').value = '';
-            document.getElementById('auth-branding').classList.add('hidden'); // Hide logo to keep PIN screen clean
             showToast("Vault Locked", "info");
         };
 
@@ -437,7 +442,7 @@
                 const verifRef = doc(db, 'artifacts', appId, 'users', user.uid, '_security', 'pin_verify');
                 const verifDoc = await getDoc(verifRef);
                 
-                document.getElementById('auth-branding').classList.add('hidden'); // Ensure branding stays hidden on PIN/Setup
+                document.getElementById('auth-branding').classList.remove('hidden');
                 
                 if (verifDoc.exists()) {
                     document.getElementById('pin-section').classList.remove('hidden');
@@ -456,10 +461,20 @@
                 currentUser = user;
                 document.getElementById('user-avatar').innerText = user.email ? user.email[0].toUpperCase() : 'A';
                 document.getElementById('login-section').classList.add('hidden');
+                
+                // Ensure the Login/Signup tabs hide when asking for PIN
+                const tabs = document.getElementById('auth-tabs');
+                if(tabs) tabs.classList.add('hidden');
+                
                 checkVaultSetupStatus(user);
             } else {
                 currentUser = null;
-                document.getElementById('auth-branding').classList.remove('hidden'); // Show logo for login screen
+                document.getElementById('auth-branding').classList.remove('hidden'); 
+                
+                // Ensure the Login/Signup tabs return when logged out
+                const tabs = document.getElementById('auth-tabs');
+                if(tabs) tabs.classList.remove('hidden');
+                
                 document.getElementById('login-section').classList.remove('hidden');
                 document.getElementById('pin-section').classList.add('hidden');
                 document.getElementById('setup-section').classList.add('hidden');
