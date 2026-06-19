@@ -26,7 +26,8 @@
         .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
         
         /* Loader */
-        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #fff; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #blue-600; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        .spinner-white { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #fff; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -41,31 +42,93 @@
     <!-- AUTH & PIN SCREEN -->
     <div id="auth-screen" class="fixed inset-0 bg-gray-900 flex flex-col items-center justify-center z-40">
         <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md text-center">
-            <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
-                <i class="fas fa-box-open"></i>
-            </div>
-            <h1 class="text-2xl font-bold mb-2 text-gray-800">Inventory E2EE</h1>
-            <p class="text-gray-500 mb-6 text-sm">Your data is encrypted end-to-end. Only you can access it.</p>
             
-            <div id="login-section">
-                <button id="btn-google-login" class="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-3 hover:bg-gray-50 transition mb-3">
-                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5" alt="Google">
-                    Continue with Google
-                </button>
-                <button id="btn-anon-login" class="w-full bg-gray-100 text-gray-600 font-semibold py-3 px-4 rounded-lg hover:bg-gray-200 transition">
-                    Continue Anonymously (Local Cache)
-                </button>
+            <div id="auth-branding">
+                <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                    <i class="fas fa-box-open"></i>
+                </div>
+                <h1 class="text-2xl font-bold mb-2 text-gray-800">Inventory E2EE</h1>
+                <p class="text-gray-500 mb-6 text-sm">Your data is encrypted end-to-end. Only you can access it.</p>
+            </div>
+            
+            <!-- Login & Signup Architecture (Instagram Style) -->
+            <div id="login-section" class="flex flex-col w-full">
+                
+                <!-- LOGIN MODE -->
+                <div id="login-mode" class="flex flex-col w-full">
+                    <div class="flex flex-col gap-3 mb-2">
+                        <button id="btn-login-google" class="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-3 transition shadow-sm">
+                            <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5 bg-white rounded-full p-0.5" alt="Google">
+                            <span>Log in with Google</span>
+                        </button>
+                        <button id="btn-login-local" class="w-full bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg hover:bg-gray-900 transition flex items-center justify-center gap-3 shadow-sm">
+                            <i class="fas fa-laptop-house text-lg"></i>
+                            <span>Log in with Local Account</span>
+                        </button>
+                    </div>
+
+                    <div class="relative flex items-center py-5">
+                        <div class="flex-grow border-t border-gray-200"></div>
+                        <span class="flex-shrink-0 mx-4 text-gray-400 text-sm font-semibold">OR</span>
+                        <div class="flex-grow border-t border-gray-200"></div>
+                    </div>
+
+                    <button onclick="window.AuthUI.setMode('signup')" class="w-full bg-transparent border border-blue-600 text-blue-600 font-semibold py-3 px-4 rounded-lg hover:bg-blue-50 transition shadow-sm">
+                        Create new account
+                    </button>
+                </div>
+
+                <!-- SIGNUP MODE -->
+                <div id="signup-mode" class="flex flex-col w-full hidden">
+                    <div class="flex flex-col gap-3 mb-2">
+                        <button id="btn-signup-google" class="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-3 transition shadow-sm">
+                            <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5 bg-white rounded-full p-0.5" alt="Google">
+                            <span>Sign up using Google</span>
+                        </button>
+                        <button id="btn-signup-local" class="w-full bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg hover:bg-gray-900 transition flex items-center justify-center gap-3 shadow-sm">
+                            <i class="fas fa-laptop-house text-lg"></i>
+                            <span>Sign up using Local Account</span>
+                        </button>
+                    </div>
+
+                    <div class="relative flex items-center py-5">
+                        <div class="flex-grow border-t border-gray-200"></div>
+                        <span class="flex-shrink-0 mx-4 text-gray-400 text-sm font-semibold">OR</span>
+                        <div class="flex-grow border-t border-gray-200"></div>
+                    </div>
+
+                    <button onclick="window.AuthUI.setMode('login')" class="w-full bg-transparent border border-gray-400 text-gray-700 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 transition shadow-sm">
+                        Already have an account? Log in
+                    </button>
+                </div>
+
+                <p class="text-xs text-gray-400 mt-6 leading-relaxed">Local accounts save directly to this device's storage. Google accounts back up to the cloud securely.</p>
             </div>
 
+            <!-- Initial Setup Form (First Login) -->
+            <div id="setup-section" class="hidden">
+                <h2 class="text-xl font-bold mb-2 text-gray-800">Welcome! Let's get started.</h2>
+                <p class="text-xs text-gray-500 mb-6">Setup your company name and encryption PIN.</p>
+                
+                <input type="text" id="setup-company" placeholder="Company Name" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 mb-3">
+                <input type="password" id="setup-pin" placeholder="Create PIN (Min 4 digits)" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-xl tracking-[0.2em] focus:ring-2 focus:ring-blue-500 outline-none mb-4" autocomplete="new-password">
+                
+                <button id="btn-setup" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 transition flex justify-center items-center mb-2">
+                    Complete Setup
+                </button>
+                <p class="text-xs text-red-500 text-left font-semibold mt-2">Warning: There is NO password or PIN reset option. Keep your PIN safe.</p>
+            </div>
+
+            <!-- Return PIN Verification -->
             <div id="pin-section" class="hidden">
                 <p class="text-sm font-semibold mb-4 text-gray-700">Enter your Encryption PIN</p>
                 <input type="password" id="e2e-pin" placeholder="••••••••" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-2xl tracking-[0.5em] focus:ring-2 focus:ring-blue-500 outline-none mb-4" autocomplete="new-password">
                 <button id="btn-unlock" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 transition flex justify-center items-center mb-4">
                     <span id="btn-unlock-text">Unlock Vault</span>
-                    <div id="btn-unlock-spinner" class="spinner hidden"></div>
+                    <div id="btn-unlock-spinner" class="spinner-white hidden"></div>
                 </button>
                 <button id="btn-switch-account" class="text-sm text-gray-500 hover:text-gray-800 transition w-full text-center font-medium">Switch Account / Sign Out</button>
-                <p class="text-xs text-red-500 mt-4 text-left font-semibold">Warning: There is NO password or PIN reset option. If you lose this PIN, your data is permanently lost.</p>
+                <p class="text-xs text-red-500 mt-4 text-left font-semibold">Security: 5 incorrect attempts will permanently delete your account and data.</p>
             </div>
         </div>
     </div>
@@ -137,6 +200,7 @@
         let currentUser = null;
         let e2eKey = null; 
         let activeListeners = [];
+        let failedPinAttempts = 0; // Strike counter
 
         // App Data State (In-Memory Decrypted)
         const appState = {
@@ -173,13 +237,13 @@
         };
 
         // ==========================================
-        // 3. UI UTILITIES
+        // 3. UI UTILITIES & CORE LOGIC
         // ==========================================
         const showToast = (msg, type = 'success') => {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             const color = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : type === 'info' ? 'bg-blue-500' : 'bg-gray-800';
-            toast.className = `${color} text-white px-4 py-3 rounded shadow-lg transform transition-all duration-300 translate-x-full flex items-center gap-2`;
+            toast.className = `${color} text-white px-4 py-3 rounded shadow-lg transform transition-all duration-300 translate-x-full flex items-center gap-2 z-50`;
             toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i> ${msg}`;
             container.appendChild(toast);
             
@@ -194,7 +258,7 @@
         const showModal = (contentHtml) => {
             const container = document.getElementById('modal-container');
             container.innerHTML = `
-                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
                     <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-all scale-100">
                         ${contentHtml}
                     </div>
@@ -207,11 +271,10 @@
         };
         window.closeModal = closeModal; 
 
-        // Replacing native confirm() with a custom UI modal
         const showConfirm = (msg, callback) => {
             const container = document.getElementById('modal-container');
             container.innerHTML = `
-                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
                     <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 transform transition-all scale-100 text-center">
                         <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4 text-xl">
                             <i class="fas fa-exclamation-triangle"></i>
@@ -229,6 +292,40 @@
                 closeModal();
                 callback();
             };
+        };
+
+        // Shared function for total account annihilation
+        const wipeAccountAndData = async (userObj) => {
+            if (!userObj) return;
+            try {
+                const collections = ['products', 'sales', 'customers', 'suppliers', 'warehouses', 'purchase_orders', 'settings', '_security'];
+                for (const col of collections) {
+                    const colRef = collection(db, 'artifacts', appId, 'users', userObj.uid, col);
+                    const snap = await getDocs(colRef);
+                    const deletePromises = [];
+                    snap.forEach(d => deletePromises.push(deleteDoc(d.ref)));
+                    await Promise.all(deletePromises);
+                }
+                await deleteUser(userObj);
+            } catch(e) {
+                console.error("Wipe incomplete. Some permissions may require re-auth.", e);
+            }
+        };
+
+        // UI Logic for Auth Modes
+        window.AuthUI = {
+            setMode: (mode) => {
+                const loginMode = document.getElementById('login-mode');
+                const signupMode = document.getElementById('signup-mode');
+
+                if (mode === 'login') {
+                    loginMode.classList.remove('hidden');
+                    signupMode.classList.add('hidden');
+                } else {
+                    loginMode.classList.add('hidden');
+                    signupMode.classList.remove('hidden');
+                }
+            }
         };
 
         // ==========================================
@@ -277,42 +374,81 @@
         // 5. AUTHENTICATION & PIN FLOW
         // ==========================================
         const initAuth = async () => {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                }
-            } catch (e) { console.error("Auth init error:", e); }
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                try { await signInWithCustomToken(auth, __initial_auth_token); } catch (e) { }
+            }
         };
 
-        document.getElementById('btn-google-login').onclick = async () => {
-            try { await signInWithPopup(auth, provider); } 
-            catch(e) { showToast("Google login failed", "error"); }
+        // Reusable auth handlers bound to both Login and Signup mode buttons
+        const handleGoogleAuth = async () => {
+            try { 
+                await signInWithPopup(auth, provider); 
+            } catch(e) { 
+                console.error("Google Auth Error:", e);
+                if (e.code === 'auth/unauthorized-domain') {
+                    showToast("Domain Not Authorized: Go to Firebase Console -> Authentication -> Settings -> Authorized Domains and add this URL.", "error");
+                } else if (e.code === 'auth/popup-closed-by-user') {
+                    showToast("Login cancelled: Window closed.", "error");
+                } else {
+                    showToast("Google login failed: " + e.message, "error"); 
+                }
+            }
         };
         
-        document.getElementById('btn-anon-login').onclick = async () => {
-            try { await signInAnonymously(auth); } 
-            catch(e) { showToast("Anonymous login failed", "error"); }
+        const handleLocalAuth = async () => {
+            try { 
+                await signInAnonymously(auth); 
+            } catch(e) { 
+                showToast("Local Account login failed: " + e.message, "error"); 
+            }
         };
 
-        // Instead of signing out, this just locks the local session
+        // Attach to all four buttons
+        document.getElementById('btn-login-google').onclick = handleGoogleAuth;
+        document.getElementById('btn-signup-google').onclick = handleGoogleAuth;
+        document.getElementById('btn-login-local').onclick = handleLocalAuth;
+        document.getElementById('btn-signup-local').onclick = handleLocalAuth;
+
         document.getElementById('btn-logout').onclick = () => {
-            e2eKey = null; // Drop decryption key from memory
-            Object.keys(appState).forEach(k => appState[k] = []); // Wipe memory
-            activeListeners.forEach(unsub => unsub()); // Stop DB sync
+            e2eKey = null; 
+            Object.keys(appState).forEach(k => appState[k] = []); 
+            activeListeners.forEach(unsub => unsub()); 
             activeListeners = [];
             
             document.getElementById('app-screen').classList.add('hidden');
             document.getElementById('auth-screen').classList.remove('hidden');
             document.getElementById('e2e-pin').value = '';
+            document.getElementById('setup-company').value = '';
+            document.getElementById('setup-pin').value = '';
+            document.getElementById('auth-branding').classList.add('hidden'); // Hide logo to keep PIN screen clean
             showToast("Vault Locked", "info");
         };
 
-        // True Sign Out to switch to a different account entirely
         document.getElementById('btn-switch-account').onclick = () => {
-            showConfirm("Are you sure? If you are using a Local Account, signing out will make you lose access to it permanently unless you sign in again on this exact browser.", async () => {
+            showConfirm("Are you sure? If you are using an Anonymous Account, signing out will make you lose access to it permanently.", async () => {
                 await signOut(auth);
                 window.location.reload();
             });
+        };
+
+        // Determine which screen to show on Auth state change
+        const checkVaultSetupStatus = async (user) => {
+            try {
+                const verifRef = doc(db, 'artifacts', appId, 'users', user.uid, '_security', 'pin_verify');
+                const verifDoc = await getDoc(verifRef);
+                
+                document.getElementById('auth-branding').classList.add('hidden'); // Ensure branding stays hidden on PIN/Setup
+                
+                if (verifDoc.exists()) {
+                    document.getElementById('pin-section').classList.remove('hidden');
+                    document.getElementById('setup-section').classList.add('hidden');
+                } else {
+                    document.getElementById('pin-section').classList.add('hidden');
+                    document.getElementById('setup-section').classList.remove('hidden');
+                }
+            } catch(e) {
+                document.getElementById('pin-section').classList.remove('hidden');
+            }
         };
 
         onAuthStateChanged(auth, (user) => {
@@ -320,16 +456,44 @@
                 currentUser = user;
                 document.getElementById('user-avatar').innerText = user.email ? user.email[0].toUpperCase() : 'A';
                 document.getElementById('login-section').classList.add('hidden');
-                document.getElementById('pin-section').classList.remove('hidden');
+                checkVaultSetupStatus(user);
             } else {
                 currentUser = null;
+                document.getElementById('auth-branding').classList.remove('hidden'); // Show logo for login screen
                 document.getElementById('login-section').classList.remove('hidden');
                 document.getElementById('pin-section').classList.add('hidden');
+                document.getElementById('setup-section').classList.add('hidden');
                 document.getElementById('auth-screen').classList.remove('hidden');
                 document.getElementById('app-screen').classList.add('hidden');
             }
         });
 
+        // Setup newly created Vault
+        document.getElementById('btn-setup').onclick = async () => {
+            const company = document.getElementById('setup-company').value;
+            const pin = document.getElementById('setup-pin').value;
+            
+            if(!company) return showToast("Company Name is required", "error");
+            if(!pin || pin.length < 4) return showToast("PIN must be at least 4 chars", "error");
+            
+            try {
+                // Set the validation block
+                const payload = CryptoService.encrypt({ check: 'valid' }, pin);
+                const verifRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, '_security', 'pin_verify');
+                await setDoc(verifRef, { payload });
+                
+                e2eKey = pin;
+                
+                // Save Initial Settings
+                await DB.save('settings', { companyName: company, currency: '₹' });
+                
+                startApp();
+            } catch (e) {
+                showToast("Setup failed: " + e.message, "error");
+            }
+        };
+
+        // Unlock existing Vault
         document.getElementById('btn-unlock').onclick = async () => {
             const pin = document.getElementById('e2e-pin').value;
             if(!pin || pin.length < 4) return showToast("PIN must be at least 4 chars", "error");
@@ -344,16 +508,23 @@
                 
                 if (verifDoc.exists()) {
                     const isValid = CryptoService.decrypt(verifDoc.data().payload, pin);
-                    if (!isValid || isValid.check !== 'valid') throw new Error("Invalid PIN");
-                } else {
-                    const payload = CryptoService.encrypt({ check: 'valid' }, pin);
-                    await setDoc(verifRef, { payload });
+                    if (!isValid || isValid.check !== 'valid') {
+                        failedPinAttempts++;
+                        if (failedPinAttempts >= 5) {
+                            showToast("5 incorrect attempts. Self-destruct initiated.", "error");
+                            await wipeAccountAndData(currentUser);
+                            window.location.reload();
+                            return;
+                        }
+                        throw new Error(`Incorrect PIN. ${5 - failedPinAttempts} attempts remaining.`);
+                    }
                 }
-
+                
+                failedPinAttempts = 0; // Reset on success
                 e2eKey = pin;
                 startApp();
             } catch (e) {
-                showToast(e.message === "Invalid PIN" ? "Incorrect PIN!" : "Error accessing vault", "error");
+                showToast(e.message, "error");
                 document.getElementById('e2e-pin').value = '';
             } finally {
                 btnText.classList.remove('hidden'); spinner.classList.add('hidden');
@@ -472,7 +643,7 @@
                 const lowStockCount = appState.products.filter(p => Number(p.stock) <= Number(p.minStock || 5)).length;
                 const stockValue = appState.products.reduce((acc, p) => acc + (Number(p.cost || 0) * Number(p.stock || 0)), 0);
                 const totalSales = appState.sales.reduce((acc, s) => acc + Number(s.total || 0), 0);
-                const cSym = appState.settings[0]?.currency || '$';
+                const cSym = appState.settings[0]?.currency || '₹';
 
                 container.innerHTML = `
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -586,7 +757,7 @@
                 const tbody = document.getElementById('products-table-body');
                 if(!tbody) return;
                 
-                const cSym = appState.settings[0]?.currency || '$';
+                const cSym = appState.settings[0]?.currency || '₹';
 
                 if(products.length === 0) {
                     tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-gray-500">No products found.</td></tr>`;
@@ -662,7 +833,7 @@
             billing: () => {
                 const container = document.getElementById('page-content');
                 window.POS.cart = []; 
-                const cSym = appState.settings[0]?.currency || '$';
+                const cSym = appState.settings[0]?.currency || '₹';
                 
                 container.innerHTML = `
                     <div class="flex flex-col lg:flex-row gap-6 h-full">
@@ -875,7 +1046,7 @@
             // --- PURCHASE ORDERS ---
             purchase_orders: () => {
                 const container = document.getElementById('page-content');
-                const cSym = appState.settings[0]?.currency || '$';
+                const cSym = appState.settings[0]?.currency || '₹';
                 container.innerHTML = `
                     <div class="flex flex-col lg:flex-row gap-6 h-full">
                         <div class="w-full lg:w-1/3 bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4 overflow-y-auto">
@@ -997,7 +1168,7 @@
             // --- SALES REPORT ---
             sales_report: () => {
                 const container = document.getElementById('page-content');
-                const cSym = appState.settings[0]?.currency || '$';
+                const cSym = appState.settings[0]?.currency || '₹';
                 container.innerHTML = `
                     <div class="flex flex-col h-full gap-6">
                         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 flex-shrink-0">
@@ -1059,7 +1230,7 @@
                 const revenueEl = document.getElementById('sr-total-revenue');
                 if(!tbody || !revenueEl) return;
                 
-                const cSym = appState.settings[0]?.currency || '$';
+                const cSym = appState.settings[0]?.currency || '₹';
 
                 const sortedSales = [...salesData].sort((a, b) => new Date(b.date) - new Date(a.date));
                 const totalRevenue = sortedSales.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
@@ -1145,7 +1316,7 @@
             // --- SYSTEM SETTINGS ---
             system_settings: () => {
                 const container = document.getElementById('page-content');
-                const s = appState.settings[0] || { companyName: '', currency: '$', id: null };
+                const s = appState.settings[0] || { companyName: '', currency: '₹', id: null };
                 
                 container.innerHTML = `
                     <div class="max-w-4xl mx-auto space-y-6 h-full pb-10">
@@ -1159,7 +1330,7 @@
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Default Currency Symbol</label>
-                                        <input type="text" id="set-currency" value="${s.currency || '$'}" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                        <input type="text" id="set-currency" value="${s.currency || '₹'}" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
                                     </div>
                                 </div>
                                 <div class="flex justify-end pt-2">
@@ -1403,7 +1574,7 @@
                 const container = document.getElementById('pos-products');
                 if(!container) return;
                 
-                const cSym = appState.settings[0]?.currency || '$';
+                const cSym = appState.settings[0]?.currency || '₹';
                 const term = search.toLowerCase();
                 const items = appState.products.filter(p => p.stock > 0 && (p.name.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term)));
                 
@@ -1448,7 +1619,7 @@
                 const container = document.getElementById('pos-cart');
                 if(!container) return;
 
-                const cSym = appState.settings[0]?.currency || '$';
+                const cSym = appState.settings[0]?.currency || '₹';
 
                 if(window.POS.cart.length === 0) {
                     container.innerHTML = '<div class="text-center text-gray-400 mt-10">Cart is empty</div>';
@@ -1483,7 +1654,7 @@
             checkout: async (generateBill) => {
                 if(window.POS.cart.length === 0) return showToast("Cart is empty", "error");
                 
-                const cSym = appState.settings[0]?.currency || '$';
+                const cSym = appState.settings[0]?.currency || '₹';
                 const total = window.POS.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
                 const saleData = {
                     date: new Date().toISOString(),
@@ -1564,7 +1735,7 @@
                 const tbody = document.getElementById('po-cart-body');
                 if(!tbody) return;
 
-                const cSym = appState.settings[0]?.currency || '$';
+                const cSym = appState.settings[0]?.currency || '₹';
 
                 if(window.POManager.cart.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">No items added yet.</td></tr>';
@@ -1684,26 +1855,9 @@
             deleteEverything: () => {
                 showConfirm("Are you absolutely sure? This will permanently wipe your account and all data across the cloud.", async () => {
                     showToast("Deleting all data... Please wait.", "info");
-                    try {
-                        // 1. Delete all Firestore subcollections for this user
-                        const collections = ['products', 'sales', 'customers', 'suppliers', 'warehouses', 'purchase_orders', 'settings', '_security'];
-                        for (const col of collections) {
-                            const colRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, col);
-                            const snap = await getDocs(colRef);
-                            const deletePromises = [];
-                            snap.forEach(d => deletePromises.push(deleteDoc(d.ref)));
-                            await Promise.all(deletePromises);
-                        }
-
-                        // 2. Delete the actual User Auth profile
-                        await deleteUser(currentUser);
-                        
-                        showToast("Account deleted successfully.");
-                        setTimeout(() => window.location.reload(), 1500);
-                    } catch(e) {
-                        console.error(e);
-                        showToast("Error deleting. You may need to sign out and log back in to verify credentials before deleting.", "error");
-                    }
+                    await wipeAccountAndData(currentUser);
+                    showToast("Account deleted successfully.");
+                    setTimeout(() => window.location.reload(), 1500);
                 });
             }
         };
