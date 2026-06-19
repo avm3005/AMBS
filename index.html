@@ -48,36 +48,24 @@
             <p class="text-gray-500 mb-6 text-sm">Your data is encrypted end-to-end. Only you can access it.</p>
             
             <div id="login-section">
-                <input type="email" id="auth-email" placeholder="Email Address" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 mb-3">
-                <input type="password" id="auth-password" placeholder="Password" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 mb-3">
-                <div class="flex gap-2 mb-4">
-                    <button id="btn-email-login" class="flex-1 bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 transition">Login</button>
-                    <button id="btn-email-signup" class="flex-1 bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg hover:bg-gray-900 transition">Sign Up</button>
-                </div>
-                
-                <div class="relative flex items-center py-2 mb-4">
-                    <div class="flex-grow border-t border-gray-300"></div>
-                    <span class="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase tracking-wide">Or Continue With</span>
-                    <div class="flex-grow border-t border-gray-300"></div>
-                </div>
-
                 <button id="btn-google-login" class="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-3 hover:bg-gray-50 transition mb-3">
                     <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5" alt="Google">
-                    Google
+                    Continue with Google
                 </button>
                 <button id="btn-anon-login" class="w-full bg-gray-100 text-gray-600 font-semibold py-3 px-4 rounded-lg hover:bg-gray-200 transition">
-                    Anonymous (Local Cache)
+                    Continue Anonymously (Local Cache)
                 </button>
             </div>
 
             <div id="pin-section" class="hidden">
                 <p class="text-sm font-semibold mb-4 text-gray-700">Enter your Encryption PIN</p>
                 <input type="password" id="e2e-pin" placeholder="••••••••" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-2xl tracking-[0.5em] focus:ring-2 focus:ring-blue-500 outline-none mb-4" autocomplete="new-password">
-                <button id="btn-unlock" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 transition flex justify-center items-center">
+                <button id="btn-unlock" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 transition flex justify-center items-center mb-4">
                     <span id="btn-unlock-text">Unlock Vault</span>
                     <div id="btn-unlock-spinner" class="spinner hidden"></div>
                 </button>
-                <p class="text-xs text-red-500 mt-3 text-left font-semibold">Warning: There is NO password or PIN reset option. If you lose this PIN, your data is permanently lost.</p>
+                <button id="btn-switch-account" class="text-sm text-gray-500 hover:text-gray-800 transition w-full text-center font-medium">Switch Account / Sign Out</button>
+                <p class="text-xs text-red-500 mt-4 text-left font-semibold">Warning: There is NO password or PIN reset option. If you lose this PIN, your data is permanently lost.</p>
             </div>
         </div>
     </div>
@@ -110,7 +98,7 @@
                     <div class="h-8 w-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm" id="user-avatar">
                         U
                     </div>
-                    <button id="btn-logout" class="text-sm text-red-500 hover:text-red-700 font-medium">Logout</button>
+                    <button id="btn-logout" class="text-sm text-gray-500 hover:text-gray-800 font-medium"><i class="fas fa-lock mr-1"></i> Lock Vault</button>
                 </div>
             </header>
 
@@ -124,7 +112,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, deleteUser } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
@@ -296,29 +284,6 @@
             } catch (e) { console.error("Auth init error:", e); }
         };
 
-        document.getElementById('btn-email-signup').onclick = async () => {
-            const email = document.getElementById('auth-email').value;
-            const password = document.getElementById('auth-password').value;
-            if(!email || password.length < 6) return showToast("Valid email and minimum 6 character password required.", "error");
-            try {
-                await createUserWithEmailAndPassword(auth, email, password);
-                showToast("Account created successfully!");
-            } catch(e) {
-                showToast(e.message.replace('Firebase: ', ''), "error");
-            }
-        };
-
-        document.getElementById('btn-email-login').onclick = async () => {
-            const email = document.getElementById('auth-email').value;
-            const password = document.getElementById('auth-password').value;
-            if(!email || !password) return showToast("Email and password required.", "error");
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-            } catch(e) {
-                showToast("Login failed. Check your credentials.", "error");
-            }
-        };
-
         document.getElementById('btn-google-login').onclick = async () => {
             try { await signInWithPopup(auth, provider); } 
             catch(e) { showToast("Google login failed", "error"); }
@@ -329,9 +294,25 @@
             catch(e) { showToast("Anonymous login failed", "error"); }
         };
 
-        document.getElementById('btn-logout').onclick = async () => {
-            await signOut(auth);
-            window.location.reload();
+        // Instead of signing out, this just locks the local session
+        document.getElementById('btn-logout').onclick = () => {
+            e2eKey = null; // Drop decryption key from memory
+            Object.keys(appState).forEach(k => appState[k] = []); // Wipe memory
+            activeListeners.forEach(unsub => unsub()); // Stop DB sync
+            activeListeners = [];
+            
+            document.getElementById('app-screen').classList.add('hidden');
+            document.getElementById('auth-screen').classList.remove('hidden');
+            document.getElementById('e2e-pin').value = '';
+            showToast("Vault Locked", "info");
+        };
+
+        // True Sign Out to switch to a different account entirely
+        document.getElementById('btn-switch-account').onclick = () => {
+            showConfirm("Are you sure? If you are using a Local Account, signing out will make you lose access to it permanently unless you sign in again on this exact browser.", async () => {
+                await signOut(auth);
+                window.location.reload();
+            });
         };
 
         onAuthStateChanged(auth, (user) => {
@@ -1194,6 +1175,14 @@
                                 <i class="fas fa-file-export"></i> Export Decrypted Data (.json)
                             </button>
                         </div>
+
+                        <div class="bg-red-50 rounded-xl shadow-sm border border-red-200 p-6 mt-6">
+                            <h2 class="text-xl font-bold text-red-800 mb-2"><i class="fas fa-exclamation-triangle mr-2 text-red-600"></i>Danger Zone</h2>
+                            <p class="text-sm text-red-600 mb-4">This will permanently delete your account and all associated encrypted data from the cloud. This action CANNOT be undone.</p>
+                            <button onclick="window.SettingsForm.deleteEverything()" class="bg-red-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2">
+                                <i class="fas fa-trash-alt"></i> Delete Account & All Data
+                            </button>
+                        </div>
                     </div>
                 `;
             }
@@ -1690,6 +1679,31 @@
                         window.URL.revokeObjectURL(url);
                         showToast("Data exported successfully!");
                     }, 0);
+                });
+            },
+            deleteEverything: () => {
+                showConfirm("Are you absolutely sure? This will permanently wipe your account and all data across the cloud.", async () => {
+                    showToast("Deleting all data... Please wait.", "info");
+                    try {
+                        // 1. Delete all Firestore subcollections for this user
+                        const collections = ['products', 'sales', 'customers', 'suppliers', 'warehouses', 'purchase_orders', 'settings', '_security'];
+                        for (const col of collections) {
+                            const colRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, col);
+                            const snap = await getDocs(colRef);
+                            const deletePromises = [];
+                            snap.forEach(d => deletePromises.push(deleteDoc(d.ref)));
+                            await Promise.all(deletePromises);
+                        }
+
+                        // 2. Delete the actual User Auth profile
+                        await deleteUser(currentUser);
+                        
+                        showToast("Account deleted successfully.");
+                        setTimeout(() => window.location.reload(), 1500);
+                    } catch(e) {
+                        console.error(e);
+                        showToast("Error deleting. You may need to sign out and log back in to verify credentials before deleting.", "error");
+                    }
                 });
             }
         };
