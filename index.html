@@ -1,0 +1,1702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E2E Encrypted Inventory System</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- CryptoJS for E2EE -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+        .sidebar-scroll::-webkit-scrollbar-thumb { background-color: #4b5563; border-radius: 4px; }
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Loader */
+        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #fff; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-gray-800 overflow-hidden h-screen flex">
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+
+    <!-- Modals Container -->
+    <div id="modal-container"></div>
+
+    <!-- AUTH & PIN SCREEN -->
+    <div id="auth-screen" class="fixed inset-0 bg-gray-900 flex flex-col items-center justify-center z-40">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md text-center">
+            <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                <i class="fas fa-box-open"></i>
+            </div>
+            <h1 class="text-2xl font-bold mb-2 text-gray-800">Inventory E2EE</h1>
+            <p class="text-gray-500 mb-6 text-sm">Your data is encrypted end-to-end. Only you can access it.</p>
+            
+            <div id="login-section">
+                <input type="email" id="auth-email" placeholder="Email Address" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 mb-3">
+                <input type="password" id="auth-password" placeholder="Password" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 mb-3">
+                <div class="flex gap-2 mb-4">
+                    <button id="btn-email-login" class="flex-1 bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 transition">Login</button>
+                    <button id="btn-email-signup" class="flex-1 bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg hover:bg-gray-900 transition">Sign Up</button>
+                </div>
+                
+                <div class="relative flex items-center py-2 mb-4">
+                    <div class="flex-grow border-t border-gray-300"></div>
+                    <span class="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase tracking-wide">Or Continue With</span>
+                    <div class="flex-grow border-t border-gray-300"></div>
+                </div>
+
+                <button id="btn-google-login" class="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-3 hover:bg-gray-50 transition mb-3">
+                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5" alt="Google">
+                    Google
+                </button>
+                <button id="btn-anon-login" class="w-full bg-gray-100 text-gray-600 font-semibold py-3 px-4 rounded-lg hover:bg-gray-200 transition">
+                    Anonymous (Local Cache)
+                </button>
+            </div>
+
+            <div id="pin-section" class="hidden">
+                <p class="text-sm font-semibold mb-4 text-gray-700">Enter your Encryption PIN</p>
+                <input type="password" id="e2e-pin" placeholder="••••••••" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-2xl tracking-[0.5em] focus:ring-2 focus:ring-blue-500 outline-none mb-4" autocomplete="new-password">
+                <button id="btn-unlock" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 transition flex justify-center items-center">
+                    <span id="btn-unlock-text">Unlock Vault</span>
+                    <div id="btn-unlock-spinner" class="spinner hidden"></div>
+                </button>
+                <p class="text-xs text-red-500 mt-3 text-left font-semibold">Warning: There is NO password or PIN reset option. If you lose this PIN, your data is permanently lost.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP SHELL -->
+    <div id="app-screen" class="w-full h-full flex hidden">
+        
+        <!-- Sidebar -->
+        <aside class="w-64 bg-gray-900 text-gray-300 flex flex-col h-full flex-shrink-0">
+            <div class="h-16 flex items-center px-6 border-b border-gray-800 font-bold text-white text-lg tracking-wide">
+                <i class="fas fa-layer-group text-blue-500 mr-3"></i> <span id="brand-name" class="truncate">Nexus Inv</span>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto sidebar-scroll py-4 px-3 space-y-1" id="sidebar-nav">
+                <!-- Navigation inserted by JS -->
+            </div>
+
+            <div class="p-4 border-t border-gray-800 text-xs text-gray-500 text-center">
+                E2EE Active <i class="fas fa-lock text-green-500 ml-1"></i>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col h-full bg-gray-50 overflow-hidden">
+            <!-- Header -->
+            <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0">
+                <h2 id="page-title" class="text-xl font-semibold text-gray-800">Dashboard</h2>
+                <div class="flex items-center gap-4">
+                    <button class="text-gray-400 hover:text-gray-600"><i class="fas fa-bell"></i></button>
+                    <div class="h-8 w-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm" id="user-avatar">
+                        U
+                    </div>
+                    <button id="btn-logout" class="text-sm text-red-500 hover:text-red-700 font-medium">Logout</button>
+                </div>
+            </header>
+
+            <!-- Dynamic Page Content -->
+            <div id="page-content" class="flex-1 overflow-y-auto p-6 relative">
+                <!-- Content injected here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ==========================================
+        // 1. CONFIGURATION & STATE
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyD8mK1r-L9pyutdpkUWFQDrcNnC1W9QLUw",
+            authDomain: "itsambs.firebaseapp.com",
+            projectId: "itsambs",
+            storageBucket: "itsambs.firebasestorage.app",
+            messagingSenderId: "613551914200",
+            appId: "1:613551914200:web:7ecfbed7b49bf70f23abad",
+            measurementId: "G-8BXKP15QJP"
+        };
+        const appId = "itsambs";
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        let currentUser = null;
+        let e2eKey = null; 
+        let activeListeners = [];
+
+        // App Data State (In-Memory Decrypted)
+        const appState = {
+            products: [],
+            sales: [],
+            categories: [],
+            customers: [],
+            suppliers: [],
+            warehouses: [],
+            purchase_orders: [],
+            settings: []
+        };
+
+        let currentChart = null;
+
+        // ==========================================
+        // 2. ENCRYPTION SERVICE (CryptoJS)
+        // ==========================================
+        const CryptoService = {
+            encrypt: (data, pin) => {
+                try {
+                    const jsonStr = JSON.stringify(data);
+                    return CryptoJS.AES.encrypt(jsonStr, pin).toString();
+                } catch(e) { console.error("Encryption Error"); return null; }
+            },
+            decrypt: (ciphertext, pin) => {
+                try {
+                    const bytes = CryptoJS.AES.decrypt(ciphertext, pin);
+                    const decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
+                    if(!decryptedStr) throw new Error("Wrong PIN");
+                    return JSON.parse(decryptedStr);
+                } catch(e) { return null; }
+            }
+        };
+
+        // ==========================================
+        // 3. UI UTILITIES
+        // ==========================================
+        const showToast = (msg, type = 'success') => {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const color = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : type === 'info' ? 'bg-blue-500' : 'bg-gray-800';
+            toast.className = `${color} text-white px-4 py-3 rounded shadow-lg transform transition-all duration-300 translate-x-full flex items-center gap-2`;
+            toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i> ${msg}`;
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.classList.remove('translate-x-full'), 10);
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        };
+        window.showToast = showToast;
+
+        const showModal = (contentHtml) => {
+            const container = document.getElementById('modal-container');
+            container.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-all scale-100">
+                        ${contentHtml}
+                    </div>
+                </div>
+            `;
+        };
+
+        const closeModal = () => {
+            document.getElementById('modal-container').innerHTML = '';
+        };
+        window.closeModal = closeModal; 
+
+        // Replacing native confirm() with a custom UI modal
+        const showConfirm = (msg, callback) => {
+            const container = document.getElementById('modal-container');
+            container.innerHTML = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 transform transition-all scale-100 text-center">
+                        <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4 text-xl">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Confirm Action</h3>
+                        <p class="text-gray-600 text-sm mb-6">${msg}</p>
+                        <div class="flex justify-center gap-3">
+                            <button onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium w-full">Cancel</button>
+                            <button id="confirm-action-btn" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium w-full">Confirm</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('confirm-action-btn').onclick = () => {
+                closeModal();
+                callback();
+            };
+        };
+
+        // ==========================================
+        // 4. DATABASE SERVICE (Firestore + E2EE)
+        // ==========================================
+        const DB = {
+            getRef: (colName) => collection(db, 'artifacts', appId, 'users', currentUser.uid, colName),
+            
+            save: async (colName, data, id = null) => {
+                if(!e2eKey) return false;
+                const payload = CryptoService.encrypt(data, e2eKey);
+                try {
+                    if (id) {
+                        await updateDoc(doc(DB.getRef(colName), id), { payload, updatedAt: new Date().toISOString() });
+                    } else {
+                        await addDoc(DB.getRef(colName), { payload, createdAt: new Date().toISOString() });
+                    }
+                    return true;
+                } catch(e) { console.error("DB Save Error:", e); showToast("Failed to save data", "error"); return false; }
+            },
+
+            delete: async (colName, id) => {
+                try {
+                    await deleteDoc(doc(DB.getRef(colName), id));
+                    return true;
+                } catch(e) { showToast("Failed to delete", "error"); return false; }
+            },
+
+            listen: (colName, stateKey, callback) => {
+                if(!currentUser || !e2eKey) return;
+                const unsubscribe = onSnapshot(DB.getRef(colName), (snapshot) => {
+                    const items = [];
+                    snapshot.forEach(docSnap => {
+                        const data = docSnap.data();
+                        const decrypted = CryptoService.decrypt(data.payload, e2eKey);
+                        if(decrypted) items.push({ id: docSnap.id, ...decrypted });
+                    });
+                    appState[stateKey] = items;
+                    if(callback) callback();
+                }, (err) => console.error(`Sync error on ${colName}:`, err));
+                activeListeners.push(unsubscribe);
+            }
+        };
+
+        // ==========================================
+        // 5. AUTHENTICATION & PIN FLOW
+        // ==========================================
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                }
+            } catch (e) { console.error("Auth init error:", e); }
+        };
+
+        document.getElementById('btn-email-signup').onclick = async () => {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            if(!email || password.length < 6) return showToast("Valid email and minimum 6 character password required.", "error");
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+                showToast("Account created successfully!");
+            } catch(e) {
+                showToast(e.message.replace('Firebase: ', ''), "error");
+            }
+        };
+
+        document.getElementById('btn-email-login').onclick = async () => {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            if(!email || !password) return showToast("Email and password required.", "error");
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch(e) {
+                showToast("Login failed. Check your credentials.", "error");
+            }
+        };
+
+        document.getElementById('btn-google-login').onclick = async () => {
+            try { await signInWithPopup(auth, provider); } 
+            catch(e) { showToast("Google login failed", "error"); }
+        };
+        
+        document.getElementById('btn-anon-login').onclick = async () => {
+            try { await signInAnonymously(auth); } 
+            catch(e) { showToast("Anonymous login failed", "error"); }
+        };
+
+        document.getElementById('btn-logout').onclick = async () => {
+            await signOut(auth);
+            window.location.reload();
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('user-avatar').innerText = user.email ? user.email[0].toUpperCase() : 'A';
+                document.getElementById('login-section').classList.add('hidden');
+                document.getElementById('pin-section').classList.remove('hidden');
+            } else {
+                currentUser = null;
+                document.getElementById('login-section').classList.remove('hidden');
+                document.getElementById('pin-section').classList.add('hidden');
+                document.getElementById('auth-screen').classList.remove('hidden');
+                document.getElementById('app-screen').classList.add('hidden');
+            }
+        });
+
+        document.getElementById('btn-unlock').onclick = async () => {
+            const pin = document.getElementById('e2e-pin').value;
+            if(!pin || pin.length < 4) return showToast("PIN must be at least 4 chars", "error");
+            
+            const btnText = document.getElementById('btn-unlock-text');
+            const spinner = document.getElementById('btn-unlock-spinner');
+            btnText.classList.add('hidden'); spinner.classList.remove('hidden');
+
+            try {
+                const verifRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, '_security', 'pin_verify');
+                const verifDoc = await getDoc(verifRef);
+                
+                if (verifDoc.exists()) {
+                    const isValid = CryptoService.decrypt(verifDoc.data().payload, pin);
+                    if (!isValid || isValid.check !== 'valid') throw new Error("Invalid PIN");
+                } else {
+                    const payload = CryptoService.encrypt({ check: 'valid' }, pin);
+                    await setDoc(verifRef, { payload });
+                }
+
+                e2eKey = pin;
+                startApp();
+            } catch (e) {
+                showToast(e.message === "Invalid PIN" ? "Incorrect PIN!" : "Error accessing vault", "error");
+                document.getElementById('e2e-pin').value = '';
+            } finally {
+                btnText.classList.remove('hidden'); spinner.classList.add('hidden');
+            }
+        };
+
+        // ==========================================
+        // 6. APP START & NAVIGATION
+        // ==========================================
+        const startApp = () => {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+            
+            DB.listen('products', 'products', () => { 
+                if(currentView === 'products') Views.products(); 
+                if(currentView === 'inventory') Views.inventory(); 
+                if(currentView === 'stock_transfer') Views.stock_transfer();
+                if(currentView === 'low_stock') Views.low_stock();
+            });
+            DB.listen('sales', 'sales', () => { 
+                if(currentView === 'dashboard') Views.dashboard(); 
+                if(currentView === 'sales_report') Views.sales_report();
+            });
+            DB.listen('customers', 'customers', () => { if(currentView === 'customers') Views.customers(); });
+            DB.listen('suppliers', 'suppliers', () => { if(currentView === 'suppliers') Views.suppliers(); });
+            DB.listen('warehouses', 'warehouses', () => { if(currentView === 'warehouses') Views.warehouses(); });
+            DB.listen('purchase_orders', 'purchase_orders', () => { if(currentView === 'purchase_orders') Views.purchase_orders(); });
+            DB.listen('settings', 'settings', () => { 
+                window.SettingsForm.applySettings();
+                if(currentView === 'system_settings') Views.system_settings(); 
+            });
+
+            buildSidebar();
+            navigateTo('dashboard');
+        };
+
+        let currentView = 'dashboard';
+        const navigateTo = (viewId) => {
+            currentView = viewId;
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('bg-gray-800', 'text-white', 'border-l-4', 'border-blue-500');
+                el.classList.add('text-gray-400');
+                if(el.dataset.view === viewId) {
+                    el.classList.add('bg-gray-800', 'text-white', 'border-l-4', 'border-blue-500');
+                    el.classList.remove('text-gray-400');
+                    document.getElementById('page-title').innerText = el.innerText.trim();
+                }
+            });
+
+            if (Views[viewId]) Views[viewId]();
+            else Views.placeholder(viewId);
+        };
+        window.navigateTo = navigateTo; 
+
+        const buildSidebar = () => {
+            const menu = [
+                { group: 'Main', items: [
+                    { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard' },
+                    { id: 'products', icon: 'fa-box', label: 'Products' },
+                    { id: 'inventory', icon: 'fa-cubes', label: 'Inventory' }
+                ]},
+                { group: 'Operations', items: [
+                    { id: 'billing', icon: 'fa-file-invoice-dollar', label: 'Billing / POS' },
+                    { id: 'purchase_orders', icon: 'fa-truck-loading', label: 'Purchase Orders' },
+                    { id: 'stock_transfer', icon: 'fa-exchange-alt', label: 'Stock Audit' }
+                ]},
+                { group: 'Management', items: [
+                    { id: 'customers', icon: 'fa-users', label: 'Customers' },
+                    { id: 'suppliers', icon: 'fa-building', label: 'Suppliers' },
+                    { id: 'warehouses', icon: 'fa-warehouse', label: 'Warehouses' }
+                ]},
+                { group: 'Reports', items: [
+                    { id: 'sales_report', icon: 'fa-chart-line', label: 'Sales Report' },
+                    { id: 'low_stock', icon: 'fa-exclamation-triangle', label: 'Low Stock' }
+                ]},
+                { group: 'Settings', items: [
+                    { id: 'system_settings', icon: 'fa-cog', label: 'System Settings' }
+                ]}
+            ];
+
+            let html = '';
+            menu.forEach(section => {
+                html += `<div class="px-4 mt-6 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">${section.group}</div>`;
+                section.items.forEach(item => {
+                    html += `
+                        <button onclick="navigateTo('${item.id}')" data-view="${item.id}" class="nav-item w-full flex items-center px-4 py-2.5 text-sm font-medium rounded-r-lg transition-colors duration-200 hover:bg-gray-800 hover:text-white">
+                            <i class="fas ${item.icon} w-5 text-center mr-3"></i>
+                            ${item.label}
+                        </button>
+                    `;
+                });
+            });
+            document.getElementById('sidebar-nav').innerHTML = html;
+        };
+
+        // ==========================================
+        // 7. VIEWS & CONTROLLERS
+        // ==========================================
+        const Views = {
+            placeholder: (id) => {
+                const container = document.getElementById('page-content');
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                        <i class="fas fa-tools text-6xl mb-6 text-gray-200"></i>
+                        <h2 class="text-2xl font-bold text-gray-600 mb-2">Module Under Construction</h2>
+                        <p class="text-center max-w-md">The <b>${id.replace('_', ' ')}</b> module is part of the extended system architecture.</p>
+                    </div>
+                `;
+            },
+
+            // --- DASHBOARD ---
+            dashboard: () => {
+                const container = document.getElementById('page-content');
+                
+                const totalProducts = appState.products.length;
+                const lowStockCount = appState.products.filter(p => Number(p.stock) <= Number(p.minStock || 5)).length;
+                const stockValue = appState.products.reduce((acc, p) => acc + (Number(p.cost || 0) * Number(p.stock || 0)), 0);
+                const totalSales = appState.sales.reduce((acc, s) => acc + Number(s.total || 0), 0);
+                const cSym = appState.settings[0]?.currency || '$';
+
+                container.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
+                            <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xl mr-4"><i class="fas fa-box"></i></div>
+                            <div><p class="text-sm text-gray-500 font-medium">Total Products</p><p class="text-2xl font-bold text-gray-800">${totalProducts}</p></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
+                            <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xl mr-4"><i class="fas fa-exclamation-triangle"></i></div>
+                            <div><p class="text-sm text-gray-500 font-medium">Low Stock Alerts</p><p class="text-2xl font-bold text-gray-800">${lowStockCount}</p></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
+                            <div class="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xl mr-4"><i class="fas fa-dollar-sign"></i></div>
+                            <div><p class="text-sm text-gray-500 font-medium">Est. Stock Value</p><p class="text-2xl font-bold text-gray-800">${cSym}${stockValue.toFixed(2)}</p></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
+                            <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xl mr-4"><i class="fas fa-shopping-cart"></i></div>
+                            <div><p class="text-sm text-gray-500 font-medium">Total Sales</p><p class="text-2xl font-bold text-gray-800">${cSym}${totalSales.toFixed(2)}</p></div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Stock by Category</h3>
+                            <canvas id="chart-categories" height="250"></canvas>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Recent Sales</h3>
+                            <div class="overflow-y-auto max-h-[250px] hide-scroll">
+                                ${appState.sales.length === 0 ? '<p class="text-gray-500 text-sm">No sales yet.</p>' : 
+                                  appState.sales.slice().reverse().slice(0, 10).map(s => `
+                                    <div class="flex justify-between items-center py-3 border-b border-gray-50 last:border-0">
+                                        <div>
+                                            <p class="text-sm font-semibold text-gray-800">Order #${s.id.substring(0,6).toUpperCase()}</p>
+                                            <p class="text-xs text-gray-500">${new Date(s.date).toLocaleString()}</p>
+                                        </div>
+                                        <div class="font-bold text-green-600">${cSym}${(Number(s.total)||0).toFixed(2)}</div>
+                                    </div>
+                                  `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                if(currentChart) currentChart.destroy();
+                const ctx = document.getElementById('chart-categories');
+                if(ctx) {
+                    const catData = {};
+                    appState.products.forEach(p => {
+                        const cat = p.category || 'Uncategorized';
+                        catData[cat] = (catData[cat] || 0) + Number(p.stock || 0);
+                    });
+                    
+                    currentChart = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: Object.keys(catData),
+                            datasets: [{
+                                data: Object.values(catData),
+                                backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+                                borderWidth: 0
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+                    });
+                }
+            },
+
+            // --- PRODUCTS ---
+            products: () => {
+                const container = document.getElementById('page-content');
+                container.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
+                        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                            <div class="relative w-64">
+                                <input type="text" id="search-product" placeholder="Search products..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
+                            </div>
+                            <button onclick="window.ProductForm.open()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-2">
+                                <i class="fas fa-plus"></i> Add Product
+                            </button>
+                        </div>
+                        <div class="flex-1 overflow-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm">
+                                    <tr>
+                                        <th class="px-6 py-3 font-medium">SKU</th>
+                                        <th class="px-6 py-3 font-medium">Name</th>
+                                        <th class="px-6 py-3 font-medium">Category</th>
+                                        <th class="px-6 py-3 font-medium">Price</th>
+                                        <th class="px-6 py-3 font-medium">Cost</th>
+                                        <th class="px-6 py-3 font-medium">Stock</th>
+                                        <th class="px-6 py-3 font-medium text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-sm divide-y divide-gray-100" id="products-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                Views.renderProductsTable(appState.products);
+
+                document.getElementById('search-product').addEventListener('input', (e) => {
+                    const term = e.target.value.toLowerCase();
+                    const filtered = appState.products.filter(p => p.name.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term));
+                    Views.renderProductsTable(filtered);
+                });
+            },
+
+            renderProductsTable: (products) => {
+                const tbody = document.getElementById('products-table-body');
+                if(!tbody) return;
+                
+                const cSym = appState.settings[0]?.currency || '$';
+
+                if(products.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-gray-500">No products found.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = products.map(p => `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-6 py-4 font-mono text-xs text-gray-500">${p.sku}</td>
+                        <td class="px-6 py-4 font-medium text-gray-800">${p.name}</td>
+                        <td class="px-6 py-4"><span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">${p.category || 'N/A'}</span></td>
+                        <td class="px-6 py-4 text-green-600 font-semibold">${cSym}${Number(p.price).toFixed(2)}</td>
+                        <td class="px-6 py-4 text-gray-500">${cSym}${Number(p.cost).toFixed(2)}</td>
+                        <td class="px-6 py-4">
+                            <span class="${p.stock <= p.minStock ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'} px-2 py-1 rounded font-bold text-xs">
+                                ${p.stock}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <button onclick="window.ProductForm.edit('${p.id}')" class="text-blue-500 hover:text-blue-700 mr-3"><i class="fas fa-edit"></i></button>
+                            <button onclick="window.ProductForm.delete('${p.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `).join('');
+            },
+
+            // --- INVENTORY OVERVIEW ---
+            inventory: () => {
+                const container = document.getElementById('page-content');
+                container.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
+                            <h3 class="text-gray-500 text-sm font-semibold mb-1">Total Items in Stock</h3>
+                            <p class="text-3xl font-bold text-gray-800">${appState.products.reduce((a, b) => a + Number(b.stock), 0)}</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-red-500">
+                            <h3 class="text-gray-500 text-sm font-semibold mb-1">Items Out of Stock</h3>
+                            <p class="text-3xl font-bold text-gray-800">${appState.products.filter(p => p.stock == 0).length}</p>
+                        </div>
+                        <button class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:bg-gray-50 text-left flex justify-between items-center" onclick="navigateTo('stock_transfer')">
+                            <div>
+                                <h3 class="text-gray-800 font-semibold">Perform Audit</h3>
+                                <p class="text-xs text-gray-500 mt-1">Adjust discrepancies</p>
+                            </div>
+                            <i class="fas fa-arrow-right text-gray-400"></i>
+                        </button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        <h3 class="font-semibold text-gray-800 mb-4">Stock Levels</h3>
+                        <div class="space-y-4">
+                            ${appState.products.map(p => {
+                                const max = Math.max(100, p.stock * 2);
+                                const pct = Math.min(100, (p.stock / max) * 100);
+                                const color = p.stock <= p.minStock ? 'bg-red-500' : 'bg-green-500';
+                                return `
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="font-medium text-gray-700">${p.name} <span class="text-gray-400 text-xs ml-2">${p.sku}</span></span>
+                                        <span class="font-bold ${p.stock <= p.minStock ? 'text-red-500' : 'text-gray-700'}">${p.stock} units</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div class="${color} h-2 rounded-full" style="width: ${pct}%"></div>
+                                    </div>
+                                </div>
+                                `;
+                            }).join('') || '<p class="text-gray-500 text-sm">No inventory data.</p>'}
+                        </div>
+                    </div>
+                `;
+            },
+
+            // --- BILLING / POS ---
+            billing: () => {
+                const container = document.getElementById('page-content');
+                window.POS.cart = []; 
+                const cSym = appState.settings[0]?.currency || '$';
+                
+                container.innerHTML = `
+                    <div class="flex flex-col lg:flex-row gap-6 h-full">
+                        <div class="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+                            <div class="p-4 border-b border-gray-100 bg-gray-50">
+                                <div class="relative">
+                                    <input type="text" id="pos-search" placeholder="Search by name or SKU or Scan Barcode..." class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-medium">
+                                    <i class="fas fa-barcode absolute left-3 top-3.5 text-gray-400 text-lg"></i>
+                                </div>
+                            </div>
+                            <div class="flex-1 p-4 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-4" id="pos-products"></div>
+                        </div>
+
+                        <div class="w-full lg:w-96 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col flex-shrink-0">
+                            <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                                <h3 class="font-bold text-gray-800">Current Sale</h3>
+                                <button onclick="window.POS.clear()" class="text-xs text-red-500 hover:text-red-700">Clear</button>
+                            </div>
+                            
+                            <div class="flex-1 p-4 overflow-y-auto space-y-3" id="pos-cart">
+                                <div class="text-center text-gray-400 mt-10">Cart is empty</div>
+                            </div>
+                            
+                            <div class="p-4 border-t border-gray-100 bg-gray-50">
+                                <div class="flex justify-between text-sm mb-2 text-gray-600"><span>Subtotal</span><span id="pos-subtotal">${cSym}0.00</span></div>
+                                <div class="flex justify-between text-sm mb-3 text-gray-600"><span>Tax (0%)</span><span>${cSym}0.00</span></div>
+                                <div class="flex justify-between text-xl font-bold text-gray-800 mb-4 border-t pt-2"><span>Total</span><span id="pos-total">${cSym}0.00</span></div>
+                                
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button onclick="window.POS.checkout(false)" class="bg-gray-800 text-white py-3 rounded-lg font-semibold hover:bg-gray-900 transition">Quick Sell</button>
+                                    <button onclick="window.POS.checkout(true)" class="bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"><i class="fas fa-print"></i> Sell & Bill</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                window.POS.renderProducts();
+                document.getElementById('pos-search').addEventListener('input', (e) => {
+                    window.POS.renderProducts(e.target.value);
+                });
+            },
+
+            // --- CUSTOMERS ---
+            customers: () => {
+                const container = document.getElementById('page-content');
+                container.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
+                        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                            <div class="relative w-64">
+                                <input type="text" id="search-customer" placeholder="Search customers..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
+                            </div>
+                            <button onclick="window.CustomerForm.open()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-2">
+                                <i class="fas fa-plus"></i> Add Customer
+                            </button>
+                        </div>
+                        <div class="flex-1 overflow-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm">
+                                    <tr>
+                                        <th class="px-6 py-3 font-medium">Name</th>
+                                        <th class="px-6 py-3 font-medium">Email</th>
+                                        <th class="px-6 py-3 font-medium">Phone</th>
+                                        <th class="px-6 py-3 font-medium text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-sm divide-y divide-gray-100" id="customers-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                Views.renderCustomersTable(appState.customers);
+                document.getElementById('search-customer').addEventListener('input', (e) => {
+                    const term = e.target.value.toLowerCase();
+                    const filtered = appState.customers.filter(c => c.name.toLowerCase().includes(term) || (c.email||'').toLowerCase().includes(term));
+                    Views.renderCustomersTable(filtered);
+                });
+            },
+            renderCustomersTable: (data) => {
+                const tbody = document.getElementById('customers-table-body');
+                if(!tbody) return;
+                if(data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">No customers found.</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = data.map(c => `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-6 py-4 font-medium text-gray-800">${c.name}</td>
+                        <td class="px-6 py-4 text-gray-600">${c.email || 'N/A'}</td>
+                        <td class="px-6 py-4 text-gray-600">${c.phone || 'N/A'}</td>
+                        <td class="px-6 py-4 text-right">
+                            <button onclick="window.CustomerForm.edit('${c.id}')" class="text-blue-500 hover:text-blue-700 mr-3"><i class="fas fa-edit"></i></button>
+                            <button onclick="window.CustomerForm.delete('${c.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `).join('');
+            },
+
+            // --- SUPPLIERS ---
+            suppliers: () => {
+                const container = document.getElementById('page-content');
+                container.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
+                        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                            <div class="relative w-64">
+                                <input type="text" id="search-supplier" placeholder="Search suppliers..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
+                            </div>
+                            <button onclick="window.SupplierForm.open()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-2">
+                                <i class="fas fa-plus"></i> Add Supplier
+                            </button>
+                        </div>
+                        <div class="flex-1 overflow-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm">
+                                    <tr>
+                                        <th class="px-6 py-3 font-medium">Company Name</th>
+                                        <th class="px-6 py-3 font-medium">Contact Person</th>
+                                        <th class="px-6 py-3 font-medium">Phone</th>
+                                        <th class="px-6 py-3 font-medium text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-sm divide-y divide-gray-100" id="suppliers-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                Views.renderSuppliersTable(appState.suppliers);
+                document.getElementById('search-supplier').addEventListener('input', (e) => {
+                    const term = e.target.value.toLowerCase();
+                    const filtered = appState.suppliers.filter(s => s.name.toLowerCase().includes(term) || (s.contact||'').toLowerCase().includes(term));
+                    Views.renderSuppliersTable(filtered);
+                });
+            },
+            renderSuppliersTable: (data) => {
+                const tbody = document.getElementById('suppliers-table-body');
+                if(!tbody) return;
+                if(data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">No suppliers found.</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = data.map(s => `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-6 py-4 font-medium text-gray-800">${s.name}</td>
+                        <td class="px-6 py-4 text-gray-600">${s.contact || 'N/A'}</td>
+                        <td class="px-6 py-4 text-gray-600">${s.phone || 'N/A'}</td>
+                        <td class="px-6 py-4 text-right">
+                            <button onclick="window.SupplierForm.edit('${s.id}')" class="text-blue-500 hover:text-blue-700 mr-3"><i class="fas fa-edit"></i></button>
+                            <button onclick="window.SupplierForm.delete('${s.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `).join('');
+            },
+
+            // --- WAREHOUSES ---
+            warehouses: () => {
+                const container = document.getElementById('page-content');
+                container.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
+                        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                            <div class="relative w-64">
+                                <input type="text" id="search-warehouse" placeholder="Search warehouses..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
+                            </div>
+                            <button onclick="window.WarehouseForm.open()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-2">
+                                <i class="fas fa-plus"></i> Add Warehouse
+                            </button>
+                        </div>
+                        <div class="flex-1 overflow-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm">
+                                    <tr>
+                                        <th class="px-6 py-3 font-medium">Warehouse Name</th>
+                                        <th class="px-6 py-3 font-medium">Location</th>
+                                        <th class="px-6 py-3 font-medium text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-sm divide-y divide-gray-100" id="warehouses-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                Views.renderWarehousesTable(appState.warehouses);
+                document.getElementById('search-warehouse').addEventListener('input', (e) => {
+                    const term = e.target.value.toLowerCase();
+                    const filtered = appState.warehouses.filter(w => w.name.toLowerCase().includes(term) || (w.location||'').toLowerCase().includes(term));
+                    Views.renderWarehousesTable(filtered);
+                });
+            },
+            renderWarehousesTable: (data) => {
+                const tbody = document.getElementById('warehouses-table-body');
+                if(!tbody) return;
+                if(data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="3" class="px-6 py-8 text-center text-gray-500">No warehouses found.</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = data.map(w => `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-6 py-4 font-medium text-gray-800">${w.name}</td>
+                        <td class="px-6 py-4 text-gray-600">${w.location || 'N/A'}</td>
+                        <td class="px-6 py-4 text-right">
+                            <button onclick="window.WarehouseForm.edit('${w.id}')" class="text-blue-500 hover:text-blue-700 mr-3"><i class="fas fa-edit"></i></button>
+                            <button onclick="window.WarehouseForm.delete('${w.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `).join('');
+            },
+
+            // --- PURCHASE ORDERS ---
+            purchase_orders: () => {
+                const container = document.getElementById('page-content');
+                const cSym = appState.settings[0]?.currency || '$';
+                container.innerHTML = `
+                    <div class="flex flex-col lg:flex-row gap-6 h-full">
+                        <div class="w-full lg:w-1/3 bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4 overflow-y-auto">
+                            <h3 class="font-bold text-gray-800 border-b pb-2 border-gray-100">Create Purchase Order</h3>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Select Supplier *</label>
+                                <select id="po-supplier" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                    <option value="">-- Choose Supplier --</option>
+                                    ${appState.suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                                </select>
+                            </div>
+
+                            <div class="border-t border-gray-100 pt-4 mt-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Select Product</label>
+                                <select id="po-product" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm mb-3" onchange="window.POManager.onProductSelect()">
+                                    <option value="">-- Choose Product --</option>
+                                    ${appState.products.map(p => `<option value="${p.id}" data-cost="${p.cost}">${p.name} (${p.sku})</option>`).join('')}
+                                </select>
+
+                                <div class="grid grid-cols-2 gap-3 mb-4">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">Quantity</label>
+                                        <input type="number" id="po-qty" value="1" min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">Unit Cost (${cSym})</label>
+                                        <input type="number" step="0.01" id="po-cost" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                    </div>
+                                </div>
+
+                                <button onclick="window.POManager.addItem()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-2.5 rounded-lg transition text-sm">
+                                    <i class="fas fa-plus mr-1"></i> Add to Order
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+                            <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                                <h3 class="font-bold text-gray-800">Order Items</h3>
+                                <span class="text-sm font-bold text-blue-600" id="po-total-display">Total: ${cSym}0.00</span>
+                            </div>
+                            <div class="flex-1 overflow-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm">
+                                        <tr>
+                                            <th class="px-6 py-3 font-medium">Product</th>
+                                            <th class="px-6 py-3 font-medium text-right">Qty</th>
+                                            <th class="px-6 py-3 font-medium text-right">Cost</th>
+                                            <th class="px-6 py-3 font-medium text-right">Total</th>
+                                            <th class="px-6 py-3 font-medium text-center">Act</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="text-sm divide-y divide-gray-100" id="po-cart-body">
+                                        <tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">No items added yet.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="p-4 border-t border-gray-100 bg-gray-50 text-right">
+                                <button onclick="window.POManager.submit()" class="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center ml-auto gap-2">
+                                    <i class="fas fa-check"></i> Submit & Receive
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                window.POManager.renderCart();
+            },
+
+            // --- STOCK TRANSFER / ADJUSTMENT ---
+            stock_transfer: () => {
+                const container = document.getElementById('page-content');
+                container.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
+                        <div class="p-6 border-b border-gray-100">
+                            <h2 class="text-xl font-bold text-gray-800">Stock Adjustment & Audit</h2>
+                            <p class="text-sm text-gray-500 mt-1">Update physical counts. Discrepancies will adjust the system stock immediately.</p>
+                        </div>
+                        <div class="flex-1 overflow-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm z-10">
+                                    <tr>
+                                        <th class="px-6 py-3 font-medium">SKU</th>
+                                        <th class="px-6 py-3 font-medium">Product Name</th>
+                                        <th class="px-6 py-3 font-medium text-center">System Stock</th>
+                                        <th class="px-6 py-3 font-medium w-32 text-center">Actual Count</th>
+                                        <th class="px-6 py-3 font-medium w-48">Reason</th>
+                                        <th class="px-6 py-3 font-medium text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-sm divide-y divide-gray-100">
+                                    ${appState.products.map(p => `
+                                        <tr class="hover:bg-gray-50 transition" id="audit-row-${p.id}">
+                                            <td class="px-6 py-4 font-mono text-xs text-gray-500">${p.sku}</td>
+                                            <td class="px-6 py-4 font-medium text-gray-800">${p.name}</td>
+                                            <td class="px-6 py-4 text-center">
+                                                <span class="bg-gray-100 px-3 py-1 rounded font-bold ${p.stock <= p.minStock ? 'text-red-500' : 'text-gray-700'}">${p.stock}</span>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <input type="number" id="adj-qty-${p.id}" value="${p.stock}" class="w-full border border-gray-300 rounded px-2 py-1 text-center outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-semibold text-blue-600">
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <input type="text" id="adj-reason-${p.id}" placeholder="e.g., Damage, Found" class="w-full border border-gray-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                                            </td>
+                                            <td class="px-6 py-4 text-right">
+                                                <button onclick="window.StockAudit.sync('${p.id}')" class="bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition">
+                                                    Sync
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `).join('') || `<tr><td colspan="6" class="px-6 py-8 text-center text-gray-500">No products available.</td></tr>`}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            },
+
+            // --- SALES REPORT ---
+            sales_report: () => {
+                const container = document.getElementById('page-content');
+                const cSym = appState.settings[0]?.currency || '$';
+                container.innerHTML = `
+                    <div class="flex flex-col h-full gap-6">
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 flex-shrink-0">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800">Sales Report</h2>
+                                <p class="text-sm text-gray-500 mt-1">View and filter sales history.</p>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <div class="flex flex-col">
+                                    <label class="text-xs font-semibold text-gray-500 mb-1">Filter by Date</label>
+                                    <input type="date" id="sr-date-filter" class="border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-700">
+                                </div>
+                                <div class="bg-blue-50 border border-blue-100 rounded-lg px-6 py-2 text-right">
+                                    <p class="text-xs font-bold text-blue-500 uppercase tracking-wide">Total Revenue</p>
+                                    <p class="text-2xl font-bold text-blue-700" id="sr-total-revenue">${cSym}0.00</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+                            <div class="flex-1 overflow-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm z-10">
+                                        <tr>
+                                            <th class="px-6 py-3 font-medium">Date & Time</th>
+                                            <th class="px-6 py-3 font-medium">Order ID</th>
+                                            <th class="px-6 py-3 font-medium">Type</th>
+                                            <th class="px-6 py-3 font-medium">Items Summary</th>
+                                            <th class="px-6 py-3 font-medium text-right">Total Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="text-sm divide-y divide-gray-100" id="sr-table-body">
+                                        <!-- Rendered dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                Views.renderSalesReportTable(appState.sales);
+
+                document.getElementById('sr-date-filter').addEventListener('change', (e) => {
+                    const dateVal = e.target.value; 
+                    if (!dateVal) {
+                        Views.renderSalesReportTable(appState.sales);
+                        return;
+                    }
+                    const filtered = appState.sales.filter(s => {
+                        const saleDate = new Date(s.date).toISOString().split('T')[0];
+                        return saleDate === dateVal;
+                    });
+                    Views.renderSalesReportTable(filtered);
+                });
+            },
+
+            renderSalesReportTable: (salesData) => {
+                const tbody = document.getElementById('sr-table-body');
+                const revenueEl = document.getElementById('sr-total-revenue');
+                if(!tbody || !revenueEl) return;
+                
+                const cSym = appState.settings[0]?.currency || '$';
+
+                const sortedSales = [...salesData].sort((a, b) => new Date(b.date) - new Date(a.date));
+                const totalRevenue = sortedSales.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
+                revenueEl.innerText = `${cSym}${totalRevenue.toFixed(2)}`;
+
+                if(sortedSales.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">No sales records found for this period.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = sortedSales.map(s => {
+                    const dateStr = new Date(s.date).toLocaleString();
+                    const itemsSummary = s.items && s.items.length > 0 
+                        ? s.items.map(i => `${i.qty}x ${i.name}`).join(', ') 
+                        : 'N/A';
+                        
+                    return `
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-6 py-4 text-gray-600 whitespace-nowrap">${dateStr}</td>
+                            <td class="px-6 py-4 font-mono text-xs text-gray-500">${s.id ? s.id.substring(0,8).toUpperCase() : 'N/A'}</td>
+                            <td class="px-6 py-4">
+                                <span class="bg-gray-100 px-2 py-1 rounded text-xs text-gray-600 font-medium">${s.type || 'Standard'}</span>
+                            </td>
+                            <td class="px-6 py-4 text-gray-700 truncate max-w-md" title="${itemsSummary}">${itemsSummary}</td>
+                            <td class="px-6 py-4 text-right font-bold text-gray-800">${cSym}${(Number(s.total) || 0).toFixed(2)}</td>
+                        </tr>
+                    `;
+                }).join('');
+            },
+
+            // --- LOW STOCK REPORT ---
+            low_stock: () => {
+                const container = document.getElementById('page-content');
+                const lowStockItems = appState.products.filter(p => Number(p.stock) <= Number(p.minStock || 5));
+
+                container.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
+                        <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-red-50 rounded-t-xl border-l-4 border-red-500">
+                            <div>
+                                <h2 class="text-xl font-bold text-red-800">Low Stock Alerts</h2>
+                                <p class="text-sm text-red-600 mt-1">Items at or below their minimum stock threshold.</p>
+                            </div>
+                            <div class="bg-white px-4 py-2 rounded-lg shadow-sm font-bold text-red-600 border border-red-100">
+                                ${lowStockItems.length} Items Require Attention
+                            </div>
+                        </div>
+                        <div class="flex-1 overflow-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm z-10">
+                                    <tr>
+                                        <th class="px-6 py-3 font-medium">SKU</th>
+                                        <th class="px-6 py-3 font-medium">Product Name</th>
+                                        <th class="px-6 py-3 font-medium">Category</th>
+                                        <th class="px-6 py-3 font-medium text-center">Current Stock</th>
+                                        <th class="px-6 py-3 font-medium text-center">Min Threshold</th>
+                                        <th class="px-6 py-3 font-medium text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-sm divide-y divide-gray-100">
+                                    ${lowStockItems.length > 0 ? lowStockItems.map(p => `
+                                        <tr class="hover:bg-red-50 transition">
+                                            <td class="px-6 py-4 font-mono text-xs text-gray-500">${p.sku}</td>
+                                            <td class="px-6 py-4 font-medium text-gray-800">${p.name}</td>
+                                            <td class="px-6 py-4 text-gray-600">${p.category || 'N/A'}</td>
+                                            <td class="px-6 py-4 text-center">
+                                                <span class="bg-red-100 text-red-700 px-3 py-1 rounded font-bold">${p.stock}</span>
+                                            </td>
+                                            <td class="px-6 py-4 text-center text-gray-500 font-medium">${p.minStock || 5}</td>
+                                            <td class="px-6 py-4 text-right">
+                                                <button onclick="showToast('PO Drafted for ${p.name.replace(/'/g, "\\'")}', 'info')" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-blue-600 px-4 py-1.5 rounded-lg text-xs font-semibold transition shadow-sm flex items-center gap-2 ml-auto">
+                                                    <i class="fas fa-file-invoice"></i> Draft PO
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `).join('') : `<tr><td colspan="6" class="px-6 py-12 text-center text-gray-500"><i class="fas fa-check-circle text-4xl text-green-400 mb-3 block"></i>All stock levels are healthy!</td></tr>`}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            },
+
+            // --- SYSTEM SETTINGS ---
+            system_settings: () => {
+                const container = document.getElementById('page-content');
+                const s = appState.settings[0] || { companyName: '', currency: '$', id: null };
+                
+                container.innerHTML = `
+                    <div class="max-w-4xl mx-auto space-y-6 h-full pb-10">
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                            <h2 class="text-xl font-bold text-gray-800 mb-4 border-b border-gray-100 pb-2"><i class="fas fa-building mr-2 text-blue-500"></i>Company Profile</h2>
+                            <form onsubmit="window.SettingsForm.save(event, '${s.id || ''}')" class="space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                                        <input type="text" id="set-company" value="${s.companyName || ''}" placeholder="Nexus Inv" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Default Currency Symbol</label>
+                                        <input type="text" id="set-currency" value="${s.currency || '$'}" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                </div>
+                                <div class="flex justify-end pt-2">
+                                    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition">Save Settings</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 border-l-4 border-yellow-500">
+                            <h2 class="text-xl font-bold text-gray-800 mb-2"><i class="fas fa-database mr-2 text-yellow-500"></i>Data Management & Backup</h2>
+                            <p class="text-sm text-gray-500 mb-4">Your data is End-to-End Encrypted in the cloud. Use this tool to export a fully decrypted JSON backup of your current database state directly to your local machine.</p>
+                            <button onclick="window.SettingsForm.exportData()" class="bg-gray-800 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-gray-900 transition flex items-center gap-2">
+                                <i class="fas fa-file-export"></i> Export Decrypted Data (.json)
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        };
+
+        // ==========================================
+        // 8. FORMS & LOGIC HANDLERS
+        // ==========================================
+        
+        // Product Logic
+        window.ProductForm = {
+            open: (product = null) => {
+                const title = product ? "Edit Product" : "Add New Product";
+                const p = product || { name: '', sku: '', category: '', price: 0, cost: 0, stock: 0, minStock: 5 };
+                
+                showModal(`
+                    <div class="p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold text-gray-800">${title}</h2>
+                            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+                        </div>
+                        <form id="product-form" onsubmit="window.ProductForm.save(event, '${product ? product.id : ''}')" class="space-y-4">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
+                                    <input type="text" id="pf-name" value="${p.name}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">SKU *</label>
+                                    <input type="text" id="pf-sku" value="${p.sku}" required class="w-full border border-gray-300 rounded px-3 py-2 uppercase focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                                <input type="text" id="pf-cat" value="${p.category}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Selling Price *</label>
+                                    <input type="number" step="0.01" id="pf-price" value="${p.price}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Cost Price *</label>
+                                    <input type="number" step="0.01" id="pf-cost" value="${p.cost}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Current Stock *</label>
+                                    <input type="number" id="pf-stock" value="${p.stock}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Low Stock Alert At</label>
+                                    <input type="number" id="pf-min" value="${p.minStock}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                </div>
+                            </div>
+                            <div class="mt-6 flex justify-end gap-3">
+                                <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 font-medium">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">Save Product</button>
+                            </div>
+                        </form>
+                    </div>
+                `);
+            },
+            save: async (e, id) => {
+                e.preventDefault();
+                const data = {
+                    name: document.getElementById('pf-name').value,
+                    sku: document.getElementById('pf-sku').value.toUpperCase(),
+                    category: document.getElementById('pf-cat').value,
+                    price: parseFloat(document.getElementById('pf-price').value),
+                    cost: parseFloat(document.getElementById('pf-cost').value),
+                    stock: parseInt(document.getElementById('pf-stock').value),
+                    minStock: parseInt(document.getElementById('pf-min').value)
+                };
+
+                const success = await DB.save('products', data, id ? id : null);
+                if(success) {
+                    showToast(id ? "Product updated" : "Product created");
+                    closeModal();
+                }
+            },
+            edit: (id) => {
+                const p = appState.products.find(x => x.id === id);
+                if(p) window.ProductForm.open(p);
+            },
+            delete: (id) => {
+                showConfirm("Are you sure you want to delete this product?", async () => {
+                    if(await DB.delete('products', id)) showToast("Product deleted");
+                });
+            }
+        };
+
+        // Customer Logic
+        window.CustomerForm = {
+            open: (customer = null) => {
+                const title = customer ? "Edit Customer" : "Add New Customer";
+                const c = customer || { name: '', email: '', phone: '', address: '' };
+                showModal(`
+                    <div class="p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold text-gray-800">${title}</h2>
+                            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+                        </div>
+                        <form id="customer-form" onsubmit="window.CustomerForm.save(event, '${customer ? customer.id : ''}')" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                                <input type="text" id="cf-name" value="${c.name}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                    <input type="email" id="cf-email" value="${c.email}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                                    <input type="text" id="cf-phone" value="${c.phone}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                                <textarea id="cf-address" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">${c.address}</textarea>
+                            </div>
+                            <div class="mt-6 flex justify-end gap-3">
+                                <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 font-medium">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">Save Customer</button>
+                            </div>
+                        </form>
+                    </div>
+                `);
+            },
+            save: async (e, id) => {
+                e.preventDefault();
+                const data = { name: document.getElementById('cf-name').value, email: document.getElementById('cf-email').value, phone: document.getElementById('cf-phone').value, address: document.getElementById('cf-address').value };
+                if(await DB.save('customers', data, id ? id : null)) { showToast(id ? "Customer updated" : "Customer created"); closeModal(); }
+            },
+            edit: (id) => { const c = appState.customers.find(x => x.id === id); if(c) window.CustomerForm.open(c); },
+            delete: (id) => {
+                showConfirm("Are you sure you want to delete this customer?", async () => {
+                    if(await DB.delete('customers', id)) showToast("Customer deleted");
+                });
+            }
+        };
+
+        // Supplier Logic
+        window.SupplierForm = {
+            open: (supplier = null) => {
+                const title = supplier ? "Edit Supplier" : "Add New Supplier";
+                const s = supplier || { name: '', contact: '', phone: '', email: '' };
+                showModal(`
+                    <div class="p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold text-gray-800">${title}</h2>
+                            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+                        </div>
+                        <form id="supplier-form" onsubmit="window.SupplierForm.save(event, '${supplier ? supplier.id : ''}')" class="space-y-4">
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Company Name *</label><input type="text" id="sf-name" value="${s.name}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Contact Person</label><input type="text" id="sf-contact" value="${s.contact}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><label class="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" id="sf-email" value="${s.email}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
+                                <div><label class="block text-sm font-medium text-gray-700 mb-1">Phone</label><input type="text" id="sf-phone" value="${s.phone}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
+                            </div>
+                            <div class="mt-6 flex justify-end gap-3"><button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 font-medium">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">Save Supplier</button></div>
+                        </form>
+                    </div>
+                `);
+            },
+            save: async (e, id) => {
+                e.preventDefault();
+                const data = { name: document.getElementById('sf-name').value, contact: document.getElementById('sf-contact').value, email: document.getElementById('sf-email').value, phone: document.getElementById('sf-phone').value };
+                if(await DB.save('suppliers', data, id ? id : null)) { showToast(id ? "Supplier updated" : "Supplier created"); closeModal(); }
+            },
+            edit: (id) => { const s = appState.suppliers.find(x => x.id === id); if(s) window.SupplierForm.open(s); },
+            delete: (id) => {
+                showConfirm("Are you sure you want to delete this supplier?", async () => {
+                    if(await DB.delete('suppliers', id)) showToast("Supplier deleted");
+                });
+            }
+        };
+
+        // Warehouse Logic
+        window.WarehouseForm = {
+            open: (warehouse = null) => {
+                const title = warehouse ? "Edit Warehouse" : "Add New Warehouse";
+                const w = warehouse || { name: '', location: '', capacity: '' };
+                showModal(`
+                    <div class="p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold text-gray-800">${title}</h2>
+                            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+                        </div>
+                        <form id="warehouse-form" onsubmit="window.WarehouseForm.save(event, '${warehouse ? warehouse.id : ''}')" class="space-y-4">
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Warehouse Name *</label><input type="text" id="wf-name" value="${w.name}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Location / Address</label><input type="text" id="wf-location" value="${w.location}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Capacity (Optional)</label><input type="text" id="wf-capacity" value="${w.capacity}" placeholder="e.g. 5000 sq ft" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
+                            <div class="mt-6 flex justify-end gap-3"><button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 font-medium">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">Save Warehouse</button></div>
+                        </form>
+                    </div>
+                `);
+            },
+            save: async (e, id) => {
+                e.preventDefault();
+                const data = { name: document.getElementById('wf-name').value, location: document.getElementById('wf-location').value, capacity: document.getElementById('wf-capacity').value };
+                if(await DB.save('warehouses', data, id ? id : null)) { showToast(id ? "Warehouse updated" : "Warehouse created"); closeModal(); }
+            },
+            edit: (id) => { const w = appState.warehouses.find(x => x.id === id); if(w) window.WarehouseForm.open(w); },
+            delete: (id) => {
+                showConfirm("Are you sure you want to delete this warehouse?", async () => {
+                    if(await DB.delete('warehouses', id)) showToast("Warehouse deleted");
+                });
+            }
+        };
+
+        // Point of Sale Logic
+        window.POS = {
+            cart: [],
+            renderProducts: (search = "") => {
+                const container = document.getElementById('pos-products');
+                if(!container) return;
+                
+                const cSym = appState.settings[0]?.currency || '$';
+                const term = search.toLowerCase();
+                const items = appState.products.filter(p => p.stock > 0 && (p.name.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term)));
+                
+                container.innerHTML = items.map(p => `
+                    <div onclick="window.POS.addToCart('${p.id}')" class="bg-white border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-blue-500 hover:shadow-md transition flex flex-col justify-between h-28 select-none">
+                        <div>
+                            <div class="text-xs text-gray-400 font-mono mb-1">${p.sku}</div>
+                            <div class="font-semibold text-gray-800 text-sm leading-tight line-clamp-2">${p.name}</div>
+                        </div>
+                        <div class="flex justify-between items-end">
+                            <span class="text-xs text-gray-500">Stk: ${p.stock}</span>
+                            <span class="font-bold text-blue-600">${cSym}${Number(p.price).toFixed(2)}</span>
+                        </div>
+                    </div>
+                `).join('') || '<div class="col-span-full text-center text-gray-500 mt-4">No products available</div>';
+            },
+            addToCart: (id) => {
+                const p = appState.products.find(x => x.id === id);
+                if(!p) return;
+                
+                const existing = window.POS.cart.find(x => x.id === id);
+                if (existing) {
+                    if (existing.qty < p.stock) existing.qty++;
+                    else showToast("Not enough stock", "error");
+                } else {
+                    window.POS.cart.push({ ...p, qty: 1 });
+                }
+                window.POS.updateCartUI();
+            },
+            updateQty: (id, change) => {
+                const item = window.POS.cart.find(x => x.id === id);
+                const p = appState.products.find(x => x.id === id);
+                if(item) {
+                    item.qty += change;
+                    if(item.qty <= 0) window.POS.cart = window.POS.cart.filter(x => x.id !== id);
+                    if(item.qty > p.stock) { item.qty = p.stock; showToast("Max stock reached", "error"); }
+                }
+                window.POS.updateCartUI();
+            },
+            clear: () => { window.POS.cart = []; window.POS.updateCartUI(); },
+            updateCartUI: () => {
+                const container = document.getElementById('pos-cart');
+                if(!container) return;
+
+                const cSym = appState.settings[0]?.currency || '$';
+
+                if(window.POS.cart.length === 0) {
+                    container.innerHTML = '<div class="text-center text-gray-400 mt-10">Cart is empty</div>';
+                    document.getElementById('pos-subtotal').innerText = `${cSym}0.00`;
+                    document.getElementById('pos-total').innerText = `${cSym}0.00`;
+                    return;
+                }
+
+                let total = 0;
+                container.innerHTML = window.POS.cart.map(item => {
+                    const lineTotal = item.price * item.qty;
+                    total += lineTotal;
+                    return `
+                    <div class="flex items-center justify-between bg-white border border-gray-100 p-3 rounded-lg shadow-sm">
+                        <div class="flex-1">
+                            <p class="text-sm font-semibold text-gray-800 line-clamp-1">${item.name}</p>
+                            <p class="text-xs text-gray-500">${cSym}${item.price.toFixed(2)}</p>
+                        </div>
+                        <div class="flex items-center gap-2 mx-3">
+                            <button onclick="window.POS.updateQty('${item.id}', -1)" class="w-6 h-6 bg-gray-100 rounded text-gray-600 hover:bg-gray-200">-</button>
+                            <span class="text-sm font-bold w-4 text-center">${item.qty}</span>
+                            <button onclick="window.POS.updateQty('${item.id}', 1)" class="w-6 h-6 bg-gray-100 rounded text-gray-600 hover:bg-gray-200">+</button>
+                        </div>
+                        <div class="text-sm font-bold text-gray-800 w-16 text-right">${cSym}${lineTotal.toFixed(2)}</div>
+                    </div>
+                    `;
+                }).join('');
+
+                document.getElementById('pos-subtotal').innerText = `${cSym}${total.toFixed(2)}`;
+                document.getElementById('pos-total').innerText = `${cSym}${total.toFixed(2)}`;
+            },
+            checkout: async (generateBill) => {
+                if(window.POS.cart.length === 0) return showToast("Cart is empty", "error");
+                
+                const cSym = appState.settings[0]?.currency || '$';
+                const total = window.POS.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+                const saleData = {
+                    date: new Date().toISOString(),
+                    items: window.POS.cart.map(i => ({ id: i.id, name: i.name, sku: i.sku, price: i.price, qty: i.qty })),
+                    total: total,
+                    type: generateBill ? 'Billed' : 'Quick Sell'
+                };
+
+                const saleSuccess = await DB.save('sales', saleData);
+                
+                if(saleSuccess) {
+                    for (const item of window.POS.cart) {
+                        const product = appState.products.find(p => p.id === item.id);
+                        if(product) {
+                            product.stock -= item.qty;
+                            const { id, ...cleanProduct } = product; 
+                            await DB.save('products', cleanProduct, id);
+                        }
+                    }
+
+                    showToast("Sale completed successfully!");
+                    
+                    if(generateBill) {
+                        const brand = appState.settings[0]?.companyName || 'NEXUS INV';
+                        const receiptWindow = window.open('', '_blank');
+                        receiptWindow.document.write(`
+                            <html><head><title>Receipt</title><style>body{font-family:monospace; padding: 20px; width: 300px; margin: 0 auto;}</style></head>
+                            <body>
+                                <h2 style="text-align:center; text-transform:uppercase;">${brand}</h2>
+                                <p style="text-align:center">${new Date().toLocaleString()}</p><hr>
+                                ${window.POS.cart.map(i => `<div style="display:flex;justify-content:space-between"><span>${i.name} (x${i.qty})</span><span>${cSym}${(i.price*i.qty).toFixed(2)}</span></div>`).join('')}
+                                <hr><h3 style="text-align:right">TOTAL: ${cSym}${total.toFixed(2)}</h3>
+                                <p style="text-align:center">Thank you!</p>
+                            </body></html>
+                        `);
+                        receiptWindow.document.close();
+                        setTimeout(() => receiptWindow.print(), 500);
+                    }
+
+                    window.POS.clear();
+                    window.POS.renderProducts(); 
+                }
+            }
+        };
+
+        // Purchase Order Logic
+        window.POManager = {
+            cart: [],
+            onProductSelect: () => {
+                const select = document.getElementById('po-product');
+                const selectedOption = select.options[select.selectedIndex];
+                const costInput = document.getElementById('po-cost');
+                if(selectedOption && selectedOption.value) costInput.value = selectedOption.getAttribute('data-cost');
+                else costInput.value = '';
+            },
+            addItem: () => {
+                const pId = document.getElementById('po-product').value;
+                const qty = parseInt(document.getElementById('po-qty').value);
+                const cost = parseFloat(document.getElementById('po-cost').value);
+
+                if(!pId) return showToast("Please select a product", "error");
+                if(isNaN(qty) || qty <= 0) return showToast("Invalid quantity", "error");
+                if(isNaN(cost) || cost < 0) return showToast("Invalid cost", "error");
+
+                const product = appState.products.find(x => x.id === pId);
+                const existing = window.POManager.cart.find(x => x.id === pId);
+
+                if (existing) { existing.qty += qty; existing.cost = cost; } 
+                else { window.POManager.cart.push({ id: product.id, name: product.name, sku: product.sku, qty, cost }); }
+
+                document.getElementById('po-product').value = '';
+                document.getElementById('po-qty').value = '1';
+                document.getElementById('po-cost').value = '';
+                window.POManager.renderCart();
+            },
+            removeItem: (index) => { window.POManager.cart.splice(index, 1); window.POManager.renderCart(); },
+            renderCart: () => {
+                const tbody = document.getElementById('po-cart-body');
+                if(!tbody) return;
+
+                const cSym = appState.settings[0]?.currency || '$';
+
+                if(window.POManager.cart.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">No items added yet.</td></tr>';
+                    document.getElementById('po-total-display').innerText = `Total: ${cSym}0.00`;
+                    return;
+                }
+
+                let total = 0;
+                tbody.innerHTML = window.POManager.cart.map((item, index) => {
+                    const lineTotal = item.qty * item.cost;
+                    total += lineTotal;
+                    return `
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-6 py-4 font-medium text-gray-800">${item.name} <span class="text-xs text-gray-400 ml-1">(${item.sku})</span></td>
+                            <td class="px-6 py-4 text-right">${item.qty}</td>
+                            <td class="px-6 py-4 text-right">${cSym}${item.cost.toFixed(2)}</td>
+                            <td class="px-6 py-4 text-right font-semibold">${cSym}${lineTotal.toFixed(2)}</td>
+                            <td class="px-6 py-4 text-center"><button onclick="window.POManager.removeItem(${index})" class="text-red-500 hover:text-red-700"><i class="fas fa-times"></i></button></td>
+                        </tr>
+                    `;
+                }).join('');
+                document.getElementById('po-total-display').innerText = `Total: ${cSym}${total.toFixed(2)}`;
+            },
+            submit: async () => {
+                const supplierId = document.getElementById('po-supplier').value;
+                if(!supplierId) return showToast("Please select a supplier", "error");
+                if(window.POManager.cart.length === 0) return showToast("Cart is empty", "error");
+
+                const total = window.POManager.cart.reduce((sum, item) => sum + (item.qty * item.cost), 0);
+                const poData = { date: new Date().toISOString(), supplierId, items: window.POManager.cart, total, status: 'Received' };
+
+                const success = await DB.save('purchase_orders', poData);
+                if(success) {
+                    for(let item of window.POManager.cart) {
+                        const product = appState.products.find(p => p.id === item.id);
+                        if(product) {
+                            const oldStock = Number(product.stock) || 0;
+                            const oldCost = Number(product.cost) || 0;
+                            const newStock = oldStock + item.qty;
+                            const newCost = ((oldStock * oldCost) + (item.qty * item.cost)) / newStock;
+
+                            product.stock = newStock;
+                            product.cost = newCost;
+
+                            const { id, ...cleanProduct } = product;
+                            await DB.save('products', cleanProduct, id);
+                        }
+                    }
+                    showToast("Purchase Order created and inventory received!");
+                    window.POManager.cart = [];
+                    Views.purchase_orders(); 
+                }
+            }
+        };
+
+        // Stock Audit Logic
+        window.StockAudit = {
+            sync: async (id) => {
+                const newQtyInput = document.getElementById(`adj-qty-${id}`);
+                const reasonInput = document.getElementById(`adj-reason-${id}`);
+                const newQty = parseInt(newQtyInput.value);
+                const reason = reasonInput.value || 'Manual Audit';
+                const product = appState.products.find(p => p.id === id);
+
+                if(!product) return showToast("Product not found", "error");
+                if(isNaN(newQty) || newQty < 0) return showToast("Invalid quantity", "error");
+                if(newQty === Number(product.stock)) return showToast("Actual count matches system. No update needed.", "info");
+
+                product.stock = newQty;
+                const { id: pid, ...cleanProduct } = product;
+                if(await DB.save('products', cleanProduct, pid)) {
+                    showToast(`Stock updated to ${newQty} for ${product.name} (${reason})`);
+                    reasonInput.value = ''; 
+                }
+            }
+        };
+
+        // Settings Logic
+        window.SettingsForm = {
+            save: async (e, id) => {
+                e.preventDefault();
+                const data = {
+                    companyName: document.getElementById('set-company').value,
+                    currency: document.getElementById('set-currency').value
+                };
+                if (await DB.save('settings', data, id ? id : null)) {
+                    showToast("System settings updated successfully!");
+                }
+            },
+            applySettings: () => {
+                const s = appState.settings[0];
+                if(s && s.companyName) {
+                    const brandEl = document.getElementById('brand-name');
+                    if(brandEl) brandEl.innerText = s.companyName;
+                }
+            },
+            exportData: () => {
+                showConfirm("This will download a completely decrypted backup of your database. Keep it secure.", () => {
+                    const dataStr = JSON.stringify(appState, null, 2);
+                    const blob = new Blob([dataStr], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `inventory_backup_${new Date().toISOString().split('T')[0]}.json`;
+                    
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                        showToast("Data exported successfully!");
+                    }, 0);
+                });
+            }
+        };
+
+        // Initialize Call
+        initAuth();
+
+    </script>
+</body>
+</html>
