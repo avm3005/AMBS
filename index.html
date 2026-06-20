@@ -645,7 +645,10 @@
                 if(currentView === 'billing') window.POS.renderCustomerSelect();
             });
             DB.listen('suppliers', 'suppliers', () => { if(currentView === 'suppliers') Views.suppliers(); });
-            DB.listen('warehouses', 'warehouses', () => { if(currentView === 'warehouses') Views.warehouses(); });
+            DB.listen('warehouses', 'warehouses', () => { 
+                if(currentView === 'warehouses') Views.warehouses(); 
+                if(currentView === 'products') Views.products(); 
+            });
             DB.listen('purchase_orders', 'purchase_orders', () => { 
                 if(currentView === 'purchase_orders') Views.purchase_orders(); 
                 if(currentView === 'shipments') Views.shipments(); 
@@ -837,7 +840,7 @@
                                     <tr>
                                         <th class="px-6 py-3 font-medium">SKU</th>
                                         <th class="px-6 py-3 font-medium">Name</th>
-                                        <th class="px-6 py-3 font-medium">Category</th>
+                                        <th class="px-6 py-3 font-medium">Warehouse</th>
                                         <th class="px-6 py-3 font-medium">Price</th>
                                         <th class="px-6 py-3 font-medium">Cost</th>
                                         <th class="px-6 py-3 font-medium">Stock</th>
@@ -869,11 +872,15 @@
                     return;
                 }
 
-                tbody.innerHTML = products.map(p => `
+                tbody.innerHTML = products.map(p => {
+                    const warehouse = appState.warehouses.find(w => w.id === p.warehouseId);
+                    const wName = warehouse ? warehouse.name : 'Unassigned';
+
+                    return `
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-6 py-4 font-mono text-xs text-gray-500">${p.sku}</td>
                         <td class="px-6 py-4 font-medium text-gray-800">${p.name}</td>
-                        <td class="px-6 py-4"><span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">${p.category || 'N/A'}</span></td>
+                        <td class="px-6 py-4"><span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">${wName}</span></td>
                         <td class="px-6 py-4 text-green-600 font-semibold">${cSym}${Number(p.price).toFixed(2)}</td>
                         <td class="px-6 py-4 text-gray-500">${cSym}${Number(p.cost).toFixed(2)}</td>
                         <td class="px-6 py-4">
@@ -886,12 +893,79 @@
                             <button onclick="window.ProductForm.delete('${p.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
                         </td>
                     </tr>
-                `).join('');
+                    `;
+                }).join('');
             },
 
             // --- INVENTORY OVERVIEW ---
             inventory: () => {
                 const container = document.getElementById('page-content');
+                let unassignedProds = appState.products.filter(p => !p.warehouseId);
+
+                let warehouseHTML = appState.warehouses.map(w => {
+                    const wProds = appState.products.filter(p => p.warehouseId === w.id);
+                    if(wProds.length === 0) return '';
+                    
+                    const wItemsHTML = wProds.map(p => {
+                        const max = p.maxStock ? p.maxStock : Math.max(100, p.stock * 2);
+                        const pct = Math.min(100, (p.stock / max) * 100);
+                        const color = p.stock <= p.minStock ? 'bg-red-500' : 'bg-green-500';
+                        return `
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="font-medium text-gray-700">${p.name} <span class="text-gray-400 text-xs ml-2">${p.sku}</span></span>
+                                <span class="font-bold ${p.stock <= p.minStock ? 'text-red-500' : 'text-gray-700'}">${p.stock} / ${p.maxStock || '∞'}</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="${color} h-2 rounded-full" style="width: ${pct}%"></div>
+                            </div>
+                        </div>
+                        `;
+                    }).join('');
+
+                    return `
+                        <div class="mb-6">
+                            <h4 class="font-bold text-gray-700 mb-3 border-b pb-2"><i class="fas fa-warehouse mr-2 text-blue-500"></i>${w.name} <span class="text-xs text-gray-400 font-normal ml-2">${w.location || ''}</span></h4>
+                            <div class="space-y-4">
+                                ${wItemsHTML}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                let unassignedHTML = '';
+                if(unassignedProds.length > 0) {
+                    const uItemsHTML = unassignedProds.map(p => {
+                        const max = p.maxStock ? p.maxStock : Math.max(100, p.stock * 2);
+                        const pct = Math.min(100, (p.stock / max) * 100);
+                        const color = p.stock <= p.minStock ? 'bg-red-500' : 'bg-green-500';
+                        return `
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="font-medium text-gray-700">${p.name} <span class="text-gray-400 text-xs ml-2">${p.sku}</span></span>
+                                <span class="font-bold ${p.stock <= p.minStock ? 'text-red-500' : 'text-gray-700'}">${p.stock} / ${p.maxStock || '∞'}</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="${color} h-2 rounded-full" style="width: ${pct}%"></div>
+                            </div>
+                        </div>
+                        `;
+                    }).join('');
+
+                    unassignedHTML = `
+                        <div class="mb-6">
+                            <h4 class="font-bold text-gray-500 mb-3 border-b pb-2"><i class="fas fa-box mr-2"></i>Unassigned Products</h4>
+                            <div class="space-y-4">
+                                ${uItemsHTML}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if(!warehouseHTML && !unassignedHTML) {
+                    warehouseHTML = '<p class="text-gray-500 text-sm">No inventory data available.</p>';
+                }
+
                 container.innerHTML = `
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                         <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
@@ -911,25 +985,9 @@
                         </button>
                     </div>
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <h3 class="font-semibold text-gray-800 mb-4">Stock Levels</h3>
-                        <div class="space-y-4">
-                            ${appState.products.map(p => {
-                                const max = p.maxStock ? p.maxStock : Math.max(100, p.stock * 2);
-                                const pct = Math.min(100, (p.stock / max) * 100);
-                                const color = p.stock <= p.minStock ? 'bg-red-500' : 'bg-green-500';
-                                return `
-                                <div>
-                                    <div class="flex justify-between text-sm mb-1">
-                                        <span class="font-medium text-gray-700">${p.name} <span class="text-gray-400 text-xs ml-2">${p.sku}</span></span>
-                                        <span class="font-bold ${p.stock <= p.minStock ? 'text-red-500' : 'text-gray-700'}">${p.stock} / ${p.maxStock || '∞'}</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-2">
-                                        <div class="${color} h-2 rounded-full" style="width: ${pct}%"></div>
-                                    </div>
-                                </div>
-                                `;
-                            }).join('') || '<p class="text-gray-500 text-sm">No inventory data.</p>'}
-                        </div>
+                        <h3 class="font-semibold text-gray-800 mb-4">Stock Levels by Warehouse</h3>
+                        ${warehouseHTML}
+                        ${unassignedHTML}
                     </div>
                 `;
             },
@@ -938,6 +996,7 @@
             billing: () => {
                 const container = document.getElementById('page-content');
                 window.POS.cart = []; 
+                window.POS.discountMode = 'none'; // 'none', 'total', 'item'
                 window.POS.discountVal = 0;
                 window.POS.discountType = '%';
                 window.POS.excludeTax = false;
@@ -959,9 +1018,18 @@
                         <div class="w-full lg:w-[400px] bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col flex-shrink-0">
                             <!-- Advanced Customer Panel -->
                             <div class="p-4 border-b border-gray-100 bg-gray-50 flex flex-col gap-3">
-                                <div class="flex justify-between items-center">
+                                <div class="flex justify-between items-center mb-1">
                                     <h3 class="font-bold text-gray-800">Current Sale</h3>
                                     <button onclick="window.POS.clear()" class="text-xs text-red-500 hover:text-red-700">Clear Cart</button>
+                                </div>
+                                
+                                <div class="flex gap-2">
+                                    <input type="date" id="pos-date" class="border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" value="${new Date().toISOString().split('T')[0]}">
+                                    <select id="pos-discount-mode" onchange="window.POS.changeDiscountMode()" class="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="none">No Discount</option>
+                                        <option value="total">Discount on Total</option>
+                                        <option value="item">Discount per Item</option>
+                                    </select>
                                 </div>
                                 
                                 <div class="flex gap-2">
@@ -988,16 +1056,16 @@
                             
                             <div class="p-4 border-t border-gray-100 bg-gray-50">
                                 <!-- Discount and Tax row -->
-                                <div class="flex gap-2 mb-3">
-                                    <input type="number" id="pos-discount" placeholder="Discount" class="w-1/2 border border-gray-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500" oninput="window.POS.updateDiscount()">
+                                <div id="pos-discount-total-container" class="hidden flex gap-2 mb-3">
+                                    <input type="number" id="pos-discount" placeholder="Total Discount" class="w-1/2 border border-gray-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500" oninput="window.POS.updateDiscount()">
                                     <select id="pos-discount-type" class="w-1/4 border border-gray-300 rounded px-1 py-1 text-sm outline-none focus:border-blue-500" onchange="window.POS.updateDiscount()">
                                         <option value="%">%</option>
                                         <option value="fixed">Fixed</option>
                                     </select>
-                                    <div class="w-1/4 flex items-center justify-end gap-1">
-                                        <input type="checkbox" id="pos-exclude-tax" onchange="window.POS.updateTaxToggle()" class="w-4 h-4 cursor-pointer">
-                                        <label class="text-xs text-gray-600 font-medium cursor-pointer" for="pos-exclude-tax">No Tax</label>
-                                    </div>
+                                </div>
+                                <div class="flex items-center justify-end gap-1 mb-3">
+                                    <input type="checkbox" id="pos-exclude-tax" onchange="window.POS.updateTaxToggle()" class="w-4 h-4 cursor-pointer">
+                                    <label class="text-xs text-gray-600 font-medium cursor-pointer" for="pos-exclude-tax">Exclude Tax</label>
                                 </div>
 
                                 <div class="flex justify-between text-sm mb-1 text-gray-600"><span>Subtotal</span><span id="pos-subtotal">${cSym}0.00</span></div>
@@ -1007,7 +1075,7 @@
                                 
                                 <div class="grid grid-cols-2 gap-2">
                                     <button onclick="window.POS.checkout(false)" class="bg-gray-800 text-white py-3 rounded-lg font-semibold hover:bg-gray-900 transition">Quick Sell</button>
-                                    <button onclick="window.POS.checkout(true)" class="bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"><i class="fas fa-print"></i> Sell & Bill</button>
+                                    <button onclick="window.POS.checkout(true)" class="bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"><i class="fas fa-print"></i> Generate Bill</button>
                                 </div>
                             </div>
                         </div>
@@ -1223,6 +1291,14 @@
                                     ${appState.suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
                                 </select>
                             </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Destination Warehouse</label>
+                                <select id="po-warehouse" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                    <option value="">-- Main Location (Default) --</option>
+                                    ${appState.warehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('')}
+                                </select>
+                            </div>
 
                             <div class="border-t border-gray-100 pt-4 mt-2">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Select Product</label>
@@ -1295,7 +1371,7 @@
                                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm">
                                     <tr>
                                         <th class="px-6 py-3 font-medium">Date Ordered</th>
-                                        <th class="px-6 py-3 font-medium">Supplier</th>
+                                        <th class="px-6 py-3 font-medium">Supplier & Dest</th>
                                         <th class="px-6 py-3 font-medium">Items Summary</th>
                                         <th class="px-6 py-3 font-medium">Total Cost</th>
                                         <th class="px-6 py-3 font-medium">Status</th>
@@ -1320,13 +1396,18 @@
                 tbody.innerHTML = pos.map(po => {
                     const supplier = appState.suppliers.find(s => s.id === po.supplierId);
                     const supName = supplier ? supplier.name : 'Unknown Supplier';
+                    const warehouse = appState.warehouses.find(w => w.id === po.warehouseId);
+                    const destName = warehouse ? warehouse.name : 'Main Location';
                     const itemsSum = po.items.map(i => `${i.qty}x ${i.name}`).join(', ');
                     const isPending = po.status === 'Pending';
                     
                     return `
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-6 py-4 text-gray-600 whitespace-nowrap">${new Date(po.date).toLocaleString()}</td>
-                            <td class="px-6 py-4 font-semibold text-gray-800">${supName}</td>
+                            <td class="px-6 py-4">
+                                <div class="font-semibold text-gray-800">${supName}</div>
+                                <div class="text-xs text-gray-500"><i class="fas fa-arrow-right mr-1"></i>${destName}</div>
+                            </td>
                             <td class="px-6 py-4 text-gray-700 truncate max-w-xs" title="${itemsSum}">${itemsSum}</td>
                             <td class="px-6 py-4 font-bold text-gray-800">${cSym}${Number(po.total).toFixed(2)}</td>
                             <td class="px-6 py-4">
@@ -1544,7 +1625,7 @@
             // --- SYSTEM SETTINGS ---
             system_settings: () => {
                 const container = document.getElementById('page-content');
-                const s = appState.settings[0] || { companyName: '', currency: '₹', id: null };
+                const s = appState.settings[0] || { companyName: '', currency: '₹', id: null, gst: '', phone: '', email: '', address: '' };
                 
                 container.innerHTML = `
                     <div class="max-w-4xl mx-auto space-y-6 h-full pb-10">
@@ -1557,8 +1638,24 @@
                                         <input type="text" id="set-company" value="${s.companyName || ''}" placeholder="Nexus Inv" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
                                     </div>
                                     <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">GSTIN Number</label>
+                                        <input type="text" id="set-gst" value="${s.gst || ''}" placeholder="22AAAAA0000A1Z5" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                                        <input type="text" id="set-phone" value="${s.phone || ''}" placeholder="+91 9876543210" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                                        <input type="email" id="set-email" value="${s.email || ''}" placeholder="billing@company.com" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Default Currency Symbol</label>
                                         <input type="text" id="set-currency" value="${s.currency || '₹'}" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    <div class="col-span-1 md:col-span-2">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Company Address</label>
+                                        <textarea id="set-address" rows="3" placeholder="123 Business Road..." class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">${s.address || ''}</textarea>
                                     </div>
                                 </div>
                                 <div class="flex justify-end pt-2">
@@ -1595,7 +1692,7 @@
         window.ProductForm = {
             open: (product = null) => {
                 const title = product ? "Edit Product" : "Add New Product";
-                const p = product || { name: '', sku: '', category: '', price: 0, cost: 0, stock: 0, minStock: 5, maxStock: 100, taxRate: 0 };
+                const p = product || { name: '', sku: '', category: '', warehouseId: '', price: 0, cost: 0, stock: 0, minStock: 5, maxStock: 100, taxRate: 0 };
                 
                 showModal(`
                     <div class="p-6">
@@ -1614,9 +1711,18 @@
                                     <input type="text" id="pf-sku" value="${p.sku}" required class="w-full border border-gray-300 rounded px-3 py-2 uppercase focus:ring-blue-500 focus:border-blue-500 outline-none">
                                 </div>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                                <input type="text" id="pf-cat" value="${p.category}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                                    <input type="text" id="pf-cat" value="${p.category}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Warehouse</label>
+                                    <select id="pf-warehouse" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white">
+                                        <option value="">-- Unassigned --</option>
+                                        ${appState.warehouses.map(w => `<option value="${w.id}" ${p.warehouseId === w.id ? 'selected' : ''}>${w.name}</option>`).join('')}
+                                    </select>
+                                </div>
                             </div>
                             <div class="grid grid-cols-3 gap-4">
                                 <div>
@@ -1660,6 +1766,7 @@
                     name: document.getElementById('pf-name').value,
                     sku: document.getElementById('pf-sku').value.toUpperCase(),
                     category: document.getElementById('pf-cat').value,
+                    warehouseId: document.getElementById('pf-warehouse').value,
                     price: parseFloat(document.getElementById('pf-price').value),
                     cost: parseFloat(document.getElementById('pf-cost').value),
                     taxRate: parseFloat(document.getElementById('pf-tax').value) || 0,
@@ -1871,10 +1978,21 @@
         // Point of Sale Logic
         window.POS = {
             cart: [],
+            discountMode: 'none', // none, total, item
             discountVal: 0,
             discountType: '%',
             excludeTax: false,
 
+            changeDiscountMode: () => {
+                window.POS.discountMode = document.getElementById('pos-discount-mode').value;
+                const totalContainer = document.getElementById('pos-discount-total-container');
+                if (window.POS.discountMode === 'total') {
+                    totalContainer.classList.remove('hidden');
+                } else {
+                    totalContainer.classList.add('hidden');
+                }
+                window.POS.updateCartUI();
+            },
             updateDiscount: () => {
                 const val = parseFloat(document.getElementById('pos-discount').value) || 0;
                 const type = document.getElementById('pos-discount-type').value;
@@ -1882,7 +2000,20 @@
                 window.POS.discountType = type;
                 window.POS.updateCartUI();
             },
-            
+            updateItemDiscount: (id, val) => {
+                const item = window.POS.cart.find(x => x.id === id);
+                if(item) {
+                    item.itemDiscount = parseFloat(val) || 0;
+                    window.POS.updateCartUI();
+                }
+            },
+            updateItemDiscountType: (id, val) => {
+                const item = window.POS.cart.find(x => x.id === id);
+                if(item) {
+                    item.itemDiscountType = val;
+                    window.POS.updateCartUI();
+                }
+            },
             updateTaxToggle: () => {
                 const cb = document.getElementById('pos-exclude-tax');
                 window.POS.excludeTax = cb ? cb.checked : false;
@@ -1960,7 +2091,12 @@
                     if (existing.qty < p.stock) existing.qty++;
                     else showToast("Not enough stock", "error");
                 } else {
-                    window.POS.cart.push({ ...p, qty: 1 });
+                    window.POS.cart.push({ 
+                        ...p, 
+                        qty: 1, 
+                        itemDiscount: 0, 
+                        itemDiscountType: '%' 
+                    });
                 }
                 window.POS.updateCartUI();
             },
@@ -2020,31 +2156,51 @@
 
                 let subtotal = 0;
                 let taxTotal = 0;
+                let totalDiscount = 0;
 
                 container.innerHTML = window.POS.cart.map(item => {
                     const lineTotal = item.price * item.qty;
-                    subtotal += lineTotal;
+                    let itemDisc = 0;
+                    if(window.POS.discountMode === 'item') {
+                        itemDisc = item.itemDiscountType === '%' ? lineTotal * ((item.itemDiscount||0)/100) : (item.itemDiscount||0);
+                        if(itemDisc > lineTotal) itemDisc = lineTotal;
+                    }
                     
-                    const itemTax = window.POS.excludeTax ? 0 : (lineTotal * ((item.taxRate || 0) / 100));
-                    taxTotal += itemTax;
+                    item.calculatedDiscount = itemDisc; // cache for saving
+                    subtotal += lineTotal;
+                    totalDiscount += itemDisc;
 
                     const widthStylePrice = `width: ${Math.max(item.price.toString().length, 1) + 1}ch;`;
                     const widthStyleQty = `width: ${Math.max(item.qty.toString().length, 1) + 1}ch;`;
 
+                    const itemDiscUI = window.POS.discountMode === 'item' ? `
+                        <div class="flex items-center gap-1 mt-1 bg-red-50 p-1 rounded">
+                            <span class="text-[10px] font-bold text-red-400 uppercase">Disc:</span>
+                            <input type="number" step="0.01" value="${item.itemDiscount || 0}" onchange="window.POS.updateItemDiscount('${item.id}', this.value)" class="w-10 border-b border-gray-300 text-xs text-red-600 outline-none bg-transparent">
+                            <select onchange="window.POS.updateItemDiscountType('${item.id}', this.value)" class="text-xs border-none bg-transparent outline-none text-red-600 font-bold p-0">
+                                <option value="%" ${item.itemDiscountType==='%'?'selected':''}>%</option>
+                                <option value="fixed" ${item.itemDiscountType==='fixed'?'selected':''}>${cSym}</option>
+                            </select>
+                        </div>
+                    ` : '';
+
                     return `
                     <div class="flex items-center justify-between bg-white border border-gray-100 p-3 rounded-lg shadow-sm">
-                        <div class="flex-1">
+                        <div class="flex-1 pr-2">
                             <p class="text-sm font-semibold text-gray-800 line-clamp-1">${item.name}</p>
-                            <div class="flex items-center gap-1 mt-1 text-gray-500">
-                                <span class="text-xs font-medium">${cSym}</span>
-                                <input type="number" step="0.01" value="${item.price}" 
-                                       oninput="this.style.width = (this.value.length + 1) + 'ch';"
-                                       onchange="window.POS.updateItemPrice('${item.id}', this.value)" 
-                                       style="${widthStylePrice} min-width: 3ch;"
-                                       class="border-b border-gray-300 text-xs text-gray-700 outline-none focus:border-blue-500 bg-transparent text-center px-0.5 hide-scroll transition-all">
+                            <div class="flex flex-col">
+                                <div class="flex items-center gap-1 mt-1 text-gray-500">
+                                    <span class="text-xs font-medium">${cSym}</span>
+                                    <input type="number" step="0.01" value="${item.price}" 
+                                           oninput="this.style.width = (this.value.length + 1) + 'ch';"
+                                           onchange="window.POS.updateItemPrice('${item.id}', this.value)" 
+                                           style="${widthStylePrice} min-width: 3ch;"
+                                           class="border-b border-gray-300 text-xs text-gray-700 outline-none focus:border-blue-500 bg-transparent text-center px-0.5 hide-scroll transition-all">
+                                </div>
+                                ${itemDiscUI}
                             </div>
                         </div>
-                        <div class="flex items-center mx-2 bg-gray-100 rounded-md border border-gray-200">
+                        <div class="flex items-center mx-1 bg-gray-100 rounded-md border border-gray-200">
                             <button onclick="window.POS.updateQty('${item.id}', -1)" class="w-7 h-7 text-gray-600 hover:bg-gray-200 rounded-l-md flex items-center justify-center font-bold transition">-</button>
                             <input type="number" value="${item.qty}" 
                                    oninput="this.style.width = (this.value.length + 1) + 'ch';"
@@ -2053,25 +2209,30 @@
                                    class="text-center text-sm font-bold bg-white border-x border-gray-200 outline-none appearance-none hide-scroll h-7 px-1 transition-all">
                             <button onclick="window.POS.updateQty('${item.id}', 1)" class="w-7 h-7 text-gray-600 hover:bg-gray-200 rounded-r-md flex items-center justify-center font-bold transition">+</button>
                         </div>
-                        <div class="text-sm font-bold text-gray-800 w-20 text-right">${cSym}${lineTotal.toFixed(2)}</div>
+                        <div class="text-sm font-bold text-gray-800 w-16 text-right">${cSym}${(lineTotal - itemDisc).toFixed(2)}</div>
                     </div>
                     `;
                 }).join('');
 
-                let discountAmt = 0;
-                if (window.POS.discountType === '%') {
-                    discountAmt = subtotal * (window.POS.discountVal / 100);
-                } else {
-                    discountAmt = window.POS.discountVal;
+                if (window.POS.discountMode === 'total') {
+                    totalDiscount = window.POS.discountType === '%' ? subtotal * (window.POS.discountVal / 100) : window.POS.discountVal;
+                    if (totalDiscount > subtotal) totalDiscount = subtotal;
                 }
                 
-                // Ensure discount doesn't exceed subtotal
-                if (discountAmt > subtotal) discountAmt = subtotal;
+                let discRatio = subtotal > 0 ? (subtotal - totalDiscount) / subtotal : 0;
+                
+                window.POS.cart.forEach(item => {
+                    let lineTotal = item.price * item.qty;
+                    let lineAfterDisc = window.POS.discountMode === 'item' ? lineTotal - (item.calculatedDiscount||0) : lineTotal * discRatio;
+                    let itemTax = window.POS.excludeTax ? 0 : lineAfterDisc * ((item.taxRate || 0) / 100);
+                    item.calculatedTax = itemTax;
+                    taxTotal += itemTax;
+                });
 
-                const finalTotal = subtotal - discountAmt + taxTotal;
+                const finalTotal = subtotal - totalDiscount + taxTotal;
 
                 document.getElementById('pos-subtotal').innerText = `${cSym}${subtotal.toFixed(2)}`;
-                document.getElementById('pos-discount-amt').innerText = `-${cSym}${discountAmt.toFixed(2)}`;
+                document.getElementById('pos-discount-amt').innerText = `-${cSym}${totalDiscount.toFixed(2)}`;
                 document.getElementById('pos-tax-amt').innerText = `+${cSym}${taxTotal.toFixed(2)}`;
                 document.getElementById('pos-total').innerText = `${cSym}${finalTotal.toFixed(2)}`;
             },
@@ -2082,16 +2243,23 @@
                 
                 let subtotal = 0;
                 let taxTotal = 0;
+                let totalDiscount = 0;
+                
                 window.POS.cart.forEach(item => {
-                    const lineTotal = item.price * item.qty;
-                    subtotal += lineTotal;
-                    taxTotal += window.POS.excludeTax ? 0 : (lineTotal * ((item.taxRate || 0) / 100));
+                    subtotal += (item.price * item.qty);
+                    totalDiscount += (item.calculatedDiscount || 0);
                 });
                 
-                let discountAmt = window.POS.discountType === '%' ? subtotal * (window.POS.discountVal / 100) : window.POS.discountVal;
-                if (discountAmt > subtotal) discountAmt = subtotal;
+                if (window.POS.discountMode === 'total') {
+                    totalDiscount = window.POS.discountType === '%' ? subtotal * (window.POS.discountVal / 100) : window.POS.discountVal;
+                    if(totalDiscount > subtotal) totalDiscount = subtotal;
+                }
+
+                window.POS.cart.forEach(item => {
+                    taxTotal += (item.calculatedTax || 0);
+                });
                 
-                const finalTotal = subtotal - discountAmt + taxTotal;
+                const finalTotal = subtotal - totalDiscount + taxTotal;
                 
                 const cId = document.getElementById('pos-customer').value;
                 const pType = document.getElementById('pos-payment-type').value;
@@ -2099,9 +2267,13 @@
                 
                 const saleData = {
                     date: new Date().toISOString(),
-                    items: window.POS.cart.map(i => ({ id: i.id, name: i.name, sku: i.sku, price: i.price, qty: i.qty, originalPrice: i.price, taxRate: i.taxRate })),
+                    items: window.POS.cart.map(i => ({ 
+                        id: i.id, name: i.name, sku: i.sku, 
+                        price: i.price, qty: i.qty, originalPrice: i.price, 
+                        taxRate: i.taxRate, taxAmt: i.calculatedTax, discountAmt: i.calculatedDiscount 
+                    })),
                     subtotal: subtotal,
-                    discount: discountAmt,
+                    discount: totalDiscount,
                     tax: taxTotal,
                     total: finalTotal,
                     type: generateBill ? 'Billed' : 'Quick Sell',
@@ -2133,43 +2305,116 @@
                     showToast("Sale completed successfully!");
                     
                     if(generateBill) {
-                        const brand = appState.settings[0]?.companyName || 'NEXUS INV';
-                        const custHeader = customer ? `<p style="text-align:center; font-size: 12px; margin-top: -10px;">To: ${customer.name} ${customer.company ? `(${customer.company})` : ''}</p>` : '';
+                        const settings = appState.settings[0] || {};
+                        const brand = settings.companyName || 'NEXUS INV';
+                        const address = (settings.address || '').replace(/\n/g, '<br>');
+                        const phone = settings.phone || '';
+                        const email = settings.email || '';
+                        const gst = settings.gst || '';
                         
+                        const custName = customer ? (customer.company || customer.name) : 'Walk-in Customer';
+                        const custContact = customer ? `${customer.phone || ''} ${customer.email ? `| ${customer.email}` : ''}` : '';
+                        const custAddress = customer ? (customer.address || '').replace(/\n/g, '<br>') : '';
+                        
+                        const invoiceDateStr = document.getElementById('pos-date').value || new Date().toISOString().split('T')[0];
+                        const invoiceDate = new Date(invoiceDateStr).toLocaleDateString();
+                        const invoiceNumber = "INV-" + Math.floor(Math.random() * 1000000);
+
                         const receiptWindow = window.open('', '_blank');
                         receiptWindow.document.write(`
-                            <html><head><title>Receipt</title>
+                            <html><head><title>Tax Invoice</title>
+                            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
                             <style>
-                                body{font-family:monospace; padding: 20px; max-width: 350px; margin: 0 auto; color: #000;}
+                                body{font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 30px; max-width: 800px; margin: 0 auto; color: #333;}
                                 @media print { .no-print { display: none; } }
-                                .btn { background: #3b82f6; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; margin-right: 5px; font-weight: bold; }
-                                .btn-gray { background: #6b7280; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-                                .flex-between { display: flex; justify-content: space-between; margin-bottom: 3px;}
+                                .header { display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px; }
+                                .company-details { font-size: 14px; line-height: 1.4; }
+                                .invoice-details { text-align: right; }
+                                table { border-collapse: collapse; margin-top: 20px; margin-bottom: 20px; width: 100%;}
+                                th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 14px; }
+                                th { background-color: #f9fafb; font-weight: bold; }
+                                .totals { width: 50%; float: right; }
+                                .totals-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee; }
+                                .totals-row.bold { font-weight: bold; font-size: 18px; border-top: 2px solid #333; border-bottom: none; padding-top: 10px; }
+                                .btn { background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px; font-weight: bold; }
+                                .btn-gray { background: #6b7280; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+                                .customer-box { background: #f9fafb; padding: 15px; border-radius: 5px; margin-bottom: 20px; width: 50%;}
                             </style>
                             </head>
                             <body>
-                                <div class="no-print" style="margin-bottom: 20px; text-align: center;">
-                                    <button class="btn" onclick="window.print()">Print Receipt</button>
-                                    <button class="btn-gray" onclick="window.close()">Go Back</button>
+                                <div class="no-print" style="margin-bottom: 20px; text-align: right; padding: 10px; background: #f3f4f6; border-radius: 8px;">
+                                    <button class="btn" onclick="window.print()"><i class="fas fa-print"></i> Print Invoice</button>
+                                    <button class="btn-gray" onclick="window.close()">Go Back (Close)</button>
                                 </div>
                                 
-                                <h2 style="text-align:center; text-transform:uppercase; margin-bottom: 5px;">${brand}</h2>
-                                ${custHeader}
-                                <p style="text-align:center; font-size: 10px;">${new Date().toLocaleString()}</p>
-                                <hr>
-                                ${window.POS.cart.map(i => `<div class="flex-between"><span>${i.name} (x${i.qty})</span><span>${cSym}${(i.price*i.qty).toFixed(2)}</span></div>`).join('')}
-                                <hr>
-                                <div class="flex-between"><span>Subtotal:</span><span>${cSym}${subtotal.toFixed(2)}</span></div>
-                                ${discountAmt > 0 ? `<div class="flex-between"><span>Discount:</span><span>-${cSym}${discountAmt.toFixed(2)}</span></div>` : ''}
-                                ${taxTotal > 0 ? `<div class="flex-between"><span>Tax:</span><span>+${cSym}${taxTotal.toFixed(2)}</span></div>` : ''}
+                                <div class="header">
+                                    <div class="company-details">
+                                        <h1 style="margin:0 0 10px 0; color: #111;">${brand}</h1>
+                                        ${address ? `<div>${address}</div>` : ''}
+                                        ${phone ? `<div style="margin-top: 5px;"><strong>Phone:</strong> ${phone}</div>` : ''}
+                                        ${email ? `<div><strong>Email:</strong> ${email}</div>` : ''}
+                                        ${gst ? `<div style="margin-top: 5px;"><strong>GSTIN:</strong> ${gst}</div>` : ''}
+                                    </div>
+                                    <div class="invoice-details">
+                                        <h2 style="margin:0 0 10px 0; color: #111;">TAX INVOICE</h2>
+                                        <div><strong>Invoice No:</strong> ${invoiceNumber}</div>
+                                        <div><strong>Date:</strong> ${invoiceDate}</div>
+                                        <div><strong>Payment Mode:</strong> ${pType}</div>
+                                    </div>
+                                </div>
+
+                                <div class="customer-box">
+                                    <h3 style="margin:0 0 5px 0;">Bill To:</h3>
+                                    <div style="font-weight: bold; font-size: 16px;">${custName}</div>
+                                    ${custContact ? `<div style="font-size: 14px; margin-top: 4px;">${custContact}</div>` : ''}
+                                    ${custAddress ? `<div style="font-size: 14px; margin-top: 4px;">${custAddress}</div>` : ''}
+                                </div>
+
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Item Description</th>
+                                            <th style="text-align: right;">Qty</th>
+                                            <th style="text-align: right;">Rate (${cSym})</th>
+                                            ${window.POS.discountMode === 'item' ? `<th style="text-align: right;">Discount</th>` : ''}
+                                            <th style="text-align: right;">Tax</th>
+                                            <th style="text-align: right;">Amount (${cSym})</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${window.POS.cart.map(i => {
+                                            let lineTotal = i.price * i.qty;
+                                            let amount = lineTotal - (i.calculatedDiscount||0) + (i.calculatedTax||0);
+                                            return `
+                                            <tr>
+                                                <td>
+                                                    <strong>${i.name}</strong><br>
+                                                    <span style="font-size: 12px; color: #666;">SKU: ${i.sku} ${i.taxRate && !window.POS.excludeTax ? `| Tax: ${i.taxRate}%` : ''}</span>
+                                                </td>
+                                                <td style="text-align: right;">${i.qty}</td>
+                                                <td style="text-align: right;">${i.price.toFixed(2)}</td>
+                                                ${window.POS.discountMode === 'item' ? `<td style="text-align: right;">${(i.calculatedDiscount||0).toFixed(2)}</td>` : ''}
+                                                <td style="text-align: right;">${(i.calculatedTax||0).toFixed(2)}</td>
+                                                <td style="text-align: right;">${amount.toFixed(2)}</td>
+                                            </tr>
+                                            `;
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+
+                                <div class="totals">
+                                    <div class="totals-row"><span>Subtotal:</span><span>${cSym}${subtotal.toFixed(2)}</span></div>
+                                    ${totalDiscount > 0 ? `<div class="totals-row"><span>Total Discount:</span><span>-${cSym}${totalDiscount.toFixed(2)}</span></div>` : ''}
+                                    ${taxTotal > 0 ? `<div class="totals-row"><span>Total Tax:</span><span>+${cSym}${taxTotal.toFixed(2)}</span></div>` : ''}
+                                    <div class="totals-row bold"><span>Grand Total:</span><span>${cSym}${finalTotal.toFixed(2)}</span></div>
+                                </div>
                                 
-                                <div class="flex-between" style="margin-top: 10px;"><span>Payment:</span><strong>${pType}</strong></div>
-                                <h3 style="text-align:right; margin-top:5px;">TOTAL: ${cSym}${finalTotal.toFixed(2)}</h3>
-                                <p style="text-align:center; margin-top: 20px;">Thank you!</p>
+                                <div style="clear: both; margin-top: 60px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #ddd; padding-top: 20px;">
+                                    This is a computer-generated invoice.
+                                </div>
                             </body></html>
                         `);
                         receiptWindow.document.close();
-                        setTimeout(() => receiptWindow.print(), 500); // Trigger auto print
                     }
 
                     window.POS.clear();
@@ -2240,11 +2485,13 @@
             },
             submit: async () => {
                 const supplierId = document.getElementById('po-supplier').value;
+                const warehouseId = document.getElementById('po-warehouse').value; // track destination
+                
                 if(!supplierId) return showToast("Please select a supplier", "error");
                 if(window.POManager.cart.length === 0) return showToast("Cart is empty", "error");
 
                 const total = window.POManager.cart.reduce((sum, item) => sum + (item.qty * item.cost), 0);
-                const poData = { date: new Date().toISOString(), supplierId, items: window.POManager.cart, total, status: 'Pending' };
+                const poData = { date: new Date().toISOString(), supplierId, warehouseId, items: window.POManager.cart, total, status: 'Pending' };
 
                 const success = await DB.save('purchase_orders', poData);
                 if(success) {
@@ -2320,7 +2567,11 @@
                 e.preventDefault();
                 const data = {
                     companyName: document.getElementById('set-company').value,
-                    currency: document.getElementById('set-currency').value
+                    currency: document.getElementById('set-currency').value,
+                    gst: document.getElementById('set-gst').value,
+                    phone: document.getElementById('set-phone').value,
+                    email: document.getElementById('set-email').value,
+                    address: document.getElementById('set-address').value
                 };
                 if (await DB.save('settings', data, id ? id : null)) {
                     localStorage.setItem('companyName', data.companyName); // Update local cache
