@@ -29,6 +29,16 @@
         .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #3b82f6; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         .spinner-white { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #fff; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Hide Number Input Arrows */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
     </style>
 </head>
 <body class="text-gray-800 overflow-hidden h-screen flex">
@@ -636,7 +646,10 @@
             });
             DB.listen('suppliers', 'suppliers', () => { if(currentView === 'suppliers') Views.suppliers(); });
             DB.listen('warehouses', 'warehouses', () => { if(currentView === 'warehouses') Views.warehouses(); });
-            DB.listen('purchase_orders', 'purchase_orders', () => { if(currentView === 'purchase_orders') Views.purchase_orders(); });
+            DB.listen('purchase_orders', 'purchase_orders', () => { 
+                if(currentView === 'purchase_orders') Views.purchase_orders(); 
+                if(currentView === 'shipments') Views.shipments(); 
+            });
             DB.listen('settings', 'settings', () => { 
                 const s = appState.settings[0];
                 if(s && s.companyName) {
@@ -677,7 +690,8 @@
                 ]},
                 { group: 'Operations', items: [
                     { id: 'billing', icon: 'fa-file-invoice-dollar', label: 'Billing / POS' },
-                    { id: 'purchase_orders', icon: 'fa-truck-loading', label: 'Purchase Orders' },
+                    { id: 'purchase_orders', icon: 'fa-file-signature', label: 'Purchase Orders' },
+                    { id: 'shipments', icon: 'fa-truck-loading', label: 'Shipments' },
                     { id: 'stock_transfer', icon: 'fa-exchange-alt', label: 'Stock Audit' }
                 ]},
                 { group: 'Management', items: [
@@ -757,7 +771,9 @@
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                             <h3 class="text-lg font-semibold text-gray-800 mb-4">Stock by Category</h3>
-                            <canvas id="chart-categories" height="250"></canvas>
+                            <div class="relative h-[250px] w-full">
+                                <canvas id="chart-categories"></canvas>
+                            </div>
                         </div>
                         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                             <h3 class="text-lg font-semibold text-gray-800 mb-4">Recent Sales</h3>
@@ -861,7 +877,7 @@
                         <td class="px-6 py-4 text-green-600 font-semibold">${cSym}${Number(p.price).toFixed(2)}</td>
                         <td class="px-6 py-4 text-gray-500">${cSym}${Number(p.cost).toFixed(2)}</td>
                         <td class="px-6 py-4">
-                            <span class="${p.stock <= p.minStock ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'} px-2 py-1 rounded font-bold text-xs">
+                            <span class="${p.stock <= p.minStock ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'} px-2 py-1 rounded font-bold text-xs" title="Max: ${p.maxStock || '∞'}">
                                 ${p.stock}
                             </span>
                         </td>
@@ -898,14 +914,14 @@
                         <h3 class="font-semibold text-gray-800 mb-4">Stock Levels</h3>
                         <div class="space-y-4">
                             ${appState.products.map(p => {
-                                const max = Math.max(100, p.stock * 2);
+                                const max = p.maxStock ? p.maxStock : Math.max(100, p.stock * 2);
                                 const pct = Math.min(100, (p.stock / max) * 100);
                                 const color = p.stock <= p.minStock ? 'bg-red-500' : 'bg-green-500';
                                 return `
                                 <div>
                                     <div class="flex justify-between text-sm mb-1">
                                         <span class="font-medium text-gray-700">${p.name} <span class="text-gray-400 text-xs ml-2">${p.sku}</span></span>
-                                        <span class="font-bold ${p.stock <= p.minStock ? 'text-red-500' : 'text-gray-700'}">${p.stock} units</span>
+                                        <span class="font-bold ${p.stock <= p.minStock ? 'text-red-500' : 'text-gray-700'}">${p.stock} / ${p.maxStock || '∞'}</span>
                                     </div>
                                     <div class="w-full bg-gray-200 rounded-full h-2">
                                         <div class="${color} h-2 rounded-full" style="width: ${pct}%"></div>
@@ -922,6 +938,10 @@
             billing: () => {
                 const container = document.getElementById('page-content');
                 window.POS.cart = []; 
+                window.POS.discountVal = 0;
+                window.POS.discountType = '%';
+                window.POS.excludeTax = false;
+
                 const cSym = appState.settings[0]?.currency || '₹';
                 
                 container.innerHTML = `
@@ -936,7 +956,7 @@
                             <div class="flex-1 p-4 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-4" id="pos-products"></div>
                         </div>
 
-                        <div class="w-full lg:w-96 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col flex-shrink-0">
+                        <div class="w-full lg:w-[400px] bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col flex-shrink-0">
                             <!-- Advanced Customer Panel -->
                             <div class="p-4 border-b border-gray-100 bg-gray-50 flex flex-col gap-3">
                                 <div class="flex justify-between items-center">
@@ -967,8 +987,22 @@
                             </div>
                             
                             <div class="p-4 border-t border-gray-100 bg-gray-50">
-                                <div class="flex justify-between text-sm mb-2 text-gray-600"><span>Subtotal</span><span id="pos-subtotal">${cSym}0.00</span></div>
-                                <div class="flex justify-between text-sm mb-3 text-gray-600"><span>Tax (0%)</span><span>${cSym}0.00</span></div>
+                                <!-- Discount and Tax row -->
+                                <div class="flex gap-2 mb-3">
+                                    <input type="number" id="pos-discount" placeholder="Discount" class="w-1/2 border border-gray-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500" oninput="window.POS.updateDiscount()">
+                                    <select id="pos-discount-type" class="w-1/4 border border-gray-300 rounded px-1 py-1 text-sm outline-none focus:border-blue-500" onchange="window.POS.updateDiscount()">
+                                        <option value="%">%</option>
+                                        <option value="fixed">Fixed</option>
+                                    </select>
+                                    <div class="w-1/4 flex items-center justify-end gap-1">
+                                        <input type="checkbox" id="pos-exclude-tax" onchange="window.POS.updateTaxToggle()" class="w-4 h-4 cursor-pointer">
+                                        <label class="text-xs text-gray-600 font-medium cursor-pointer" for="pos-exclude-tax">No Tax</label>
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-between text-sm mb-1 text-gray-600"><span>Subtotal</span><span id="pos-subtotal">${cSym}0.00</span></div>
+                                <div class="flex justify-between text-sm mb-1 text-gray-600"><span>Discount</span><span id="pos-discount-amt" class="text-red-500">-${cSym}0.00</span></div>
+                                <div class="flex justify-between text-sm mb-3 text-gray-600"><span>Tax</span><span id="pos-tax-amt">+${cSym}0.00</span></div>
                                 <div class="flex justify-between text-xl font-bold text-gray-800 mb-4 border-t pt-2"><span>Total</span><span id="pos-total">${cSym}0.00</span></div>
                                 
                                 <div class="grid grid-cols-2 gap-2">
@@ -981,7 +1015,7 @@
                 `;
 
                 window.POS.renderProducts();
-                window.POS.renderCustomerSelect(); // initialize selector
+                window.POS.renderCustomerSelect(); 
 
                 document.getElementById('pos-search').addEventListener('input', (e) => {
                     window.POS.renderProducts(e.target.value);
@@ -1237,13 +1271,76 @@
                             </div>
                             <div class="p-4 border-t border-gray-100 bg-gray-50 text-right">
                                 <button onclick="window.POManager.submit()" class="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center ml-auto gap-2">
-                                    <i class="fas fa-check"></i> Submit & Receive
+                                    <i class="fas fa-check"></i> Place Order
                                 </button>
                             </div>
                         </div>
                     </div>
                 `;
                 window.POManager.renderCart();
+            },
+
+            // --- SHIPMENTS ---
+            shipments: () => {
+                const container = document.getElementById('page-content');
+                const cSym = appState.settings[0]?.currency || '₹';
+                
+                container.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
+                        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                            <h2 class="text-xl font-bold text-gray-800">Incoming Shipments</h2>
+                        </div>
+                        <div class="flex-1 overflow-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm">
+                                    <tr>
+                                        <th class="px-6 py-3 font-medium">Date Ordered</th>
+                                        <th class="px-6 py-3 font-medium">Supplier</th>
+                                        <th class="px-6 py-3 font-medium">Items Summary</th>
+                                        <th class="px-6 py-3 font-medium">Total Cost</th>
+                                        <th class="px-6 py-3 font-medium">Status</th>
+                                        <th class="px-6 py-3 font-medium text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-sm divide-y divide-gray-100" id="shipments-table-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                
+                const tbody = document.getElementById('shipments-table-body');
+                const pos = [...appState.purchase_orders].sort((a,b) => new Date(b.date) - new Date(a.date));
+                
+                if(pos.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-gray-500">No shipments found.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = pos.map(po => {
+                    const supplier = appState.suppliers.find(s => s.id === po.supplierId);
+                    const supName = supplier ? supplier.name : 'Unknown Supplier';
+                    const itemsSum = po.items.map(i => `${i.qty}x ${i.name}`).join(', ');
+                    const isPending = po.status === 'Pending';
+                    
+                    return `
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-6 py-4 text-gray-600 whitespace-nowrap">${new Date(po.date).toLocaleString()}</td>
+                            <td class="px-6 py-4 font-semibold text-gray-800">${supName}</td>
+                            <td class="px-6 py-4 text-gray-700 truncate max-w-xs" title="${itemsSum}">${itemsSum}</td>
+                            <td class="px-6 py-4 font-bold text-gray-800">${cSym}${Number(po.total).toFixed(2)}</td>
+                            <td class="px-6 py-4">
+                                <span class="${isPending ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'} px-2 py-1 rounded text-xs font-bold">
+                                    ${po.status || 'Pending'}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                ${isPending ? `<button onclick="window.ShipmentManager.receive('${po.id}')" class="bg-green-50 text-green-600 border border-green-200 hover:bg-green-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition mr-2"><i class="fas fa-check mr-1"></i> Receive Inventory</button>` : ''}
+                                <button onclick="window.ShipmentManager.delete('${po.id}')" class="text-red-500 hover:text-red-700" title="Delete PO"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
             },
 
             // --- STOCK TRANSFER / ADJUSTMENT ---
@@ -1498,7 +1595,7 @@
         window.ProductForm = {
             open: (product = null) => {
                 const title = product ? "Edit Product" : "Add New Product";
-                const p = product || { name: '', sku: '', category: '', price: 0, cost: 0, stock: 0, minStock: 5 };
+                const p = product || { name: '', sku: '', category: '', price: 0, cost: 0, stock: 0, minStock: 5, maxStock: 100, taxRate: 0 };
                 
                 showModal(`
                     <div class="p-6">
@@ -1521,7 +1618,7 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
                                 <input type="text" id="pf-cat" value="${p.category}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
                             </div>
-                            <div class="grid grid-cols-2 gap-4">
+                            <div class="grid grid-cols-3 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Selling Price *</label>
                                     <input type="number" step="0.01" id="pf-price" value="${p.price}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
@@ -1530,15 +1627,23 @@
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Cost Price *</label>
                                     <input type="number" step="0.01" id="pf-cost" value="${p.cost}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
                                 </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tax Rate (%)</label>
+                                    <input type="number" step="0.01" id="pf-tax" value="${p.taxRate || 0}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                </div>
                             </div>
-                            <div class="grid grid-cols-2 gap-4">
+                            <div class="grid grid-cols-3 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Current Stock *</label>
                                     <input type="number" id="pf-stock" value="${p.stock}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Low Stock Alert At</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Min Threshold</label>
                                     <input type="number" id="pf-min" value="${p.minStock}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Max Capacity</label>
+                                    <input type="number" id="pf-max" value="${p.maxStock || 100}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
                                 </div>
                             </div>
                             <div class="mt-6 flex justify-end gap-3">
@@ -1557,8 +1662,10 @@
                     category: document.getElementById('pf-cat').value,
                     price: parseFloat(document.getElementById('pf-price').value),
                     cost: parseFloat(document.getElementById('pf-cost').value),
+                    taxRate: parseFloat(document.getElementById('pf-tax').value) || 0,
                     stock: parseInt(document.getElementById('pf-stock').value),
-                    minStock: parseInt(document.getElementById('pf-min').value)
+                    minStock: parseInt(document.getElementById('pf-min').value),
+                    maxStock: parseInt(document.getElementById('pf-max').value) || 0
                 };
 
                 const success = await DB.save('products', data, id ? id : null);
@@ -1764,6 +1871,24 @@
         // Point of Sale Logic
         window.POS = {
             cart: [],
+            discountVal: 0,
+            discountType: '%',
+            excludeTax: false,
+
+            updateDiscount: () => {
+                const val = parseFloat(document.getElementById('pos-discount').value) || 0;
+                const type = document.getElementById('pos-discount-type').value;
+                window.POS.discountVal = val;
+                window.POS.discountType = type;
+                window.POS.updateCartUI();
+            },
+            
+            updateTaxToggle: () => {
+                const cb = document.getElementById('pos-exclude-tax');
+                window.POS.excludeTax = cb ? cb.checked : false;
+                window.POS.updateCartUI();
+            },
+
             renderCustomerSelect: () => {
                 const select = document.getElementById('pos-customer');
                 if(!select) return;
@@ -1839,17 +1964,45 @@
                 }
                 window.POS.updateCartUI();
             },
-            updateQty: (id, change) => {
+            updateItemPrice: (id, val) => {
+                const item = window.POS.cart.find(x => x.id === id);
+                if(item) {
+                    item.price = parseFloat(val) || 0;
+                    window.POS.updateCartUI();
+                }
+            },
+            updateQtyExact: (id, val) => {
                 const item = window.POS.cart.find(x => x.id === id);
                 const p = appState.products.find(x => x.id === id);
-                if(item) {
-                    item.qty += change;
-                    if(item.qty <= 0) window.POS.cart = window.POS.cart.filter(x => x.id !== id);
-                    if(item.qty > p.stock) { item.qty = p.stock; showToast("Max stock reached", "error"); }
+                if (!item || !p) return;
+                
+                let qty = parseInt(val) || 0;
+                if (qty > p.stock) {
+                    qty = p.stock;
+                    showToast("Max stock reached", "error");
+                }
+                
+                if (qty <= 0) {
+                    window.POS.cart = window.POS.cart.filter(x => x.id !== id);
+                } else {
+                    item.qty = qty;
                 }
                 window.POS.updateCartUI();
             },
-            clear: () => { window.POS.cart = []; window.POS.updateCartUI(); },
+            updateQty: (id, change) => {
+                const item = window.POS.cart.find(x => x.id === id);
+                if (item) {
+                    window.POS.updateQtyExact(id, item.qty + change);
+                }
+            },
+            clear: () => { 
+                window.POS.cart = []; 
+                window.POS.discountVal = 0; 
+                if (document.getElementById('pos-discount')) {
+                    document.getElementById('pos-discount').value = '';
+                }
+                window.POS.updateCartUI(); 
+            },
             updateCartUI: () => {
                 const container = document.getElementById('pos-cart');
                 if(!container) return;
@@ -1859,38 +2012,86 @@
                 if(window.POS.cart.length === 0) {
                     container.innerHTML = '<div class="text-center text-gray-400 mt-10">Cart is empty</div>';
                     document.getElementById('pos-subtotal').innerText = `${cSym}0.00`;
+                    document.getElementById('pos-discount-amt').innerText = `-${cSym}0.00`;
+                    document.getElementById('pos-tax-amt').innerText = `+${cSym}0.00`;
                     document.getElementById('pos-total').innerText = `${cSym}0.00`;
                     return;
                 }
 
-                let total = 0;
+                let subtotal = 0;
+                let taxTotal = 0;
+
                 container.innerHTML = window.POS.cart.map(item => {
                     const lineTotal = item.price * item.qty;
-                    total += lineTotal;
+                    subtotal += lineTotal;
+                    
+                    const itemTax = window.POS.excludeTax ? 0 : (lineTotal * ((item.taxRate || 0) / 100));
+                    taxTotal += itemTax;
+
+                    const widthStylePrice = `width: ${Math.max(item.price.toString().length, 1) + 1}ch;`;
+                    const widthStyleQty = `width: ${Math.max(item.qty.toString().length, 1) + 1}ch;`;
+
                     return `
                     <div class="flex items-center justify-between bg-white border border-gray-100 p-3 rounded-lg shadow-sm">
                         <div class="flex-1">
                             <p class="text-sm font-semibold text-gray-800 line-clamp-1">${item.name}</p>
-                            <p class="text-xs text-gray-500">${cSym}${item.price.toFixed(2)}</p>
+                            <div class="flex items-center gap-1 mt-1 text-gray-500">
+                                <span class="text-xs font-medium">${cSym}</span>
+                                <input type="number" step="0.01" value="${item.price}" 
+                                       oninput="this.style.width = (this.value.length + 1) + 'ch';"
+                                       onchange="window.POS.updateItemPrice('${item.id}', this.value)" 
+                                       style="${widthStylePrice} min-width: 3ch;"
+                                       class="border-b border-gray-300 text-xs text-gray-700 outline-none focus:border-blue-500 bg-transparent text-center px-0.5 hide-scroll transition-all">
+                            </div>
                         </div>
-                        <div class="flex items-center gap-2 mx-3">
-                            <button onclick="window.POS.updateQty('${item.id}', -1)" class="w-6 h-6 bg-gray-100 rounded text-gray-600 hover:bg-gray-200">-</button>
-                            <span class="text-sm font-bold w-4 text-center">${item.qty}</span>
-                            <button onclick="window.POS.updateQty('${item.id}', 1)" class="w-6 h-6 bg-gray-100 rounded text-gray-600 hover:bg-gray-200">+</button>
+                        <div class="flex items-center mx-2 bg-gray-100 rounded-md border border-gray-200">
+                            <button onclick="window.POS.updateQty('${item.id}', -1)" class="w-7 h-7 text-gray-600 hover:bg-gray-200 rounded-l-md flex items-center justify-center font-bold transition">-</button>
+                            <input type="number" value="${item.qty}" 
+                                   oninput="this.style.width = (this.value.length + 1) + 'ch';"
+                                   onchange="window.POS.updateQtyExact('${item.id}', this.value)" 
+                                   style="${widthStyleQty} min-width: 3ch;"
+                                   class="text-center text-sm font-bold bg-white border-x border-gray-200 outline-none appearance-none hide-scroll h-7 px-1 transition-all">
+                            <button onclick="window.POS.updateQty('${item.id}', 1)" class="w-7 h-7 text-gray-600 hover:bg-gray-200 rounded-r-md flex items-center justify-center font-bold transition">+</button>
                         </div>
-                        <div class="text-sm font-bold text-gray-800 w-16 text-right">${cSym}${lineTotal.toFixed(2)}</div>
+                        <div class="text-sm font-bold text-gray-800 w-20 text-right">${cSym}${lineTotal.toFixed(2)}</div>
                     </div>
                     `;
                 }).join('');
 
-                document.getElementById('pos-subtotal').innerText = `${cSym}${total.toFixed(2)}`;
-                document.getElementById('pos-total').innerText = `${cSym}${total.toFixed(2)}`;
+                let discountAmt = 0;
+                if (window.POS.discountType === '%') {
+                    discountAmt = subtotal * (window.POS.discountVal / 100);
+                } else {
+                    discountAmt = window.POS.discountVal;
+                }
+                
+                // Ensure discount doesn't exceed subtotal
+                if (discountAmt > subtotal) discountAmt = subtotal;
+
+                const finalTotal = subtotal - discountAmt + taxTotal;
+
+                document.getElementById('pos-subtotal').innerText = `${cSym}${subtotal.toFixed(2)}`;
+                document.getElementById('pos-discount-amt').innerText = `-${cSym}${discountAmt.toFixed(2)}`;
+                document.getElementById('pos-tax-amt').innerText = `+${cSym}${taxTotal.toFixed(2)}`;
+                document.getElementById('pos-total').innerText = `${cSym}${finalTotal.toFixed(2)}`;
             },
             checkout: async (generateBill) => {
                 if(window.POS.cart.length === 0) return showToast("Cart is empty", "error");
                 
                 const cSym = appState.settings[0]?.currency || '₹';
-                const total = window.POS.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+                
+                let subtotal = 0;
+                let taxTotal = 0;
+                window.POS.cart.forEach(item => {
+                    const lineTotal = item.price * item.qty;
+                    subtotal += lineTotal;
+                    taxTotal += window.POS.excludeTax ? 0 : (lineTotal * ((item.taxRate || 0) / 100));
+                });
+                
+                let discountAmt = window.POS.discountType === '%' ? subtotal * (window.POS.discountVal / 100) : window.POS.discountVal;
+                if (discountAmt > subtotal) discountAmt = subtotal;
+                
+                const finalTotal = subtotal - discountAmt + taxTotal;
                 
                 const cId = document.getElementById('pos-customer').value;
                 const pType = document.getElementById('pos-payment-type').value;
@@ -1898,8 +2099,11 @@
                 
                 const saleData = {
                     date: new Date().toISOString(),
-                    items: window.POS.cart.map(i => ({ id: i.id, name: i.name, sku: i.sku, price: i.price, qty: i.qty })),
-                    total: total,
+                    items: window.POS.cart.map(i => ({ id: i.id, name: i.name, sku: i.sku, price: i.price, qty: i.qty, originalPrice: i.price, taxRate: i.taxRate })),
+                    subtotal: subtotal,
+                    discount: discountAmt,
+                    tax: taxTotal,
+                    total: finalTotal,
                     type: generateBill ? 'Billed' : 'Quick Sell',
                     paymentStatus: pType,
                     customerId: cId || null,
@@ -1920,7 +2124,7 @@
 
                     // Update Customer Balance if Credit is selected
                     if (pType === 'Credit' && customer) {
-                        customer.balance = (Number(customer.balance) || 0) + total;
+                        customer.balance = (Number(customer.balance) || 0) + finalTotal;
                         customer.lastTransactionDate = new Date().toISOString();
                         const { id, ...cleanC } = customer;
                         await DB.save('customers', cleanC, id);
@@ -1934,21 +2138,38 @@
                         
                         const receiptWindow = window.open('', '_blank');
                         receiptWindow.document.write(`
-                            <html><head><title>Receipt</title><style>body{font-family:monospace; padding: 20px; width: 300px; margin: 0 auto;}</style></head>
+                            <html><head><title>Receipt</title>
+                            <style>
+                                body{font-family:monospace; padding: 20px; max-width: 350px; margin: 0 auto; color: #000;}
+                                @media print { .no-print { display: none; } }
+                                .btn { background: #3b82f6; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; margin-right: 5px; font-weight: bold; }
+                                .btn-gray { background: #6b7280; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+                                .flex-between { display: flex; justify-content: space-between; margin-bottom: 3px;}
+                            </style>
+                            </head>
                             <body>
+                                <div class="no-print" style="margin-bottom: 20px; text-align: center;">
+                                    <button class="btn" onclick="window.print()">Print Receipt</button>
+                                    <button class="btn-gray" onclick="window.close()">Go Back</button>
+                                </div>
+                                
                                 <h2 style="text-align:center; text-transform:uppercase; margin-bottom: 5px;">${brand}</h2>
                                 ${custHeader}
                                 <p style="text-align:center; font-size: 10px;">${new Date().toLocaleString()}</p>
                                 <hr>
-                                ${window.POS.cart.map(i => `<div style="display:flex;justify-content:space-between"><span>${i.name} (x${i.qty})</span><span>${cSym}${(i.price*i.qty).toFixed(2)}</span></div>`).join('')}
+                                ${window.POS.cart.map(i => `<div class="flex-between"><span>${i.name} (x${i.qty})</span><span>${cSym}${(i.price*i.qty).toFixed(2)}</span></div>`).join('')}
                                 <hr>
-                                <div style="display:flex;justify-content:space-between; margin-bottom: 5px;"><span>Payment:</span><strong>${pType}</strong></div>
-                                <h3 style="text-align:right; margin-top:0;">TOTAL: ${cSym}${total.toFixed(2)}</h3>
-                                <p style="text-align:center">Thank you!</p>
+                                <div class="flex-between"><span>Subtotal:</span><span>${cSym}${subtotal.toFixed(2)}</span></div>
+                                ${discountAmt > 0 ? `<div class="flex-between"><span>Discount:</span><span>-${cSym}${discountAmt.toFixed(2)}</span></div>` : ''}
+                                ${taxTotal > 0 ? `<div class="flex-between"><span>Tax:</span><span>+${cSym}${taxTotal.toFixed(2)}</span></div>` : ''}
+                                
+                                <div class="flex-between" style="margin-top: 10px;"><span>Payment:</span><strong>${pType}</strong></div>
+                                <h3 style="text-align:right; margin-top:5px;">TOTAL: ${cSym}${finalTotal.toFixed(2)}</h3>
+                                <p style="text-align:center; margin-top: 20px;">Thank you!</p>
                             </body></html>
                         `);
                         receiptWindow.document.close();
-                        setTimeout(() => receiptWindow.print(), 500);
+                        setTimeout(() => receiptWindow.print(), 500); // Trigger auto print
                     }
 
                     window.POS.clear();
@@ -2023,29 +2244,51 @@
                 if(window.POManager.cart.length === 0) return showToast("Cart is empty", "error");
 
                 const total = window.POManager.cart.reduce((sum, item) => sum + (item.qty * item.cost), 0);
-                const poData = { date: new Date().toISOString(), supplierId, items: window.POManager.cart, total, status: 'Received' };
+                const poData = { date: new Date().toISOString(), supplierId, items: window.POManager.cart, total, status: 'Pending' };
 
                 const success = await DB.save('purchase_orders', poData);
                 if(success) {
-                    for(let item of window.POManager.cart) {
+                    showToast("Purchase Order created and moved to Shipments!");
+                    window.POManager.cart = [];
+                    Views.purchase_orders(); 
+                }
+            }
+        };
+
+        // Shipment Manager Logic
+        window.ShipmentManager = {
+            receive: (id) => {
+                const po = appState.purchase_orders.find(x => x.id === id);
+                if(!po || po.status === 'Received') return;
+
+                showConfirm("Are you sure you want to mark this shipment as received? This will instantly update your inventory stock levels and average costs.", async () => {
+                    for(let item of po.items) {
                         const product = appState.products.find(p => p.id === item.id);
                         if(product) {
                             const oldStock = Number(product.stock) || 0;
                             const oldCost = Number(product.cost) || 0;
                             const newStock = oldStock + item.qty;
-                            const newCost = ((oldStock * oldCost) + (item.qty * item.cost)) / newStock;
+                            const newCost = newStock > 0 ? ((oldStock * oldCost) + (item.qty * item.cost)) / newStock : oldCost;
 
                             product.stock = newStock;
                             product.cost = newCost;
 
-                            const { id, ...cleanProduct } = product;
-                            await DB.save('products', cleanProduct, id);
+                            const { id: pid, ...cleanProduct } = product;
+                            await DB.save('products', cleanProduct, pid);
                         }
                     }
-                    showToast("Purchase Order created and inventory received!");
-                    window.POManager.cart = [];
-                    Views.purchase_orders(); 
-                }
+
+                    po.status = 'Received';
+                    const { id: poid, ...cleanPO } = po;
+                    await DB.save('purchase_orders', cleanPO, poid);
+
+                    showToast("Shipment received! Inventory successfully updated.");
+                });
+            },
+            delete: async (id) => {
+                showConfirm("Are you sure you want to delete this Purchase Order?", async () => {
+                    if(await DB.delete('purchase_orders', id)) showToast("Purchase Order Deleted");
+                });
             }
         };
 
