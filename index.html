@@ -115,7 +115,7 @@
                 <p class="text-xs text-gray-400 mt-6 leading-relaxed">Local accounts save directly to this device's storage. Google accounts back up to the cloud securely.</p>
             </div>
 
-            <!-- Initial Setup Form (First Login) -->
+            <!-- Initial Setup Form -->
             <div id="setup-section" class="hidden">
                 <h2 class="text-2xl font-bold mb-2 text-gray-800">Welcome! Let's get started.</h2>
                 <p class="text-sm text-gray-500 mb-6">Setup your company name and encryption PIN.</p>
@@ -131,7 +131,7 @@
                 <button id="btn-cancel-setup" class="text-sm text-gray-500 hover:text-gray-800 transition w-full text-center font-medium mt-2">Cancel & Sign Out</button>
             </div>
 
-            <!-- Return PIN Verification -->
+            <!-- PIN Verification -->
             <div id="pin-section" class="hidden">
                 <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
                     <i class="fas fa-lock"></i>
@@ -155,7 +155,7 @@
     <div id="app-screen" class="w-full h-full flex hidden">
         
         <!-- Sidebar -->
-        <aside class="w-64 bg-gray-900 text-gray-300 flex flex-col h-full flex-shrink-0">
+        <aside class="w-64 bg-gray-900 text-gray-300 flex flex-col h-full flex-shrink-0 z-10 shadow-xl">
             <div class="h-16 flex items-center px-6 border-b border-gray-800 font-bold text-white text-lg tracking-wide">
                 <i class="fas fa-layer-group text-blue-500 mr-3"></i> <span id="brand-name" class="truncate">Nexus Inv</span>
             </div>
@@ -170,9 +170,9 @@
         </aside>
 
         <!-- Main Content -->
-        <main class="flex-1 flex flex-col h-full bg-gray-50 overflow-hidden">
+        <main class="flex-1 flex flex-col h-full bg-gray-50 overflow-hidden relative">
             <!-- Header -->
-            <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0">
+            <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0 z-10 shadow-sm">
                 <h2 id="page-title" class="text-xl font-semibold text-gray-800">Dashboard</h2>
                 <div class="flex items-center gap-4">
                     <button class="text-gray-400 hover:text-gray-600"><i class="fas fa-bell"></i></button>
@@ -218,7 +218,7 @@
         let currentUser = null;
         let e2eKey = null; 
         let activeListeners = [];
-        let failedPinAttempts = 0; // Strike counter
+        let failedPinAttempts = 0; 
 
         // App Data State (In-Memory Decrypted)
         const appState = {
@@ -233,6 +233,11 @@
         };
 
         let currentChart = null;
+
+        // Helper to grab alloc fallback correctly safely
+        const getProductAllocations = (p) => {
+            return p.allocations ? p.allocations : { 'unassigned': (p.stock || 0) };
+        };
 
         // ==========================================
         // 2. ENCRYPTION SERVICE (CryptoJS)
@@ -312,7 +317,6 @@
             };
         };
 
-        // Shared function for total account annihilation
         const wipeAccountAndData = async (userObj) => {
             if (!userObj) return;
             try {
@@ -328,11 +332,10 @@
                 localStorage.removeItem('hasLocalAccount');
                 localStorage.removeItem('companyName');
             } catch(e) {
-                console.error("Wipe incomplete. Some permissions may require re-auth.", e);
+                console.error("Wipe incomplete.", e);
             }
         };
 
-        // UI Logic for Auth Modes & Grey Out Logic
         window.AuthUI = {
             setMode: (mode) => {
                 const loginMode = document.getElementById('login-mode');
@@ -353,24 +356,19 @@
                 const btnSignupLocal = document.getElementById('btn-signup-local');
 
                 if (hasLocal) {
-                    // Local account exists -> Enable Login, Disable Signup
                     btnLoginLocal.disabled = false;
                     btnLoginLocal.classList.remove('opacity-50', 'cursor-not-allowed');
-                    
                     btnSignupLocal.disabled = true;
                     btnSignupLocal.classList.add('opacity-50', 'cursor-not-allowed');
                 } else {
-                    // No local account -> Disable Login, Enable Signup
                     btnLoginLocal.disabled = true;
                     btnLoginLocal.classList.add('opacity-50', 'cursor-not-allowed');
-                    
                     btnSignupLocal.disabled = false;
                     btnSignupLocal.classList.remove('opacity-50', 'cursor-not-allowed');
                 }
             }
         };
         
-        // Ensure UI buttons update on load
         window.AuthUI.updateButtonStates();
 
         // ==========================================
@@ -418,28 +416,21 @@
         // ==========================================
         // 5. AUTHENTICATION & PIN FLOW
         // ==========================================
-        // Google Auth Handlers
         const handleGoogleAuth = async () => {
             try { 
                 await signInWithPopup(auth, provider); 
             } catch(e) { 
-                console.error("Google Auth Error:", e);
-                if (e.code === 'auth/unauthorized-domain') {
-                    showToast("Domain Not Authorized: Go to Firebase Console -> Authentication -> Settings -> Authorized Domains and add this URL.", "error");
-                } else if (e.code === 'auth/popup-closed-by-user') {
-                    showToast("Login cancelled: Window closed.", "error");
-                } else {
-                    showToast("Google login failed: " + e.message, "error"); 
-                }
+                if (e.code === 'auth/unauthorized-domain') showToast("Domain Not Authorized. Update Firebase Console.", "error");
+                else if (e.code === 'auth/popup-closed-by-user') showToast("Login cancelled.", "error");
+                else showToast("Google login failed.", "error"); 
             }
         };
         
-        // Local Auth Handlers
         const handleLocalLogin = async () => {
             if (auth.currentUser && auth.currentUser.isAnonymous) {
                 checkVaultSetupStatus(auth.currentUser);
             } else {
-                showToast("No active local account found. It may have been cleared by your browser.", "error");
+                showToast("No active local account found.", "error");
                 localStorage.removeItem('hasLocalAccount');
                 window.AuthUI.updateButtonStates();
             }
@@ -451,11 +442,10 @@
                 localStorage.setItem('hasLocalAccount', 'true');
                 window.AuthUI.updateButtonStates();
             } catch(e) { 
-                showToast("Local Account creation failed: " + e.message, "error"); 
+                showToast("Local Account creation failed.", "error"); 
             }
         };
 
-        // Attach to all four buttons
         document.getElementById('btn-login-google').onclick = handleGoogleAuth;
         document.getElementById('btn-signup-google').onclick = handleGoogleAuth;
         document.getElementById('btn-login-local').onclick = handleLocalLogin;
@@ -467,17 +457,14 @@
             activeListeners.forEach(unsub => unsub()); 
             activeListeners = [];
             
-            // Hide App, Show Auth Screen
             document.getElementById('app-screen').classList.add('hidden');
             document.getElementById('auth-screen').classList.remove('hidden');
             
-            // Force UI to show PIN screen and hide Login/Setup screens
             document.getElementById('login-section').classList.add('hidden');
             document.getElementById('setup-section').classList.add('hidden');
             document.getElementById('pin-section').classList.remove('hidden');
             document.getElementById('auth-branding').classList.add('hidden');
             
-            // Set Dynamic PIN Heading
             const cName = localStorage.getItem('companyName');
             document.getElementById('pin-company-heading').innerText = cName ? cName : "Welcome Back";
             
@@ -487,7 +474,6 @@
             showToast("Vault Locked", "info");
         };
 
-        // Sign out inside PIN screen
         document.getElementById('btn-switch-account').onclick = () => {
             showConfirm("Are you sure? If you are using an Anonymous Account, signing out will make you lose access to it permanently.", async () => {
                 if (auth.currentUser && auth.currentUser.isAnonymous) {
@@ -499,7 +485,6 @@
             });
         };
 
-        // Cancel and Sign out inside Setup screen
         document.getElementById('btn-cancel-setup').onclick = () => {
             showConfirm("Are you sure? If you cancel, you will be signed out.", async () => {
                 if (auth.currentUser && auth.currentUser.isAnonymous) {
@@ -511,7 +496,6 @@
             });
         };
 
-        // Determine which screen to show on Auth state change
         const checkVaultSetupStatus = async (user) => {
             try {
                 const verifRef = doc(db, 'artifacts', appId, 'users', user.uid, '_security', 'pin_verify');
@@ -523,7 +507,6 @@
                     document.getElementById('pin-section').classList.remove('hidden');
                     document.getElementById('setup-section').classList.add('hidden');
                     
-                    // Set Dynamic PIN Heading
                     const cName = localStorage.getItem('companyName');
                     document.getElementById('pin-company-heading').innerText = cName ? cName : "Welcome Back";
                 } else {
@@ -540,7 +523,6 @@
                 currentUser = user;
                 document.getElementById('user-avatar').innerText = user.email ? user.email[0].toUpperCase() : 'A';
                 document.getElementById('login-section').classList.add('hidden');
-                
                 checkVaultSetupStatus(user);
             } else {
                 currentUser = null;
@@ -554,7 +536,6 @@
             }
         });
 
-        // Setup newly created Vault
         document.getElementById('btn-setup').onclick = async () => {
             const company = document.getElementById('setup-company').value;
             const pin = document.getElementById('setup-pin').value;
@@ -563,24 +544,18 @@
             if(!pin || pin.length < 4) return showToast("PIN must be at least 4 chars", "error");
             
             try {
-                // Set the validation block
                 const payload = CryptoService.encrypt({ check: 'valid' }, pin);
                 const verifRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, '_security', 'pin_verify');
                 await setDoc(verifRef, { payload });
                 
                 e2eKey = pin;
-                
-                // Save Initial Settings
                 await DB.save('settings', { companyName: company, currency: '₹' });
-                localStorage.setItem('companyName', company); // Cache for PIN screen
+                localStorage.setItem('companyName', company); 
                 
                 startApp();
-            } catch (e) {
-                showToast("Setup failed: " + e.message, "error");
-            }
+            } catch (e) { showToast("Setup failed: " + e.message, "error"); }
         };
 
-        // Unlock existing Vault
         document.getElementById('btn-unlock').onclick = async () => {
             const pin = document.getElementById('e2e-pin').value;
             if(!pin || pin.length < 4) return showToast("PIN must be at least 4 chars", "error");
@@ -607,10 +582,9 @@
                     }
                 }
                 
-                failedPinAttempts = 0; // Reset on success
+                failedPinAttempts = 0; 
                 e2eKey = pin;
                 
-                // Ensure heading updates if logged in from another device
                 const cName = localStorage.getItem('companyName');
                 document.getElementById('pin-company-heading').innerText = cName ? cName : "Welcome Back";
 
@@ -633,7 +607,6 @@
             DB.listen('products', 'products', () => { 
                 if(currentView === 'products') Views.products(); 
                 if(currentView === 'inventory') Views.inventory(); 
-                if(currentView === 'stock_transfer') Views.stock_transfer();
                 if(currentView === 'low_stock') Views.low_stock();
             });
             DB.listen('sales', 'sales', () => { 
@@ -643,8 +616,12 @@
             DB.listen('customers', 'customers', () => { 
                 if(currentView === 'customers') Views.customers(); 
                 if(currentView === 'billing') window.POS.renderCustomerSelect();
+                if(currentView === 'money') Views.money();
             });
-            DB.listen('suppliers', 'suppliers', () => { if(currentView === 'suppliers') Views.suppliers(); });
+            DB.listen('suppliers', 'suppliers', () => { 
+                if(currentView === 'suppliers') Views.suppliers(); 
+                if(currentView === 'money') Views.money();
+            });
             DB.listen('warehouses', 'warehouses', () => { 
                 if(currentView === 'warehouses') Views.warehouses(); 
                 if(currentView === 'products') Views.products(); 
@@ -656,7 +633,7 @@
             DB.listen('settings', 'settings', () => { 
                 const s = appState.settings[0];
                 if(s && s.companyName) {
-                    localStorage.setItem('companyName', s.companyName); // silently cache for PIN screen
+                    localStorage.setItem('companyName', s.companyName); 
                 }
                 window.SettingsForm.applySettings();
                 if(currentView === 'system_settings') Views.system_settings(); 
@@ -695,7 +672,8 @@
                     { id: 'billing', icon: 'fa-file-invoice-dollar', label: 'Billing / POS' },
                     { id: 'purchase_orders', icon: 'fa-file-signature', label: 'Purchase Orders' },
                     { id: 'shipments', icon: 'fa-truck-loading', label: 'Shipments' },
-                    { id: 'stock_transfer', icon: 'fa-exchange-alt', label: 'Stock Audit' }
+                    { id: 'stock_transfer', icon: 'fa-exchange-alt', label: 'Stock Transfer' },
+                    { id: 'money', icon: 'fa-money-bill-wave', label: 'Finances / Money' }
                 ]},
                 { group: 'Management', items: [
                     { id: 'customers', icon: 'fa-users', label: 'Customers' },
@@ -772,15 +750,15 @@
                     </div>
                     
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Stock by Category</h3>
-                            <div class="relative h-[250px] w-full">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col h-[350px]">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex-shrink-0">Stock by Category</h3>
+                            <div class="relative flex-1 w-full h-full min-h-0">
                                 <canvas id="chart-categories"></canvas>
                             </div>
                         </div>
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Recent Sales</h3>
-                            <div class="overflow-y-auto max-h-[250px] hide-scroll">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col h-[350px]">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex-shrink-0">Recent Sales</h3>
+                            <div class="overflow-y-auto flex-1 hide-scroll">
                                 ${appState.sales.length === 0 ? '<p class="text-gray-500 text-sm">No sales yet.</p>' : 
                                   appState.sales.slice().reverse().slice(0, 10).map(s => `
                                     <div class="flex justify-between items-center py-3 border-b border-gray-50 last:border-0">
@@ -836,14 +814,13 @@
                         </div>
                         <div class="flex-1 overflow-auto">
                             <table class="w-full text-left border-collapse">
-                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm">
+                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm z-10">
                                     <tr>
                                         <th class="px-6 py-3 font-medium">SKU</th>
                                         <th class="px-6 py-3 font-medium">Name</th>
-                                        <th class="px-6 py-3 font-medium">Warehouse</th>
+                                        <th class="px-6 py-3 font-medium">Category</th>
                                         <th class="px-6 py-3 font-medium">Price</th>
-                                        <th class="px-6 py-3 font-medium">Cost</th>
-                                        <th class="px-6 py-3 font-medium">Stock</th>
+                                        <th class="px-6 py-3 font-medium">Total Stock</th>
                                         <th class="px-6 py-3 font-medium text-right">Actions</th>
                                     </tr>
                                 </thead>
@@ -873,18 +850,25 @@
                 }
 
                 tbody.innerHTML = products.map(p => {
-                    const warehouse = appState.warehouses.find(w => w.id === p.warehouseId);
-                    const wName = warehouse ? warehouse.name : 'Unassigned';
+                    const allocs = getProductAllocations(p);
+                    let breakdown = Object.entries(allocs).map(([whId, qty]) => {
+                        if(qty <= 0) return '';
+                        let whName = 'Unassigned';
+                        if(whId !== 'unassigned') {
+                            const wh = appState.warehouses.find(w=>w.id === whId);
+                            whName = wh ? wh.name : 'Unknown';
+                        }
+                        return `${whName}: ${qty}`;
+                    }).filter(x=>x).join(' | ');
 
                     return `
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-6 py-4 font-mono text-xs text-gray-500">${p.sku}</td>
                         <td class="px-6 py-4 font-medium text-gray-800">${p.name}</td>
-                        <td class="px-6 py-4"><span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">${wName}</span></td>
+                        <td class="px-6 py-4"><span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">${p.category || 'N/A'}</span></td>
                         <td class="px-6 py-4 text-green-600 font-semibold">${cSym}${Number(p.price).toFixed(2)}</td>
-                        <td class="px-6 py-4 text-gray-500">${cSym}${Number(p.cost).toFixed(2)}</td>
                         <td class="px-6 py-4">
-                            <span class="${p.stock <= p.minStock ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'} px-2 py-1 rounded font-bold text-xs" title="Max: ${p.maxStock || '∞'}">
+                            <span class="${p.stock <= p.minStock ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'} px-2 py-1 rounded font-bold text-xs cursor-help" title="${breakdown || 'No stock'}">
                                 ${p.stock}
                             </span>
                         </td>
@@ -900,21 +884,21 @@
             // --- INVENTORY OVERVIEW ---
             inventory: () => {
                 const container = document.getElementById('page-content');
-                let unassignedProds = appState.products.filter(p => !p.warehouseId);
-
+                
                 let warehouseHTML = appState.warehouses.map(w => {
-                    const wProds = appState.products.filter(p => p.warehouseId === w.id);
-                    if(wProds.length === 0) return '';
-                    
-                    const wItemsHTML = wProds.map(p => {
-                        const max = p.maxStock ? p.maxStock : Math.max(100, p.stock * 2);
-                        const pct = Math.min(100, (p.stock / max) * 100);
-                        const color = p.stock <= p.minStock ? 'bg-red-500' : 'bg-green-500';
+                    const wItemsHTML = appState.products.map(p => {
+                        const allocs = getProductAllocations(p);
+                        const qty = allocs[w.id] || 0;
+                        if(qty <= 0) return '';
+
+                        const max = p.maxStock ? p.maxStock : Math.max(100, qty * 2);
+                        const pct = Math.min(100, (qty / max) * 100);
+                        const color = qty <= p.minStock ? 'bg-red-500' : 'bg-green-500';
                         return `
                         <div>
                             <div class="flex justify-between text-sm mb-1">
                                 <span class="font-medium text-gray-700">${p.name} <span class="text-gray-400 text-xs ml-2">${p.sku}</span></span>
-                                <span class="font-bold ${p.stock <= p.minStock ? 'text-red-500' : 'text-gray-700'}">${p.stock} / ${p.maxStock || '∞'}</span>
+                                <span class="font-bold ${qty <= p.minStock ? 'text-red-500' : 'text-gray-700'}">${qty} / ${p.maxStock || '∞'}</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-2">
                                 <div class="${color} h-2 rounded-full" style="width: ${pct}%"></div>
@@ -923,9 +907,11 @@
                         `;
                     }).join('');
 
+                    if(!wItemsHTML) return '';
+
                     return `
                         <div class="mb-6">
-                            <h4 class="font-bold text-gray-700 mb-3 border-b pb-2"><i class="fas fa-warehouse mr-2 text-blue-500"></i>${w.name} <span class="text-xs text-gray-400 font-normal ml-2">${w.location || ''}</span></h4>
+                            <h4 class="font-bold text-gray-700 mb-3 border-b pb-2"><i class="fas fa-warehouse mr-2 ${w.isMain ? 'text-yellow-500' : 'text-blue-500'}"></i>${w.name} ${w.isMain ? '<span class="text-xs text-yellow-600 bg-yellow-100 px-2 py-0.5 rounded ml-2">MAIN</span>' : ''} <span class="text-xs text-gray-400 font-normal ml-2">${w.location || ''}</span></h4>
                             <div class="space-y-4">
                                 ${wItemsHTML}
                             </div>
@@ -934,27 +920,31 @@
                 }).join('');
 
                 let unassignedHTML = '';
-                if(unassignedProds.length > 0) {
-                    const uItemsHTML = unassignedProds.map(p => {
-                        const max = p.maxStock ? p.maxStock : Math.max(100, p.stock * 2);
-                        const pct = Math.min(100, (p.stock / max) * 100);
-                        const color = p.stock <= p.minStock ? 'bg-red-500' : 'bg-green-500';
-                        return `
-                        <div>
-                            <div class="flex justify-between text-sm mb-1">
-                                <span class="font-medium text-gray-700">${p.name} <span class="text-gray-400 text-xs ml-2">${p.sku}</span></span>
-                                <span class="font-bold ${p.stock <= p.minStock ? 'text-red-500' : 'text-gray-700'}">${p.stock} / ${p.maxStock || '∞'}</span>
-                            </div>
-                            <div class="w-full bg-gray-200 rounded-full h-2">
-                                <div class="${color} h-2 rounded-full" style="width: ${pct}%"></div>
-                            </div>
-                        </div>
-                        `;
-                    }).join('');
+                const uItemsHTML = appState.products.map(p => {
+                    const allocs = getProductAllocations(p);
+                    const qty = allocs['unassigned'] || 0;
+                    if(qty <= 0) return '';
 
+                    const max = p.maxStock ? p.maxStock : Math.max(100, qty * 2);
+                    const pct = Math.min(100, (qty / max) * 100);
+                    const color = qty <= p.minStock ? 'bg-red-500' : 'bg-green-500';
+                    return `
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="font-medium text-gray-700">${p.name} <span class="text-gray-400 text-xs ml-2">${p.sku}</span></span>
+                            <span class="font-bold ${qty <= p.minStock ? 'text-red-500' : 'text-gray-700'}">${qty} / ${p.maxStock || '∞'}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="${color} h-2 rounded-full" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+
+                if(uItemsHTML) {
                     unassignedHTML = `
                         <div class="mb-6">
-                            <h4 class="font-bold text-gray-500 mb-3 border-b pb-2"><i class="fas fa-box mr-2"></i>Unassigned Products</h4>
+                            <h4 class="font-bold text-gray-500 mb-3 border-b pb-2"><i class="fas fa-box mr-2"></i>Unassigned / Transit</h4>
                             <div class="space-y-4">
                                 ${uItemsHTML}
                             </div>
@@ -963,7 +953,7 @@
                 }
 
                 if(!warehouseHTML && !unassignedHTML) {
-                    warehouseHTML = '<p class="text-gray-500 text-sm">No inventory data available.</p>';
+                    warehouseHTML = '<p class="text-gray-500 text-sm">No inventory data available in locations.</p>';
                 }
 
                 container.innerHTML = `
@@ -978,14 +968,14 @@
                         </div>
                         <button class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:bg-gray-50 text-left flex justify-between items-center" onclick="navigateTo('stock_transfer')">
                             <div>
-                                <h3 class="text-gray-800 font-semibold">Perform Audit</h3>
-                                <p class="text-xs text-gray-500 mt-1">Adjust discrepancies</p>
+                                <h3 class="text-gray-800 font-semibold">Perform Transfer</h3>
+                                <p class="text-xs text-gray-500 mt-1">Move stock between warehouses</p>
                             </div>
                             <i class="fas fa-arrow-right text-gray-400"></i>
                         </button>
                     </div>
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <h3 class="font-semibold text-gray-800 mb-4">Stock Levels by Warehouse</h3>
+                        <h3 class="font-semibold text-gray-800 mb-4">Stock Levels by Location</h3>
                         ${warehouseHTML}
                         ${unassignedHTML}
                     </div>
@@ -996,7 +986,7 @@
             billing: () => {
                 const container = document.getElementById('page-content');
                 window.POS.cart = []; 
-                window.POS.discountMode = 'none'; // 'none', 'total', 'item'
+                window.POS.discountMode = 'none'; 
                 window.POS.discountVal = 0;
                 window.POS.discountType = '%';
                 window.POS.excludeTax = false;
@@ -1035,13 +1025,11 @@
                                 <div class="flex gap-2">
                                     <select id="pos-customer" onchange="window.POS.onCustomerChange()" class="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
                                         <option value="">Walk-in Customer</option>
-                                        <!-- populated dynamically -->
                                     </select>
                                     <button onclick="window.CustomerForm.open()" class="bg-blue-100 text-blue-600 px-3 rounded-lg hover:bg-blue-200 transition" title="Add Customer"><i class="fas fa-plus"></i></button>
                                 </div>
 
                                 <div id="pos-customer-info" class="hidden bg-white p-3 rounded-lg border border-gray-200 text-sm shadow-sm flex flex-col gap-1">
-                                    <!-- info populated by JS -->
                                 </div>
 
                                 <select id="pos-payment-type" class="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white mt-1">
@@ -1055,7 +1043,6 @@
                             </div>
                             
                             <div class="p-4 border-t border-gray-100 bg-gray-50">
-                                <!-- Discount and Tax row -->
                                 <div id="pos-discount-total-container" class="hidden flex gap-2 mb-3">
                                     <input type="number" id="pos-discount" placeholder="Total Discount" class="w-1/2 border border-gray-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500" oninput="window.POS.updateDiscount()">
                                     <select id="pos-discount-type" class="w-1/4 border border-gray-300 rounded px-1 py-1 text-sm outline-none focus:border-blue-500" onchange="window.POS.updateDiscount()">
@@ -1090,6 +1077,78 @@
                 });
             },
 
+            // --- FINANCES / MONEY ---
+            money: () => {
+                const container = document.getElementById('page-content');
+                const cSym = appState.settings[0]?.currency || '₹';
+                
+                const customersWithBal = appState.customers.filter(c => c.balance > 0);
+                const suppliersWithBal = appState.suppliers.filter(s => s.balance > 0);
+
+                const totRec = customersWithBal.reduce((sum, c) => sum + Number(c.balance), 0);
+                const totPay = suppliersWithBal.reduce((sum, s) => sum + Number(s.balance), 0);
+
+                container.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
+                            <h3 class="text-gray-500 text-sm font-semibold mb-1">Total Receivables (To collect)</h3>
+                            <p class="text-3xl font-bold text-green-600">${cSym}${totRec.toFixed(2)}</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-red-500">
+                            <h3 class="text-gray-500 text-sm font-semibold mb-1">Total Payables (To pay)</h3>
+                            <p class="text-3xl font-bold text-red-600">${cSym}${totPay.toFixed(2)}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100%-120px)]">
+                        <!-- RECEIVABLES -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full overflow-hidden">
+                            <div class="p-4 border-b border-gray-100 bg-gray-50">
+                                <h3 class="font-bold text-gray-800"><i class="fas fa-arrow-down text-green-500 mr-2"></i>Accounts Receivable</h3>
+                            </div>
+                            <div class="flex-1 overflow-auto p-4 space-y-3 hide-scroll">
+                                ${customersWithBal.length === 0 ? '<div class="text-center text-gray-500 mt-10">No pending collections.</div>' : 
+                                  customersWithBal.map(c => `
+                                    <div class="flex justify-between items-center bg-white border border-gray-200 p-3 rounded-lg shadow-sm">
+                                        <div>
+                                            <p class="font-bold text-gray-800">${c.name} <span class="text-xs text-gray-500 font-normal ml-1">${c.company||''}</span></p>
+                                            <p class="text-xs text-gray-500">Last: ${c.lastTransactionDate ? new Date(c.lastTransactionDate).toLocaleDateString() : 'N/A'}</p>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="font-bold text-green-600">${cSym}${Number(c.balance).toFixed(2)}</p>
+                                            <button onclick="window.CustomerForm.receivePayment('${c.id}')" class="text-xs bg-green-50 text-green-700 px-2 py-1 rounded border border-green-200 hover:bg-green-100 mt-1">Collect</button>
+                                        </div>
+                                    </div>
+                                  `).join('')
+                                }
+                            </div>
+                        </div>
+
+                        <!-- PAYABLES -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full overflow-hidden">
+                            <div class="p-4 border-b border-gray-100 bg-gray-50">
+                                <h3 class="font-bold text-gray-800"><i class="fas fa-arrow-up text-red-500 mr-2"></i>Accounts Payable</h3>
+                            </div>
+                            <div class="flex-1 overflow-auto p-4 space-y-3 hide-scroll">
+                                ${suppliersWithBal.length === 0 ? '<div class="text-center text-gray-500 mt-10">No pending payments.</div>' : 
+                                  suppliersWithBal.map(s => `
+                                    <div class="flex justify-between items-center bg-white border border-gray-200 p-3 rounded-lg shadow-sm">
+                                        <div>
+                                            <p class="font-bold text-gray-800">${s.name} <span class="text-xs text-gray-500 font-normal ml-1">${s.contact||''}</span></p>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="font-bold text-red-600">${cSym}${Number(s.balance).toFixed(2)}</p>
+                                            <button onclick="window.FinanceManager.paySupplier('${s.id}')" class="text-xs bg-red-50 text-red-700 px-2 py-1 rounded border border-red-200 hover:bg-red-100 mt-1">Pay</button>
+                                        </div>
+                                    </div>
+                                  `).join('')
+                                }
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
             // --- CUSTOMERS ---
             customers: () => {
                 const container = document.getElementById('page-content');
@@ -1106,7 +1165,7 @@
                         </div>
                         <div class="flex-1 overflow-auto">
                             <table class="w-full text-left border-collapse">
-                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm">
+                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm z-10">
                                     <tr>
                                         <th class="px-6 py-3 font-medium">Customer (Company)</th>
                                         <th class="px-6 py-3 font-medium">Contact Info</th>
@@ -1181,11 +1240,11 @@
                         </div>
                         <div class="flex-1 overflow-auto">
                             <table class="w-full text-left border-collapse">
-                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm">
+                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm z-10">
                                     <tr>
                                         <th class="px-6 py-3 font-medium">Company Name</th>
                                         <th class="px-6 py-3 font-medium">Contact Person</th>
-                                        <th class="px-6 py-3 font-medium">Phone</th>
+                                        <th class="px-6 py-3 font-medium text-right">Balance</th>
                                         <th class="px-6 py-3 font-medium text-right">Actions</th>
                                     </tr>
                                 </thead>
@@ -1208,12 +1267,14 @@
                     tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">No suppliers found.</td></tr>`;
                     return;
                 }
+                const cSym = appState.settings[0]?.currency || '₹';
                 tbody.innerHTML = data.map(s => `
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-6 py-4 font-medium text-gray-800">${s.name}</td>
-                        <td class="px-6 py-4 text-gray-600">${s.contact || 'N/A'}</td>
-                        <td class="px-6 py-4 text-gray-600">${s.phone || 'N/A'}</td>
+                        <td class="px-6 py-4 text-gray-600">${s.contact || 'N/A'}<br><span class="text-xs text-gray-400">${s.phone||''}</span></td>
+                        <td class="px-6 py-4 text-right font-bold ${s.balance > 0 ? 'text-red-600' : 'text-gray-500'}">${cSym}${Number(s.balance||0).toFixed(2)}</td>
                         <td class="px-6 py-4 text-right">
+                            ${s.balance > 0 ? `<button onclick="window.FinanceManager.paySupplier('${s.id}')" class="text-green-600 hover:text-green-800 mr-3" title="Pay Supplier"><i class="fas fa-money-check-alt"></i></button>` : ''}
                             <button onclick="window.SupplierForm.edit('${s.id}')" class="text-blue-500 hover:text-blue-700 mr-3"><i class="fas fa-edit"></i></button>
                             <button onclick="window.SupplierForm.delete('${s.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
                         </td>
@@ -1237,7 +1298,7 @@
                         </div>
                         <div class="flex-1 overflow-auto">
                             <table class="w-full text-left border-collapse">
-                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm">
+                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm z-10">
                                     <tr>
                                         <th class="px-6 py-3 font-medium">Warehouse Name</th>
                                         <th class="px-6 py-3 font-medium">Location</th>
@@ -1265,7 +1326,10 @@
                 }
                 tbody.innerHTML = data.map(w => `
                     <tr class="hover:bg-gray-50 transition">
-                        <td class="px-6 py-4 font-medium text-gray-800">${w.name}</td>
+                        <td class="px-6 py-4 font-medium text-gray-800">
+                            ${w.name}
+                            ${w.isMain ? '<span class="ml-2 bg-yellow-100 text-yellow-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase">Main</span>' : ''}
+                        </td>
                         <td class="px-6 py-4 text-gray-600">${w.location || 'N/A'}</td>
                         <td class="px-6 py-4 text-right">
                             <button onclick="window.WarehouseForm.edit('${w.id}')" class="text-blue-500 hover:text-blue-700 mr-3"><i class="fas fa-edit"></i></button>
@@ -1295,7 +1359,7 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Destination Warehouse</label>
                                 <select id="po-warehouse" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                    <option value="">-- Main Location (Default) --</option>
+                                    <option value="unassigned">-- Unassigned / Transit --</option>
                                     ${appState.warehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('')}
                                 </select>
                             </div>
@@ -1397,7 +1461,7 @@
                     const supplier = appState.suppliers.find(s => s.id === po.supplierId);
                     const supName = supplier ? supplier.name : 'Unknown Supplier';
                     const warehouse = appState.warehouses.find(w => w.id === po.warehouseId);
-                    const destName = warehouse ? warehouse.name : 'Main Location';
+                    const destName = warehouse ? warehouse.name : 'Unassigned';
                     const itemsSum = po.items.map(i => `${i.qty}x ${i.name}`).join(', ');
                     const isPending = po.status === 'Pending';
                     
@@ -1406,7 +1470,7 @@
                             <td class="px-6 py-4 text-gray-600 whitespace-nowrap">${new Date(po.date).toLocaleString()}</td>
                             <td class="px-6 py-4">
                                 <div class="font-semibold text-gray-800">${supName}</div>
-                                <div class="text-xs text-gray-500"><i class="fas fa-arrow-right mr-1"></i>${destName}</div>
+                                <div class="text-xs text-gray-500"><i class="fas fa-arrow-right mr-1"></i> ${destName}</div>
                             </td>
                             <td class="px-6 py-4 text-gray-700 truncate max-w-xs" title="${itemsSum}">${itemsSum}</td>
                             <td class="px-6 py-4 font-bold text-gray-800">${cSym}${Number(po.total).toFixed(2)}</td>
@@ -1416,7 +1480,7 @@
                                 </span>
                             </td>
                             <td class="px-6 py-4 text-right">
-                                ${isPending ? `<button onclick="window.ShipmentManager.receive('${po.id}')" class="bg-green-50 text-green-600 border border-green-200 hover:bg-green-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition mr-2"><i class="fas fa-check mr-1"></i> Receive Inventory</button>` : ''}
+                                ${isPending ? `<button onclick="window.ShipmentManager.receive('${po.id}')" class="bg-green-50 text-green-600 border border-green-200 hover:bg-green-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition mr-2"><i class="fas fa-check mr-1"></i> Receive</button>` : ''}
                                 <button onclick="window.ShipmentManager.delete('${po.id}')" class="text-red-500 hover:text-red-700" title="Delete PO"><i class="fas fa-trash"></i></button>
                             </td>
                         </tr>
@@ -1429,45 +1493,20 @@
                 const container = document.getElementById('page-content');
                 container.innerHTML = `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
-                        <div class="p-6 border-b border-gray-100">
-                            <h2 class="text-xl font-bold text-gray-800">Stock Adjustment & Audit</h2>
-                            <p class="text-sm text-gray-500 mt-1">Update physical counts. Discrepancies will adjust the system stock immediately.</p>
+                        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800">Stock Transfer</h2>
+                                <p class="text-sm text-gray-500 mt-1">Move inventory physically between warehouses.</p>
+                            </div>
+                            <button onclick="window.StockTransfer.open()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-2 shadow-sm">
+                                <i class="fas fa-exchange-alt"></i> New Transfer
+                            </button>
                         </div>
-                        <div class="flex-1 overflow-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm z-10">
-                                    <tr>
-                                        <th class="px-6 py-3 font-medium">SKU</th>
-                                        <th class="px-6 py-3 font-medium">Product Name</th>
-                                        <th class="px-6 py-3 font-medium text-center">System Stock</th>
-                                        <th class="px-6 py-3 font-medium w-32 text-center">Actual Count</th>
-                                        <th class="px-6 py-3 font-medium w-48">Reason</th>
-                                        <th class="px-6 py-3 font-medium text-right">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="text-sm divide-y divide-gray-100">
-                                    ${appState.products.map(p => `
-                                        <tr class="hover:bg-gray-50 transition" id="audit-row-${p.id}">
-                                            <td class="px-6 py-4 font-mono text-xs text-gray-500">${p.sku}</td>
-                                            <td class="px-6 py-4 font-medium text-gray-800">${p.name}</td>
-                                            <td class="px-6 py-4 text-center">
-                                                <span class="bg-gray-100 px-3 py-1 rounded font-bold ${p.stock <= p.minStock ? 'text-red-500' : 'text-gray-700'}">${p.stock}</span>
-                                            </td>
-                                            <td class="px-6 py-4">
-                                                <input type="number" id="adj-qty-${p.id}" value="${p.stock}" class="w-full border border-gray-300 rounded px-2 py-1 text-center outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-semibold text-blue-600">
-                                            </td>
-                                            <td class="px-6 py-4">
-                                                <input type="text" id="adj-reason-${p.id}" placeholder="e.g., Damage, Found" class="w-full border border-gray-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                                            </td>
-                                            <td class="px-6 py-4 text-right">
-                                                <button onclick="window.StockAudit.sync('${p.id}')" class="bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition">
-                                                    Sync
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    `).join('') || `<tr><td colspan="6" class="px-6 py-8 text-center text-gray-500">No products available.</td></tr>`}
-                                </tbody>
-                            </table>
+                        <div class="flex-1 overflow-auto p-6 flex items-center justify-center text-gray-400">
+                            <div class="text-center">
+                                <i class="fas fa-dolly text-4xl mb-3"></i>
+                                <p>Click "New Transfer" to move stock between allocations.</p>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -1573,13 +1612,38 @@
             // --- LOW STOCK REPORT ---
             low_stock: () => {
                 const container = document.getElementById('page-content');
-                const lowStockItems = appState.products.filter(p => Number(p.stock) <= Number(p.minStock || 5));
+                const mainWh = appState.warehouses.find(w => w.isMain);
+                
+                // Logic: Focus on Main Warehouse if one exists. Otherwise look at total stock.
+                let lowStockItems = [];
+                
+                appState.products.forEach(p => {
+                    const min = Number(p.minStock || 5);
+                    const allocs = getProductAllocations(p);
+                    let relevantStock = 0;
+                    
+                    if (mainWh) {
+                        relevantStock = Number(allocs[mainWh.id] || 0);
+                    } else {
+                        relevantStock = Number(p.stock);
+                    }
+                    
+                    if(relevantStock <= min) {
+                        // Calculate if it's available elsewhere
+                        const totalOther = p.stock - relevantStock;
+                        lowStockItems.push({
+                            ...p,
+                            relevantStock,
+                            availableElsewhere: totalOther > 0
+                        });
+                    }
+                });
 
                 container.innerHTML = `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
                         <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-red-50 rounded-t-xl border-l-4 border-red-500">
                             <div>
-                                <h2 class="text-xl font-bold text-red-800">Low Stock Alerts</h2>
+                                <h2 class="text-xl font-bold text-red-800">Low Stock Alerts ${mainWh ? `(${mainWh.name} - MAIN)` : '(Total Stock)'}</h2>
                                 <p class="text-sm text-red-600 mt-1">Items at or below their minimum stock threshold.</p>
                             </div>
                             <div class="bg-white px-4 py-2 rounded-lg shadow-sm font-bold text-red-600 border border-red-100">
@@ -1592,10 +1656,9 @@
                                     <tr>
                                         <th class="px-6 py-3 font-medium">SKU</th>
                                         <th class="px-6 py-3 font-medium">Product Name</th>
-                                        <th class="px-6 py-3 font-medium">Category</th>
-                                        <th class="px-6 py-3 font-medium text-center">Current Stock</th>
+                                        <th class="px-6 py-3 font-medium text-center">Relevant Stock</th>
                                         <th class="px-6 py-3 font-medium text-center">Min Threshold</th>
-                                        <th class="px-6 py-3 font-medium text-right">Action</th>
+                                        <th class="px-6 py-3 font-medium text-right">Recommended Action</th>
                                     </tr>
                                 </thead>
                                 <tbody class="text-sm divide-y divide-gray-100">
@@ -1603,15 +1666,20 @@
                                         <tr class="hover:bg-red-50 transition">
                                             <td class="px-6 py-4 font-mono text-xs text-gray-500">${p.sku}</td>
                                             <td class="px-6 py-4 font-medium text-gray-800">${p.name}</td>
-                                            <td class="px-6 py-4 text-gray-600">${p.category || 'N/A'}</td>
                                             <td class="px-6 py-4 text-center">
-                                                <span class="bg-red-100 text-red-700 px-3 py-1 rounded font-bold">${p.stock}</span>
+                                                <span class="bg-red-100 text-red-700 px-3 py-1 rounded font-bold">${p.relevantStock}</span>
                                             </td>
                                             <td class="px-6 py-4 text-center text-gray-500 font-medium">${p.minStock || 5}</td>
                                             <td class="px-6 py-4 text-right">
-                                                <button onclick="showToast('PO Drafted for ${p.name.replace(/'/g, "\\'")}', 'info')" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-blue-600 px-4 py-1.5 rounded-lg text-xs font-semibold transition shadow-sm flex items-center gap-2 ml-auto">
-                                                    <i class="fas fa-file-invoice"></i> Draft PO
-                                                </button>
+                                                ${mainWh && p.availableElsewhere ? 
+                                                    `<button onclick="window.StockTransfer.open('${p.id}', '${mainWh.id}')" class="bg-yellow-50 border border-yellow-300 text-yellow-700 hover:bg-yellow-100 px-4 py-1.5 rounded-lg text-xs font-semibold transition shadow-sm flex items-center gap-2 ml-auto">
+                                                        <i class="fas fa-exchange-alt"></i> Transfer Stock
+                                                    </button>` 
+                                                    : 
+                                                    `<button onclick="showToast('PO Drafted for ${p.name.replace(/'/g, "\\'")}', 'info')" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-blue-600 px-4 py-1.5 rounded-lg text-xs font-semibold transition shadow-sm flex items-center gap-2 ml-auto">
+                                                        <i class="fas fa-file-invoice"></i> Draft PO
+                                                    </button>`
+                                                }
                                             </td>
                                         </tr>
                                     `).join('') : `<tr><td colspan="6" class="px-6 py-12 text-center text-gray-500"><i class="fas fa-check-circle text-4xl text-green-400 mb-3 block"></i>All stock levels are healthy!</td></tr>`}
@@ -1692,8 +1760,28 @@
         window.ProductForm = {
             open: (product = null) => {
                 const title = product ? "Edit Product" : "Add New Product";
-                const p = product || { name: '', sku: '', category: '', warehouseId: '', price: 0, cost: 0, stock: 0, minStock: 5, maxStock: 100, taxRate: 0 };
+                const p = product || { name: '', sku: '', category: '', price: 0, cost: 0, stock: 0, minStock: 5, maxStock: 100, taxRate: 0, allocations: {} };
                 
+                // Build dynamic warehouse inputs
+                let whInputs = appState.warehouses.map(w => {
+                    const alloc = p.allocations ? (p.allocations[w.id] || 0) : 0;
+                    return `
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1 truncate" title="${w.name}">${w.name} Stock</label>
+                            <input type="number" id="pf-wh-${w.id}" value="${alloc}" min="0" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm">
+                        </div>
+                    `;
+                }).join('');
+                
+                // Add unassigned
+                const unassignedStock = p.allocations ? (p.allocations['unassigned'] || 0) : (p.stock || 0);
+                whInputs += `
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Unassigned Stock</label>
+                        <input type="number" id="pf-wh-unassigned" value="${unassignedStock}" min="0" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm bg-gray-50">
+                    </div>
+                `;
+
                 showModal(`
                     <div class="p-6">
                         <div class="flex justify-between items-center mb-6">
@@ -1711,17 +1799,18 @@
                                     <input type="text" id="pf-sku" value="${p.sku}" required class="w-full border border-gray-300 rounded px-3 py-2 uppercase focus:ring-blue-500 focus:border-blue-500 outline-none">
                                 </div>
                             </div>
-                            <div class="grid grid-cols-2 gap-4">
+                            <div class="grid grid-cols-3 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
                                     <input type="text" id="pf-cat" value="${p.category}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Warehouse</label>
-                                    <select id="pf-warehouse" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white">
-                                        <option value="">-- Unassigned --</option>
-                                        ${appState.warehouses.map(w => `<option value="${w.id}" ${p.warehouseId === w.id ? 'selected' : ''}>${w.name}</option>`).join('')}
-                                    </select>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Min Threshold</label>
+                                    <input type="number" id="pf-min" value="${p.minStock}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Max Capacity</label>
+                                    <input type="number" id="pf-max" value="${p.maxStock || 100}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
                                 </div>
                             </div>
                             <div class="grid grid-cols-3 gap-4">
@@ -1738,21 +1827,15 @@
                                     <input type="number" step="0.01" id="pf-tax" value="${p.taxRate || 0}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
                                 </div>
                             </div>
-                            <div class="grid grid-cols-3 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Current Stock *</label>
-                                    <input type="number" id="pf-stock" value="${p.stock}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Min Threshold</label>
-                                    <input type="number" id="pf-min" value="${p.minStock}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Max Capacity</label>
-                                    <input type="number" id="pf-max" value="${p.maxStock || 100}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                            
+                            <div class="border-t border-gray-200 pt-4 mt-2">
+                                <h3 class="text-sm font-bold text-gray-800 mb-3">Warehouse Stock Allocations</h3>
+                                <div class="grid grid-cols-4 gap-3">
+                                    ${whInputs}
                                 </div>
                             </div>
-                            <div class="mt-6 flex justify-end gap-3">
+
+                            <div class="mt-6 flex justify-end gap-3 pt-2">
                                 <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 font-medium">Cancel</button>
                                 <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">Save Product</button>
                             </div>
@@ -1762,15 +1845,31 @@
             },
             save: async (e, id) => {
                 e.preventDefault();
+                
+                let allocations = {};
+                let totalStock = 0;
+                
+                appState.warehouses.forEach(w => {
+                    let el = document.getElementById(`pf-wh-${w.id}`);
+                    if(el) {
+                        let val = parseInt(el.value) || 0;
+                        allocations[w.id] = val;
+                        totalStock += val;
+                    }
+                });
+                let unVal = parseInt(document.getElementById(`pf-wh-unassigned`).value) || 0;
+                allocations['unassigned'] = unVal;
+                totalStock += unVal;
+
                 const data = {
                     name: document.getElementById('pf-name').value,
                     sku: document.getElementById('pf-sku').value.toUpperCase(),
                     category: document.getElementById('pf-cat').value,
-                    warehouseId: document.getElementById('pf-warehouse').value,
                     price: parseFloat(document.getElementById('pf-price').value),
                     cost: parseFloat(document.getElementById('pf-cost').value),
                     taxRate: parseFloat(document.getElementById('pf-tax').value) || 0,
-                    stock: parseInt(document.getElementById('pf-stock').value),
+                    stock: totalStock,
+                    allocations: allocations,
                     minStock: parseInt(document.getElementById('pf-min').value),
                     maxStock: parseInt(document.getElementById('pf-max').value) || 0
                 };
@@ -1789,6 +1888,153 @@
                 showConfirm("Are you sure you want to delete this product?", async () => {
                     if(await DB.delete('products', id)) showToast("Product deleted");
                 });
+            }
+        };
+
+        // Stock Transfer Logic
+        window.StockTransfer = {
+            open: (prefillProduct = null, prefillDest = null) => {
+                showModal(`
+                    <div class="p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold text-gray-800">Transfer Stock</h2>
+                            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Select Product *</label>
+                                <select id="tr-product" class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" onchange="window.StockTransfer.onProductChange()">
+                                    <option value="">-- Choose Product --</option>
+                                    ${appState.products.map(p => `<option value="${p.id}" ${prefillProduct === p.id ? 'selected' : ''}>${p.name} (SKU: ${p.sku})</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">From Location *</label>
+                                    <select id="tr-source" class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" onchange="window.StockTransfer.onSourceChange()">
+                                        <option value="">-- Select Source --</option>
+                                    </select>
+                                    <p class="text-xs text-gray-500 mt-1" id="tr-source-avail">Available: 0</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">To Location *</label>
+                                    <select id="tr-dest" class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="">-- Select Destination --</option>
+                                        <option value="unassigned" ${prefillDest === 'unassigned' ? 'selected' : ''}>Unassigned / Transit</option>
+                                        ${appState.warehouses.map(w => `<option value="${w.id}" ${prefillDest === w.id ? 'selected' : ''}>${w.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Quantity to Move *</label>
+                                <input type="number" id="tr-qty" value="1" min="1" class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="mt-6 flex justify-end gap-3 pt-2">
+                                <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 font-medium">Cancel</button>
+                                <button onclick="window.StockTransfer.execute()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">Execute Transfer</button>
+                            </div>
+                        </div>
+                    </div>
+                `);
+                if(prefillProduct) window.StockTransfer.onProductChange();
+            },
+            onProductChange: () => {
+                const pId = document.getElementById('tr-product').value;
+                const sourceSel = document.getElementById('tr-source');
+                sourceSel.innerHTML = '<option value="">-- Select Source --</option>';
+                document.getElementById('tr-source-avail').innerText = 'Available: 0';
+                
+                if(!pId) return;
+                const p = appState.products.find(x => x.id === pId);
+                const allocs = getProductAllocations(p);
+                
+                Object.keys(allocs).forEach(whId => {
+                    const qty = allocs[whId];
+                    if(qty > 0) {
+                        let name = 'Unassigned / Transit';
+                        if(whId !== 'unassigned') {
+                            const wh = appState.warehouses.find(w => w.id === whId);
+                            if(wh) name = wh.name;
+                        }
+                        sourceSel.innerHTML += `<option value="${whId}" data-qty="${qty}">${name}</option>`;
+                    }
+                });
+            },
+            onSourceChange: () => {
+                const sourceSel = document.getElementById('tr-source');
+                const opt = sourceSel.options[sourceSel.selectedIndex];
+                if(opt && opt.value) {
+                    document.getElementById('tr-source-avail').innerText = `Available: ${opt.getAttribute('data-qty')}`;
+                    document.getElementById('tr-qty').max = opt.getAttribute('data-qty');
+                } else {
+                    document.getElementById('tr-source-avail').innerText = 'Available: 0';
+                }
+            },
+            execute: async () => {
+                const pId = document.getElementById('tr-product').value;
+                const source = document.getElementById('tr-source').value;
+                const dest = document.getElementById('tr-dest').value;
+                const qty = parseInt(document.getElementById('tr-qty').value);
+
+                if(!pId || !source || !dest) return showToast("Please select product and locations", "error");
+                if(source === dest) return showToast("Source and destination must be different", "error");
+                if(isNaN(qty) || qty <= 0) return showToast("Enter valid quantity", "error");
+
+                const p = appState.products.find(x => x.id === pId);
+                if(!p) return;
+                const allocs = getProductAllocations(p);
+
+                if(!allocs[source] || allocs[source] < qty) return showToast("Not enough stock in source", "error");
+
+                // Execute transfer in memory
+                allocs[source] -= qty;
+                allocs[dest] = (allocs[dest] || 0) + qty;
+                p.allocations = allocs;
+
+                const { id, ...cleanP } = p;
+                if(await DB.save('products', cleanP, id)) {
+                    showToast("Stock transferred successfully!");
+                    closeModal();
+                }
+            }
+        };
+
+        // Finance Manager
+        window.FinanceManager = {
+            paySupplier: (id) => {
+                const s = appState.suppliers.find(x => x.id === id);
+                if(!s) return;
+                const cSym = appState.settings[0]?.currency || '₹';
+                showModal(`
+                    <div class="p-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">Pay Supplier</h2>
+                        <p class="mb-1 text-sm text-gray-600">Supplier: <b class="text-gray-800">${s.name}</b></p>
+                        <p class="mb-6 text-sm text-gray-600">Total Payable: <span class="font-bold text-red-600">${cSym}${Number(s.balance).toFixed(2)}</span></p>
+                        
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Amount to Pay (${cSym})</label>
+                        <input type="number" step="0.01" id="pay-sup-amt" placeholder="0.00" class="w-full border border-gray-300 rounded-lg px-3 py-3 outline-none focus:ring-2 focus:ring-blue-500 mb-6 font-semibold text-lg text-blue-600">
+                        
+                        <div class="flex justify-end gap-3">
+                            <button onclick="closeModal()" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">Cancel</button>
+                            <button onclick="window.FinanceManager.processPayment('${id}')" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2"><i class="fas fa-check"></i> Record Payment</button>
+                        </div>
+                    </div>
+                `);
+            },
+            processPayment: async (id) => {
+                const amt = parseFloat(document.getElementById('pay-sup-amt').value);
+                if(isNaN(amt) || amt <= 0) return showToast("Enter a valid amount", "error");
+                const s = appState.suppliers.find(x => x.id === id);
+                if(!s) return;
+                
+                s.balance = (Number(s.balance) || 0) - amt;
+                
+                const {id: sid, ...cleanS} = s;
+                if(await DB.save('suppliers', cleanS, sid)) {
+                    const cSym = appState.settings[0]?.currency || '₹';
+                    showToast(`Payment of ${cSym}${amt.toFixed(2)} recorded.`);
+                    closeModal();
+                }
             }
         };
 
@@ -1910,7 +2156,7 @@
         window.SupplierForm = {
             open: (supplier = null) => {
                 const title = supplier ? "Edit Supplier" : "Add New Supplier";
-                const s = supplier || { name: '', contact: '', phone: '', email: '' };
+                const s = supplier || { name: '', contact: '', phone: '', email: '', balance: 0 };
                 showModal(`
                     <div class="p-6">
                         <div class="flex justify-between items-center mb-6">
@@ -1924,6 +2170,10 @@
                                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" id="sf-email" value="${s.email}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
                                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Phone</label><input type="text" id="sf-phone" value="${s.phone}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
                             </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Opening Balance (You Owe)</label>
+                                <input type="number" step="0.01" id="sf-balance" value="${s.balance}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                            </div>
                             <div class="mt-6 flex justify-end gap-3"><button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 font-medium">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">Save Supplier</button></div>
                         </form>
                     </div>
@@ -1931,7 +2181,13 @@
             },
             save: async (e, id) => {
                 e.preventDefault();
-                const data = { name: document.getElementById('sf-name').value, contact: document.getElementById('sf-contact').value, email: document.getElementById('sf-email').value, phone: document.getElementById('sf-phone').value };
+                const data = { 
+                    name: document.getElementById('sf-name').value, 
+                    contact: document.getElementById('sf-contact').value, 
+                    email: document.getElementById('sf-email').value, 
+                    phone: document.getElementById('sf-phone').value,
+                    balance: parseFloat(document.getElementById('sf-balance').value) || 0
+                };
                 if(await DB.save('suppliers', data, id ? id : null)) { showToast(id ? "Supplier updated" : "Supplier created"); closeModal(); }
             },
             edit: (id) => { const s = appState.suppliers.find(x => x.id === id); if(s) window.SupplierForm.open(s); },
@@ -1946,7 +2202,7 @@
         window.WarehouseForm = {
             open: (warehouse = null) => {
                 const title = warehouse ? "Edit Warehouse" : "Add New Warehouse";
-                const w = warehouse || { name: '', location: '', capacity: '' };
+                const w = warehouse || { name: '', location: '', capacity: '', isMain: false };
                 showModal(`
                     <div class="p-6">
                         <div class="flex justify-between items-center mb-6">
@@ -1957,6 +2213,10 @@
                             <div><label class="block text-sm font-medium text-gray-700 mb-1">Warehouse Name *</label><input type="text" id="wf-name" value="${w.name}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
                             <div><label class="block text-sm font-medium text-gray-700 mb-1">Location / Address</label><input type="text" id="wf-location" value="${w.location}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
                             <div><label class="block text-sm font-medium text-gray-700 mb-1">Capacity (Optional)</label><input type="text" id="wf-capacity" value="${w.capacity}" placeholder="e.g. 5000 sq ft" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
+                            <div class="flex items-center gap-2 mt-2">
+                                <input type="checkbox" id="wf-ismain" ${w.isMain ? 'checked' : ''} class="w-4 h-4 text-blue-600">
+                                <label class="text-sm font-medium text-gray-700">Set as Main Warehouse</label>
+                            </div>
                             <div class="mt-6 flex justify-end gap-3"><button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 font-medium">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">Save Warehouse</button></div>
                         </form>
                     </div>
@@ -1964,7 +2224,22 @@
             },
             save: async (e, id) => {
                 e.preventDefault();
-                const data = { name: document.getElementById('wf-name').value, location: document.getElementById('wf-location').value, capacity: document.getElementById('wf-capacity').value };
+                const data = { 
+                    name: document.getElementById('wf-name').value, 
+                    location: document.getElementById('wf-location').value, 
+                    capacity: document.getElementById('wf-capacity').value,
+                    isMain: document.getElementById('wf-ismain').checked
+                };
+                
+                // If this is set as main, unset any existing mains
+                if(data.isMain) {
+                    for(let wh of appState.warehouses) {
+                        if(wh.id !== id && wh.isMain) {
+                            await DB.save('warehouses', { ...wh, isMain: false }, wh.id);
+                        }
+                    }
+                }
+
                 if(await DB.save('warehouses', data, id ? id : null)) { showToast(id ? "Warehouse updated" : "Warehouse created"); closeModal(); }
             },
             edit: (id) => { const w = appState.warehouses.find(x => x.id === id); if(w) window.WarehouseForm.open(w); },
@@ -1978,7 +2253,7 @@
         // Point of Sale Logic
         window.POS = {
             cart: [],
-            discountMode: 'none', // none, total, item
+            discountMode: 'none', 
             discountVal: 0,
             discountType: '%',
             excludeTax: false,
@@ -2288,7 +2563,26 @@
                     for (const item of window.POS.cart) {
                         const product = appState.products.find(p => p.id === item.id);
                         if(product) {
-                            product.stock -= item.qty;
+                            let qtyToDeduct = item.qty;
+                            
+                            // Try deduct from main wh first if exists, else cascade
+                            const mainWh = appState.warehouses.find(w => w.isMain);
+                            if(mainWh && product.allocations && product.allocations[mainWh.id] >= qtyToDeduct) {
+                                product.allocations[mainWh.id] -= qtyToDeduct;
+                            } else {
+                                // Cascade deduction across allocations
+                                if(product.allocations) {
+                                    for(let whId in product.allocations) {
+                                        if(product.allocations[whId] > 0 && qtyToDeduct > 0) {
+                                            let deduct = Math.min(product.allocations[whId], qtyToDeduct);
+                                            product.allocations[whId] -= deduct;
+                                            qtyToDeduct -= deduct;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            product.stock -= item.qty; // total fallback sync
                             const { id, ...cleanProduct } = product; 
                             await DB.save('products', cleanProduct, id);
                         }
@@ -2520,6 +2814,10 @@
                             product.stock = newStock;
                             product.cost = newCost;
 
+                            let destWh = po.warehouseId || 'unassigned';
+                            product.allocations = product.allocations || {};
+                            product.allocations[destWh] = (product.allocations[destWh] || 0) + item.qty;
+
                             const { id: pid, ...cleanProduct } = product;
                             await DB.save('products', cleanProduct, pid);
                         }
@@ -2529,6 +2827,13 @@
                     const { id: poid, ...cleanPO } = po;
                     await DB.save('purchase_orders', cleanPO, poid);
 
+                    const supplier = appState.suppliers.find(s => s.id === po.supplierId);
+                    if(supplier) {
+                        supplier.balance = (Number(supplier.balance) || 0) + Number(po.total);
+                        const { id: sid, ...cleanS } = supplier;
+                        await DB.save('suppliers', cleanS, sid);
+                    }
+
                     showToast("Shipment received! Inventory successfully updated.");
                 });
             },
@@ -2536,6 +2841,113 @@
                 showConfirm("Are you sure you want to delete this Purchase Order?", async () => {
                     if(await DB.delete('purchase_orders', id)) showToast("Purchase Order Deleted");
                 });
+            }
+        };
+
+        // Stock Transfer Logic
+        window.StockTransfer = {
+            open: (prefillProduct = null, prefillDest = null) => {
+                showModal(`
+                    <div class="p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold text-gray-800">Transfer Stock</h2>
+                            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Select Product *</label>
+                                <select id="tr-product" class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" onchange="window.StockTransfer.onProductChange()">
+                                    <option value="">-- Choose Product --</option>
+                                    ${appState.products.map(p => `<option value="${p.id}" ${prefillProduct === p.id ? 'selected' : ''}>${p.name} (SKU: ${p.sku})</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">From Location *</label>
+                                    <select id="tr-source" class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" onchange="window.StockTransfer.onSourceChange()">
+                                        <option value="">-- Select Source --</option>
+                                    </select>
+                                    <p class="text-xs text-gray-500 mt-1" id="tr-source-avail">Available: 0</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">To Location *</label>
+                                    <select id="tr-dest" class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="">-- Select Destination --</option>
+                                        <option value="unassigned" ${prefillDest === 'unassigned' ? 'selected' : ''}>Unassigned / Transit</option>
+                                        ${appState.warehouses.map(w => `<option value="${w.id}" ${prefillDest === w.id ? 'selected' : ''}>${w.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Quantity to Move *</label>
+                                <input type="number" id="tr-qty" value="1" min="1" class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="mt-6 flex justify-end gap-3 pt-2">
+                                <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 font-medium">Cancel</button>
+                                <button onclick="window.StockTransfer.execute()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">Execute Transfer</button>
+                            </div>
+                        </div>
+                    </div>
+                `);
+                if(prefillProduct) window.StockTransfer.onProductChange();
+            },
+            onProductChange: () => {
+                const pId = document.getElementById('tr-product').value;
+                const sourceSel = document.getElementById('tr-source');
+                sourceSel.innerHTML = '<option value="">-- Select Source --</option>';
+                document.getElementById('tr-source-avail').innerText = 'Available: 0';
+                
+                if(!pId) return;
+                const p = appState.products.find(x => x.id === pId);
+                const allocs = getProductAllocations(p);
+                
+                Object.keys(allocs).forEach(whId => {
+                    const qty = allocs[whId];
+                    if(qty > 0) {
+                        let name = 'Unassigned / Transit';
+                        if(whId !== 'unassigned') {
+                            const wh = appState.warehouses.find(w => w.id === whId);
+                            if(wh) name = wh.name;
+                        }
+                        sourceSel.innerHTML += `<option value="${whId}" data-qty="${qty}">${name}</option>`;
+                    }
+                });
+            },
+            onSourceChange: () => {
+                const sourceSel = document.getElementById('tr-source');
+                const opt = sourceSel.options[sourceSel.selectedIndex];
+                if(opt && opt.value) {
+                    document.getElementById('tr-source-avail').innerText = `Available: ${opt.getAttribute('data-qty')}`;
+                    document.getElementById('tr-qty').max = opt.getAttribute('data-qty');
+                } else {
+                    document.getElementById('tr-source-avail').innerText = 'Available: 0';
+                }
+            },
+            execute: async () => {
+                const pId = document.getElementById('tr-product').value;
+                const source = document.getElementById('tr-source').value;
+                const dest = document.getElementById('tr-dest').value;
+                const qty = parseInt(document.getElementById('tr-qty').value);
+
+                if(!pId || !source || !dest) return showToast("Please select product and locations", "error");
+                if(source === dest) return showToast("Source and destination must be different", "error");
+                if(isNaN(qty) || qty <= 0) return showToast("Enter valid quantity", "error");
+
+                const p = appState.products.find(x => x.id === pId);
+                if(!p) return;
+                const allocs = getProductAllocations(p);
+
+                if(!allocs[source] || allocs[source] < qty) return showToast("Not enough stock in source", "error");
+
+                allocs[source] -= qty;
+                allocs[dest] = (allocs[dest] || 0) + qty;
+                p.allocations = allocs;
+
+                const { id, ...cleanP } = p;
+                if(await DB.save('products', cleanP, id)) {
+                    showToast("Stock transferred successfully!");
+                    closeModal();
+                }
             }
         };
 
@@ -2614,6 +3026,9 @@
                 });
             }
         };
+
+        // Initialize Call
+        initAuth();
 
     </script>
 </body>
