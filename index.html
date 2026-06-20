@@ -199,7 +199,7 @@
         // ==========================================
         // 1. CONFIGURATION & STATE
         // ==========================================
-        const firebaseConfig = {
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyD8mK1r-L9pyutdpkUWFQDrcNnC1W9QLUw",
             authDomain: "itsambs.firebaseapp.com",
             projectId: "itsambs",
@@ -208,7 +208,7 @@
             appId: "1:613551914200:web:7ecfbed7b49bf70f23abad",
             measurementId: "G-8BXKP15QJP"
         };
-        const appId = "itsambs";
+        const appId = typeof __app_id !== 'undefined' ? __app_id : "itsambs";
         
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -233,6 +233,21 @@
         };
 
         let currentChart = null;
+
+        const getGlobalSettings = () => {
+            const s = appState.settings[0] || {};
+            return {
+                companyName: s.companyName || '',
+                currency: s.currency || '₹',
+                enableTransport: s.enableTransport !== false,
+                enableStorage: s.enableStorage !== false,
+                enableGst: s.enableGst !== false,
+                gst: s.gst || '',
+                phone: s.phone || '',
+                email: s.email || '',
+                address: s.address || ''
+            };
+        };
 
         // Helper to grab alloc fallback correctly safely
         const getProductAllocations = (p) => {
@@ -282,7 +297,7 @@
             const container = document.getElementById('modal-container');
             container.innerHTML = `
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-all scale-100">
+                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto transform transition-all scale-100">
                         ${contentHtml}
                     </div>
                 </div>
@@ -316,6 +331,7 @@
                 callback();
             };
         };
+        window.showConfirm = showConfirm;
 
         const wipeAccountAndData = async (userObj) => {
             if (!userObj) return;
@@ -446,6 +462,12 @@
             }
         };
 
+        const initAuth = async () => {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            }
+        };
+
         document.getElementById('btn-login-google').onclick = handleGoogleAuth;
         document.getElementById('btn-signup-google').onclick = handleGoogleAuth;
         document.getElementById('btn-login-local').onclick = handleLocalLogin;
@@ -549,7 +571,7 @@
                 await setDoc(verifRef, { payload });
                 
                 e2eKey = pin;
-                await DB.save('settings', { companyName: company, currency: '₹' });
+                await DB.save('settings', { companyName: company, currency: '₹', enableTransport: true, enableStorage: true, enableGst: true });
                 localStorage.setItem('companyName', company); 
                 
                 startApp();
@@ -608,6 +630,7 @@
                 if(currentView === 'products') Views.products(); 
                 if(currentView === 'inventory') Views.inventory(); 
                 if(currentView === 'low_stock') Views.low_stock();
+                if(currentView === 'billing') window.POS.renderProducts();
             });
             DB.listen('sales', 'sales', () => { 
                 if(currentView === 'dashboard') Views.dashboard(); 
@@ -621,10 +644,12 @@
             DB.listen('suppliers', 'suppliers', () => { 
                 if(currentView === 'suppliers') Views.suppliers(); 
                 if(currentView === 'money') Views.money();
+                if(currentView === 'purchase_orders') Views.purchase_orders();
             });
             DB.listen('warehouses', 'warehouses', () => { 
                 if(currentView === 'warehouses') Views.warehouses(); 
                 if(currentView === 'products') Views.products(); 
+                if(currentView === 'purchase_orders') Views.purchase_orders();
             });
             DB.listen('purchase_orders', 'purchase_orders', () => { 
                 if(currentView === 'purchase_orders') Views.purchase_orders(); 
@@ -636,7 +661,9 @@
                     localStorage.setItem('companyName', s.companyName); 
                 }
                 window.SettingsForm.applySettings();
-                if(currentView === 'system_settings') Views.system_settings(); 
+                if(currentView === 'general_settings') Views.general_settings(); 
+                if(currentView === 'products') Views.products();
+                if(currentView === 'billing') Views.billing();
             });
 
             buildSidebar();
@@ -685,7 +712,7 @@
                     { id: 'low_stock', icon: 'fa-exclamation-triangle', label: 'Low Stock' }
                 ]},
                 { group: 'Settings', items: [
-                    { id: 'system_settings', icon: 'fa-cog', label: 'System Settings' }
+                    { id: 'general_settings', icon: 'fa-cog', label: 'General Settings' }
                 ]}
             ];
 
@@ -722,12 +749,19 @@
             // --- DASHBOARD ---
             dashboard: () => {
                 const container = document.getElementById('page-content');
+                const settings = getGlobalSettings();
                 
                 const totalProducts = appState.products.length;
                 const lowStockCount = appState.products.filter(p => Number(p.stock) <= Number(p.minStock || 5)).length;
-                const stockValue = appState.products.reduce((acc, p) => acc + (Number(p.cost || 0) * Number(p.stock || 0)), 0);
+                
+                let stockValue = 0;
+                appState.products.forEach(p => {
+                    const totalCost = (p.baseCost || 0) + (settings.enableTransport ? (p.transportCost || 0) : 0) + (settings.enableStorage ? (p.storageCost || 0) : 0);
+                    stockValue += totalCost * Number(p.stock || 0);
+                });
+                
                 const totalSales = appState.sales.reduce((acc, s) => acc + Number(s.total || 0), 0);
-                const cSym = appState.settings[0]?.currency || '₹';
+                const cSym = settings.currency;
 
                 container.innerHTML = `
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -803,12 +837,12 @@
                 const container = document.getElementById('page-content');
                 container.innerHTML = `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
-                        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
-                            <div class="relative w-64">
+                        <div class="p-6 border-b border-gray-100 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                            <div class="relative w-full sm:w-64">
                                 <input type="text" id="search-product" placeholder="Search products..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                                 <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
                             </div>
-                            <button onclick="window.ProductForm.open()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-2">
+                            <button onclick="window.ProductForm.open()" class="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center justify-center gap-2">
                                 <i class="fas fa-plus"></i> Add Product
                             </button>
                         </div>
@@ -819,8 +853,9 @@
                                         <th class="px-6 py-3 font-medium">SKU</th>
                                         <th class="px-6 py-3 font-medium">Name</th>
                                         <th class="px-6 py-3 font-medium">Category</th>
-                                        <th class="px-6 py-3 font-medium">Price</th>
-                                        <th class="px-6 py-3 font-medium">Total Stock</th>
+                                        <th class="px-6 py-3 font-medium">Total Cost</th>
+                                        <th class="px-6 py-3 font-medium">Selling Price</th>
+                                        <th class="px-6 py-3 font-medium text-center">Total Stock</th>
                                         <th class="px-6 py-3 font-medium text-right">Actions</th>
                                     </tr>
                                 </thead>
@@ -842,7 +877,8 @@
                 const tbody = document.getElementById('products-table-body');
                 if(!tbody) return;
                 
-                const cSym = appState.settings[0]?.currency || '₹';
+                const settings = getGlobalSettings();
+                const cSym = settings.currency;
 
                 if(products.length === 0) {
                     tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-gray-500">No products found.</td></tr>`;
@@ -860,14 +896,17 @@
                         }
                         return `${whName}: ${qty}`;
                     }).filter(x=>x).join(' | ');
+                    
+                    const totalCost = (p.baseCost || 0) + (settings.enableTransport ? (p.transportCost || 0) : 0) + (settings.enableStorage ? (p.storageCost || 0) : 0);
 
                     return `
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-6 py-4 font-mono text-xs text-gray-500">${p.sku}</td>
                         <td class="px-6 py-4 font-medium text-gray-800">${p.name}</td>
                         <td class="px-6 py-4"><span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">${p.category || 'N/A'}</span></td>
+                        <td class="px-6 py-4 text-gray-600 font-semibold">${cSym}${totalCost.toFixed(2)}</td>
                         <td class="px-6 py-4 text-green-600 font-semibold">${cSym}${Number(p.price).toFixed(2)}</td>
-                        <td class="px-6 py-4">
+                        <td class="px-6 py-4 text-center">
                             <span class="${p.stock <= p.minStock ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'} px-2 py-1 rounded font-bold text-xs cursor-help" title="${breakdown || 'No stock'}">
                                 ${p.stock}
                             </span>
@@ -891,14 +930,15 @@
                         const qty = allocs[w.id] || 0;
                         if(qty <= 0) return '';
 
-                        const max = p.maxStock ? p.maxStock : Math.max(100, qty * 2);
+                        const caps = p.capacities || {};
+                        const max = caps[w.id] ? caps[w.id] : Math.max(100, qty * 2); // default fallback
                         const pct = Math.min(100, (qty / max) * 100);
-                        const color = qty <= p.minStock ? 'bg-red-500' : 'bg-green-500';
+                        const color = qty <= (p.minStock||5) ? 'bg-red-500' : 'bg-green-500';
                         return `
                         <div>
                             <div class="flex justify-between text-sm mb-1">
                                 <span class="font-medium text-gray-700">${p.name} <span class="text-gray-400 text-xs ml-2">${p.sku}</span></span>
-                                <span class="font-bold ${qty <= p.minStock ? 'text-red-500' : 'text-gray-700'}">${qty} / ${p.maxStock || '∞'}</span>
+                                <span class="font-bold ${qty <= (p.minStock||5) ? 'text-red-500' : 'text-gray-700'}">${qty} / ${caps[w.id] ? caps[w.id] : '∞'}</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-2">
                                 <div class="${color} h-2 rounded-full" style="width: ${pct}%"></div>
@@ -907,13 +947,19 @@
                         `;
                     }).join('');
 
-                    if(!wItemsHTML) return '';
-
                     return `
-                        <div class="mb-6">
-                            <h4 class="font-bold text-gray-700 mb-3 border-b pb-2"><i class="fas fa-warehouse mr-2 ${w.isMain ? 'text-yellow-500' : 'text-blue-500'}"></i>${w.name} ${w.isMain ? '<span class="text-xs text-yellow-600 bg-yellow-100 px-2 py-0.5 rounded ml-2">MAIN</span>' : ''} <span class="text-xs text-gray-400 font-normal ml-2">${w.location || ''}</span></h4>
+                        <div class="mb-6 bg-white border border-gray-100 rounded-xl shadow-sm p-4">
+                            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                                <h4 class="font-bold text-gray-700 flex items-center">
+                                    <i class="fas fa-warehouse mr-2 ${w.isMain ? 'text-yellow-500' : 'text-blue-500'}"></i>${w.name} 
+                                    ${w.isMain ? '<span class="text-[10px] uppercase text-yellow-600 bg-yellow-100 px-2 py-0.5 rounded ml-2">MAIN</span>' : ''}
+                                </h4>
+                                <button onclick="window.WarehouseForm.manageStock('${w.id}')" class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold py-1.5 px-3 rounded transition border border-blue-200">
+                                    <i class="fas fa-boxes mr-1"></i> Manage Stock
+                                </button>
+                            </div>
                             <div class="space-y-4">
-                                ${wItemsHTML}
+                                ${wItemsHTML || '<p class="text-sm text-gray-400 italic">No inventory recorded here.</p>'}
                             </div>
                         </div>
                     `;
@@ -925,14 +971,14 @@
                     const qty = allocs['unassigned'] || 0;
                     if(qty <= 0) return '';
 
-                    const max = p.maxStock ? p.maxStock : Math.max(100, qty * 2);
+                    const max = Math.max(100, qty * 2);
                     const pct = Math.min(100, (qty / max) * 100);
-                    const color = qty <= p.minStock ? 'bg-red-500' : 'bg-green-500';
+                    const color = qty <= (p.minStock||5) ? 'bg-red-500' : 'bg-gray-500';
                     return `
                     <div>
                         <div class="flex justify-between text-sm mb-1">
                             <span class="font-medium text-gray-700">${p.name} <span class="text-gray-400 text-xs ml-2">${p.sku}</span></span>
-                            <span class="font-bold ${qty <= p.minStock ? 'text-red-500' : 'text-gray-700'}">${qty} / ${p.maxStock || '∞'}</span>
+                            <span class="font-bold ${qty <= (p.minStock||5) ? 'text-red-500' : 'text-gray-700'}">${qty}</span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-2">
                             <div class="${color} h-2 rounded-full" style="width: ${pct}%"></div>
@@ -943,8 +989,15 @@
 
                 if(uItemsHTML) {
                     unassignedHTML = `
-                        <div class="mb-6">
-                            <h4 class="font-bold text-gray-500 mb-3 border-b pb-2"><i class="fas fa-box mr-2"></i>Unassigned / Transit</h4>
+                        <div class="mb-6 bg-white border border-gray-100 rounded-xl shadow-sm p-4">
+                            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                                <h4 class="font-bold text-gray-500 flex items-center">
+                                    <i class="fas fa-box mr-2"></i>Unassigned / Transit
+                                </h4>
+                                <button onclick="window.WarehouseForm.manageStock('unassigned')" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-1.5 px-3 rounded transition border border-gray-300">
+                                    <i class="fas fa-truck-loading mr-1"></i> Manage Transit Stock
+                                </button>
+                            </div>
                             <div class="space-y-4">
                                 ${uItemsHTML}
                             </div>
@@ -953,7 +1006,7 @@
                 }
 
                 if(!warehouseHTML && !unassignedHTML) {
-                    warehouseHTML = '<p class="text-gray-500 text-sm">No inventory data available in locations.</p>';
+                    warehouseHTML = '<div class="bg-white p-6 rounded-xl border border-gray-100 text-center text-gray-500 shadow-sm">No inventory locations defined yet.</div>';
                 }
 
                 container.innerHTML = `
@@ -969,13 +1022,14 @@
                         <button class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:bg-gray-50 text-left flex justify-between items-center" onclick="navigateTo('stock_transfer')">
                             <div>
                                 <h3 class="text-gray-800 font-semibold">Perform Transfer</h3>
-                                <p class="text-xs text-gray-500 mt-1">Move stock between warehouses</p>
+                                <p class="text-xs text-gray-500 mt-1">Move stock physically</p>
                             </div>
-                            <i class="fas fa-arrow-right text-gray-400"></i>
+                            <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-500"><i class="fas fa-exchange-alt"></i></div>
                         </button>
                     </div>
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <h3 class="font-semibold text-gray-800 mb-4">Stock Levels by Location</h3>
+                    
+                    <h3 class="font-bold text-gray-800 mb-4 text-lg">Stock Levels by Location</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         ${warehouseHTML}
                         ${unassignedHTML}
                     </div>
@@ -991,31 +1045,32 @@
                 window.POS.discountType = '%';
                 window.POS.excludeTax = false;
 
-                const cSym = appState.settings[0]?.currency || '₹';
+                const settings = getGlobalSettings();
+                const cSym = settings.currency;
                 
                 container.innerHTML = `
                     <div class="flex flex-col lg:flex-row gap-6 h-full">
                         <div class="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
                             <div class="p-4 border-b border-gray-100 bg-gray-50">
                                 <div class="relative">
-                                    <input type="text" id="pos-search" placeholder="Search by name or SKU or Scan Barcode..." class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-medium">
+                                    <input type="text" id="pos-search" placeholder="Search by name or SKU or Scan Barcode..." class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-medium text-sm shadow-sm">
                                     <i class="fas fa-barcode absolute left-3 top-3.5 text-gray-400 text-lg"></i>
                                 </div>
                             </div>
-                            <div class="flex-1 p-4 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-4" id="pos-products"></div>
+                            <div class="flex-1 p-4 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-4 hide-scroll" id="pos-products"></div>
                         </div>
 
                         <div class="w-full lg:w-[400px] bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col flex-shrink-0">
                             <!-- Advanced Customer Panel -->
                             <div class="p-4 border-b border-gray-100 bg-gray-50 flex flex-col gap-3">
                                 <div class="flex justify-between items-center mb-1">
-                                    <h3 class="font-bold text-gray-800">Current Sale</h3>
-                                    <button onclick="window.POS.clear()" class="text-xs text-red-500 hover:text-red-700">Clear Cart</button>
+                                    <h3 class="font-bold text-gray-800"><i class="fas fa-shopping-cart text-blue-500 mr-2"></i>Current Sale</h3>
+                                    <button onclick="window.POS.clear()" class="text-xs text-red-500 hover:text-red-700 bg-red-50 px-2 py-1 rounded">Clear Cart</button>
                                 </div>
                                 
                                 <div class="flex gap-2">
-                                    <input type="date" id="pos-date" class="border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" value="${new Date().toISOString().split('T')[0]}">
-                                    <select id="pos-discount-mode" onchange="window.POS.changeDiscountMode()" class="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                                    <input type="date" id="pos-date" class="border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" value="${new Date().toISOString().split('T')[0]}">
+                                    <select id="pos-discount-mode" onchange="window.POS.changeDiscountMode()" class="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 shadow-sm bg-white">
                                         <option value="none">No Discount</option>
                                         <option value="total">Discount on Total</option>
                                         <option value="item">Discount per Item</option>
@@ -1023,46 +1078,50 @@
                                 </div>
                                 
                                 <div class="flex gap-2">
-                                    <select id="pos-customer" onchange="window.POS.onCustomerChange()" class="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                                    <select id="pos-customer" onchange="window.POS.onCustomerChange()" class="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 shadow-sm bg-white">
                                         <option value="">Walk-in Customer</option>
                                     </select>
-                                    <button onclick="window.CustomerForm.open()" class="bg-blue-100 text-blue-600 px-3 rounded-lg hover:bg-blue-200 transition" title="Add Customer"><i class="fas fa-plus"></i></button>
+                                    <button onclick="window.CustomerForm.open()" class="bg-blue-600 text-white px-3 rounded-lg hover:bg-blue-700 transition shadow-sm" title="Add Customer"><i class="fas fa-plus"></i></button>
                                 </div>
 
-                                <div id="pos-customer-info" class="hidden bg-white p-3 rounded-lg border border-gray-200 text-sm shadow-sm flex flex-col gap-1">
+                                <div id="pos-customer-info" class="hidden bg-white p-3 rounded-lg border border-gray-200 text-sm shadow-sm flex flex-col gap-1 mt-1">
                                 </div>
 
-                                <select id="pos-payment-type" class="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white mt-1">
+                                <select id="pos-payment-type" class="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white mt-1 shadow-sm">
                                     <option value="Paid">Paid Instantly</option>
                                     <option value="Credit" disabled>Pay Later (Credit)</option>
                                 </select>
                             </div>
                             
-                            <div class="flex-1 p-4 overflow-y-auto space-y-3" id="pos-cart">
-                                <div class="text-center text-gray-400 mt-10">Cart is empty</div>
+                            <div class="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50/50" id="pos-cart">
+                                <div class="text-center text-gray-400 mt-10"><i class="fas fa-shopping-basket text-4xl mb-3 opacity-50 block"></i>Cart is empty</div>
                             </div>
                             
-                            <div class="p-4 border-t border-gray-100 bg-gray-50">
+                            <div class="p-4 border-t border-gray-100 bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                                 <div id="pos-discount-total-container" class="hidden flex gap-2 mb-3">
-                                    <input type="number" id="pos-discount" placeholder="Total Discount" class="w-1/2 border border-gray-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500" oninput="window.POS.updateDiscount()">
-                                    <select id="pos-discount-type" class="w-1/4 border border-gray-300 rounded px-1 py-1 text-sm outline-none focus:border-blue-500" onchange="window.POS.updateDiscount()">
+                                    <input type="number" id="pos-discount" placeholder="Total Discount" class="w-1/2 border border-gray-300 rounded px-2 py-1.5 text-sm outline-none focus:border-blue-500 shadow-sm" oninput="window.POS.updateDiscount()">
+                                    <select id="pos-discount-type" class="w-1/4 border border-gray-300 rounded px-1 py-1.5 text-sm outline-none focus:border-blue-500 shadow-sm bg-white" onchange="window.POS.updateDiscount()">
                                         <option value="%">%</option>
                                         <option value="fixed">Fixed</option>
                                     </select>
                                 </div>
+                                ${settings.enableGst ? `
                                 <div class="flex items-center justify-end gap-1 mb-3">
-                                    <input type="checkbox" id="pos-exclude-tax" onchange="window.POS.updateTaxToggle()" class="w-4 h-4 cursor-pointer">
-                                    <label class="text-xs text-gray-600 font-medium cursor-pointer" for="pos-exclude-tax">Exclude Tax</label>
-                                </div>
+                                    <input type="checkbox" id="pos-exclude-tax" onchange="window.POS.updateTaxToggle()" class="w-4 h-4 cursor-pointer text-blue-600">
+                                    <label class="text-xs text-gray-600 font-medium cursor-pointer" for="pos-exclude-tax">Tax Exempt</label>
+                                </div>` : ''}
 
-                                <div class="flex justify-between text-sm mb-1 text-gray-600"><span>Subtotal</span><span id="pos-subtotal">${cSym}0.00</span></div>
-                                <div class="flex justify-between text-sm mb-1 text-gray-600"><span>Discount</span><span id="pos-discount-amt" class="text-red-500">-${cSym}0.00</span></div>
-                                <div class="flex justify-between text-sm mb-3 text-gray-600"><span>Tax</span><span id="pos-tax-amt">+${cSym}0.00</span></div>
-                                <div class="flex justify-between text-xl font-bold text-gray-800 mb-4 border-t pt-2"><span>Total</span><span id="pos-total">${cSym}0.00</span></div>
+                                <div class="flex justify-between text-sm mb-1 text-gray-600 font-medium"><span>Subtotal</span><span id="pos-subtotal">${cSym}0.00</span></div>
+                                <div class="flex justify-between text-sm mb-1 text-gray-600 font-medium"><span>Discount</span><span id="pos-discount-amt" class="text-red-500">-${cSym}0.00</span></div>
+                                ${settings.enableGst ? `
+                                <div class="flex justify-between text-sm mb-3 text-gray-600 font-medium"><span>Tax</span><span id="pos-tax-amt">+${cSym}0.00</span></div>
+                                ` : '<div id="pos-tax-amt" class="hidden">0</div>'}
                                 
-                                <div class="grid grid-cols-2 gap-2">
-                                    <button onclick="window.POS.checkout(false)" class="bg-gray-800 text-white py-3 rounded-lg font-semibold hover:bg-gray-900 transition">Quick Sell</button>
-                                    <button onclick="window.POS.checkout(true)" class="bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"><i class="fas fa-print"></i> Generate Bill</button>
+                                <div class="flex justify-between text-xl font-bold text-gray-800 mb-4 border-t border-dashed border-gray-300 pt-3"><span>Total</span><span id="pos-total">${cSym}0.00</span></div>
+                                
+                                <div class="grid grid-cols-2 gap-3">
+                                    <button onclick="window.POS.checkout(false)" class="bg-gray-800 text-white py-3 rounded-lg font-semibold hover:bg-gray-900 transition shadow-md">Quick Sell</button>
+                                    <button onclick="window.POS.checkout(true)" class="bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-md"><i class="fas fa-print"></i> Print Bill</button>
                                 </div>
                             </div>
                         </div>
@@ -1154,12 +1213,12 @@
                 const container = document.getElementById('page-content');
                 container.innerHTML = `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
-                        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
-                            <div class="relative w-64">
+                        <div class="p-6 border-b border-gray-100 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                            <div class="relative w-full sm:w-64">
                                 <input type="text" id="search-customer" placeholder="Search customers..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                                 <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
                             </div>
-                            <button onclick="window.CustomerForm.open()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-2">
+                            <button onclick="window.CustomerForm.open()" class="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center justify-center gap-2">
                                 <i class="fas fa-plus"></i> Add Customer
                             </button>
                         </div>
@@ -1229,12 +1288,12 @@
                 const container = document.getElementById('page-content');
                 container.innerHTML = `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
-                        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
-                            <div class="relative w-64">
+                        <div class="p-6 border-b border-gray-100 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                            <div class="relative w-full sm:w-64">
                                 <input type="text" id="search-supplier" placeholder="Search suppliers..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                                 <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
                             </div>
-                            <button onclick="window.SupplierForm.open()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-2">
+                            <button onclick="window.SupplierForm.open()" class="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center justify-center gap-2">
                                 <i class="fas fa-plus"></i> Add Supplier
                             </button>
                         </div>
@@ -1287,12 +1346,12 @@
                 const container = document.getElementById('page-content');
                 container.innerHTML = `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
-                        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
-                            <div class="relative w-64">
+                        <div class="p-6 border-b border-gray-100 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                            <div class="relative w-full sm:w-64">
                                 <input type="text" id="search-warehouse" placeholder="Search warehouses..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                                 <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
                             </div>
-                            <button onclick="window.WarehouseForm.open()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-2">
+                            <button onclick="window.WarehouseForm.open()" class="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center justify-center gap-2">
                                 <i class="fas fa-plus"></i> Add Warehouse
                             </button>
                         </div>
@@ -1302,6 +1361,7 @@
                                     <tr>
                                         <th class="px-6 py-3 font-medium">Warehouse Name</th>
                                         <th class="px-6 py-3 font-medium">Location</th>
+                                        <th class="px-6 py-3 font-medium text-center">Items Stored</th>
                                         <th class="px-6 py-3 font-medium text-right">Actions</th>
                                     </tr>
                                 </thead>
@@ -1321,71 +1381,91 @@
                 const tbody = document.getElementById('warehouses-table-body');
                 if(!tbody) return;
                 if(data.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="3" class="px-6 py-8 text-center text-gray-500">No warehouses found.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">No warehouses found.</td></tr>`;
                     return;
                 }
-                tbody.innerHTML = data.map(w => `
+                
+                tbody.innerHTML = data.map(w => {
+                    let itemsCount = 0;
+                    appState.products.forEach(p => {
+                        const allocs = getProductAllocations(p);
+                        if(allocs[w.id] > 0) itemsCount++;
+                    });
+                    
+                    return `
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-6 py-4 font-medium text-gray-800">
                             ${w.name}
                             ${w.isMain ? '<span class="ml-2 bg-yellow-100 text-yellow-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase">Main</span>' : ''}
                         </td>
                         <td class="px-6 py-4 text-gray-600">${w.location || 'N/A'}</td>
+                        <td class="px-6 py-4 text-center font-bold text-gray-700">${itemsCount} Distinct Products</td>
                         <td class="px-6 py-4 text-right">
-                            <button onclick="window.WarehouseForm.edit('${w.id}')" class="text-blue-500 hover:text-blue-700 mr-3"><i class="fas fa-edit"></i></button>
-                            <button onclick="window.WarehouseForm.delete('${w.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                            <button onclick="window.WarehouseForm.manageStock('${w.id}')" class="text-indigo-600 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 px-3 py-1.5 rounded-lg text-xs font-semibold mr-3 transition" title="Manage Stock Content"><i class="fas fa-boxes mr-1"></i> Stock</button>
+                            <button onclick="window.WarehouseForm.edit('${w.id}')" class="text-blue-500 hover:text-blue-700 mr-3" title="Edit Info"><i class="fas fa-edit"></i></button>
+                            <button onclick="window.WarehouseForm.delete('${w.id}')" class="text-red-500 hover:text-red-700" title="Delete"><i class="fas fa-trash"></i></button>
                         </td>
                     </tr>
-                `).join('');
+                    `;
+                }).join('');
             },
 
             // --- PURCHASE ORDERS ---
             purchase_orders: () => {
                 const container = document.getElementById('page-content');
-                const cSym = appState.settings[0]?.currency || '₹';
+                const settings = getGlobalSettings();
+                const cSym = settings.currency;
+                
                 container.innerHTML = `
                     <div class="flex flex-col lg:flex-row gap-6 h-full">
-                        <div class="w-full lg:w-1/3 bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4 overflow-y-auto">
-                            <h3 class="font-bold text-gray-800 border-b pb-2 border-gray-100">Create Purchase Order</h3>
+                        <div class="w-full lg:w-[400px] flex-shrink-0 bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4 overflow-y-auto">
+                            <h3 class="font-bold text-gray-800 border-b pb-2 border-gray-100"><i class="fas fa-cart-arrow-down text-blue-500 mr-2"></i>Create Purchase Order</h3>
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Select Supplier *</label>
-                                <select id="po-supplier" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                <select id="po-supplier" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm" onchange="window.POManager.onSupplierSelect()">
                                     <option value="">-- Choose Supplier --</option>
                                     ${appState.suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
                                 </select>
                             </div>
-                            
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Destination Warehouse</label>
-                                <select id="po-warehouse" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+
+                            <div class="border-t border-gray-100 pt-4 mt-2 bg-gray-50 p-4 rounded-lg border border-gray-200 shadow-inner">
+                                <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Add Items</h4>
+                                
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Select Product</label>
+                                <select id="po-product" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm mb-3 bg-white" onchange="window.POManager.onProductSelect()" disabled>
+                                    <option value="">-- Select a Supplier First --</option>
+                                </select>
+
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Destination Warehouse</label>
+                                <select id="po-item-warehouse" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm mb-3 bg-white">
                                     <option value="unassigned">-- Unassigned / Transit --</option>
                                     ${appState.warehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('')}
-                                </select>
-                            </div>
-
-                            <div class="border-t border-gray-100 pt-4 mt-2">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Select Product</label>
-                                <select id="po-product" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm mb-3" onchange="window.POManager.onProductSelect()">
-                                    <option value="">-- Choose Product --</option>
-                                    ${appState.products.map(p => `<option value="${p.id}" data-cost="${p.cost}">${p.name} (${p.sku})</option>`).join('')}
                                 </select>
 
                                 <div class="grid grid-cols-2 gap-3 mb-4">
                                     <div>
                                         <label class="block text-xs font-medium text-gray-600 mb-1">Quantity</label>
-                                        <input type="number" id="po-qty" value="1" min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                        <input type="number" id="po-qty" value="1" min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-medium text-gray-600 mb-1">Unit Cost (${cSym})</label>
-                                        <input type="number" step="0.01" id="po-cost" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                        <input type="number" step="0.01" id="po-cost" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white">
                                     </div>
                                 </div>
 
-                                <button onclick="window.POManager.addItem()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-2.5 rounded-lg transition text-sm">
-                                    <i class="fas fa-plus mr-1"></i> Add to Order
+                                <button onclick="window.POManager.addItem()" class="w-full bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-2.5 rounded-lg transition text-sm flex items-center justify-center gap-2 border border-blue-200">
+                                    <i class="fas fa-plus"></i> Add Line Item
                                 </button>
                             </div>
+                            
+                            ${settings.enableTransport ? `
+                            <div class="mt-2 pt-4 border-t border-gray-100">
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Total Transport Cost for PO (${cSym})</label>
+                                <input type="number" step="0.01" id="po-transport-cost" value="0" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm shadow-sm">
+                                <p class="text-[10px] text-gray-400 mt-1">Cost is distributed proportionally by quantity across items.</p>
+                            </div>
+                            ` : ''}
                         </div>
 
                         <div class="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
@@ -1393,25 +1473,25 @@
                                 <h3 class="font-bold text-gray-800">Order Items</h3>
                                 <span class="text-sm font-bold text-blue-600" id="po-total-display">Total: ${cSym}0.00</span>
                             </div>
-                            <div class="flex-1 overflow-auto">
+                            <div class="flex-1 overflow-auto bg-gray-50/30">
                                 <table class="w-full text-left border-collapse">
-                                    <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm">
+                                    <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm border-b border-gray-200">
                                         <tr>
-                                            <th class="px-6 py-3 font-medium">Product</th>
+                                            <th class="px-6 py-3 font-medium">Product & Destination</th>
                                             <th class="px-6 py-3 font-medium text-right">Qty</th>
-                                            <th class="px-6 py-3 font-medium text-right">Cost</th>
+                                            <th class="px-6 py-3 font-medium text-right">Unit Cost</th>
                                             <th class="px-6 py-3 font-medium text-right">Total</th>
                                             <th class="px-6 py-3 font-medium text-center">Act</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="text-sm divide-y divide-gray-100" id="po-cart-body">
+                                    <tbody class="text-sm divide-y divide-gray-100 bg-white" id="po-cart-body">
                                         <tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">No items added yet.</td></tr>
                                     </tbody>
                                 </table>
                             </div>
-                            <div class="p-4 border-t border-gray-100 bg-gray-50 text-right">
-                                <button onclick="window.POManager.submit()" class="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center ml-auto gap-2">
-                                    <i class="fas fa-check"></i> Place Order
+                            <div class="p-4 border-t border-gray-100 bg-white text-right">
+                                <button onclick="window.POManager.submit()" class="bg-gray-800 text-white px-8 py-3 rounded-lg font-semibold hover:bg-gray-900 transition shadow-md inline-flex items-center justify-center gap-2">
+                                    <i class="fas fa-check"></i> Place Purchase Order
                                 </button>
                             </div>
                         </div>
@@ -1428,88 +1508,79 @@
                 container.innerHTML = `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
                         <div class="p-6 border-b border-gray-100 flex justify-between items-center">
-                            <h2 class="text-xl font-bold text-gray-800">Incoming Shipments</h2>
+                            <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-truck-loading text-blue-500 mr-2"></i>Incoming Shipments</h2>
                         </div>
-                        <div class="flex-1 overflow-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm">
-                                    <tr>
-                                        <th class="px-6 py-3 font-medium">Date Ordered</th>
-                                        <th class="px-6 py-3 font-medium">Supplier & Dest</th>
-                                        <th class="px-6 py-3 font-medium">Items Summary</th>
-                                        <th class="px-6 py-3 font-medium">Total Cost</th>
-                                        <th class="px-6 py-3 font-medium">Status</th>
-                                        <th class="px-6 py-3 font-medium text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="text-sm divide-y divide-gray-100" id="shipments-table-body">
-                                </tbody>
-                            </table>
+                        <div class="flex-1 overflow-auto p-6 bg-gray-50/50">
+                            <div id="shipments-container" class="space-y-6"></div>
                         </div>
                     </div>
                 `;
                 
-                const tbody = document.getElementById('shipments-table-body');
+                const cont = document.getElementById('shipments-container');
                 const pos = [...appState.purchase_orders].sort((a,b) => new Date(b.date) - new Date(a.date));
                 
                 if(pos.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-gray-500">No shipments found.</td></tr>';
+                    cont.innerHTML = '<div class="text-center text-gray-500 py-10"><i class="fas fa-clipboard-list text-4xl mb-3 opacity-50 block"></i>No shipments found.</div>';
                     return;
                 }
 
-                tbody.innerHTML = pos.map(po => {
+                cont.innerHTML = pos.map(po => {
                     const supplier = appState.suppliers.find(s => s.id === po.supplierId);
                     const supName = supplier ? supplier.name : 'Unknown Supplier';
-                    const warehouse = appState.warehouses.find(w => w.id === po.warehouseId);
-                    const destName = warehouse ? warehouse.name : 'Unassigned';
-                    const itemsSum = po.items.map(i => `${i.qty}x ${i.name}`).join(', ');
-                    const isPending = po.status === 'Pending';
                     
+                    // Group items by warehouse
+                    const groups = {};
+                    po.items.forEach(i => {
+                        const whId = i.warehouseId || 'unassigned';
+                        if(!groups[whId]) {
+                            groups[whId] = { name: i.warehouseName || 'Unassigned / Transit', items: [], status: 'Received' };
+                        }
+                        groups[whId].items.push(i);
+                        if(i.status !== 'Received') groups[whId].status = 'Pending';
+                    });
+
+                    const groupHTML = Object.entries(groups).map(([whId, g]) => {
+                        const isPending = g.status === 'Pending';
+                        const itemsList = g.items.map(i => `<span class="${i.status === 'Received' ? 'text-gray-400 line-through' : 'text-gray-700'}">${i.qty}x ${i.name}</span>`).join(', ');
+                        
+                        return `
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-50 p-3 border border-gray-200 rounded-lg mt-2">
+                                <div class="mb-2 sm:mb-0">
+                                    <div class="text-sm font-bold text-gray-800"><i class="fas fa-map-marker-alt text-red-500 mr-1"></i> ${g.name}</div>
+                                    <div class="text-xs text-gray-500 mt-1 max-w-lg truncate" title="${g.items.map(i=>`${i.qty}x ${i.name}`).join(', ')}">${itemsList}</div>
+                                </div>
+                                ${isPending 
+                                    ? `<button onclick="window.ShipmentManager.receiveGroup('${po.id}', '${whId}')" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1.5 px-4 rounded shadow-sm transition text-xs flex items-center gap-1 flex-shrink-0"><i class="fas fa-check"></i> Receive Here</button>` 
+                                    : `<span class="bg-gray-200 text-gray-600 px-3 py-1 rounded text-xs font-bold flex items-center gap-1"><i class="fas fa-check-double"></i> Received</span>`
+                                }
+                            </div>
+                        `;
+                    }).join('');
+
+                    const isFullyReceived = po.status === 'Received';
+
                     return `
-                        <tr class="hover:bg-gray-50 transition">
-                            <td class="px-6 py-4 text-gray-600 whitespace-nowrap">${new Date(po.date).toLocaleString()}</td>
-                            <td class="px-6 py-4">
-                                <div class="font-semibold text-gray-800">${supName}</div>
-                                <div class="text-xs text-gray-500"><i class="fas fa-arrow-right mr-1"></i> ${destName}</div>
-                            </td>
-                            <td class="px-6 py-4 text-gray-700 truncate max-w-xs" title="${itemsSum}">${itemsSum}</td>
-                            <td class="px-6 py-4 font-bold text-gray-800">${cSym}${Number(po.total).toFixed(2)}</td>
-                            <td class="px-6 py-4">
-                                <span class="${isPending ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'} px-2 py-1 rounded text-xs font-bold">
-                                    ${po.status || 'Pending'}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 text-right">
-                                ${isPending ? `<button onclick="window.ShipmentManager.receive('${po.id}')" class="bg-green-50 text-green-600 border border-green-200 hover:bg-green-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition mr-2"><i class="fas fa-check mr-1"></i> Receive</button>` : ''}
-                                <button onclick="window.ShipmentManager.delete('${po.id}')" class="text-red-500 hover:text-red-700" title="Delete PO"><i class="fas fa-trash"></i></button>
-                            </td>
-                        </tr>
+                        <div class="bg-white border ${isFullyReceived ? 'border-gray-200 opacity-60' : 'border-blue-200 shadow-sm'} rounded-xl p-5 relative overflow-hidden">
+                            ${isFullyReceived ? '<div class="absolute top-0 right-0 bg-gray-200 text-gray-600 text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wide">Archived</div>' : ''}
+                            
+                            <div class="flex justify-between items-start mb-3">
+                                <div>
+                                    <h3 class="font-bold text-gray-800 text-lg">${supName}</h3>
+                                    <p class="text-xs text-gray-500">Ordered: ${new Date(po.date).toLocaleString()}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-bold text-gray-800 text-lg">${cSym}${Number(po.total).toFixed(2)}</p>
+                                    <p class="text-xs text-blue-600 font-semibold cursor-pointer hover:underline" onclick="window.ShipmentManager.delete('${po.id}')">Delete Order</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4 pt-4 border-t border-gray-100">
+                                <h4 class="text-xs font-bold text-gray-400 uppercase mb-2">Deliveries grouped by Destination</h4>
+                                ${groupHTML}
+                            </div>
+                        </div>
                     `;
                 }).join('');
-            },
-
-            // --- STOCK TRANSFER / ADJUSTMENT ---
-            stock_transfer: () => {
-                const container = document.getElementById('page-content');
-                container.innerHTML = `
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
-                        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
-                            <div>
-                                <h2 class="text-xl font-bold text-gray-800">Stock Transfer</h2>
-                                <p class="text-sm text-gray-500 mt-1">Move inventory physically between warehouses.</p>
-                            </div>
-                            <button onclick="window.StockTransfer.open()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-2 shadow-sm">
-                                <i class="fas fa-exchange-alt"></i> New Transfer
-                            </button>
-                        </div>
-                        <div class="flex-1 overflow-auto p-6 flex items-center justify-center text-gray-400">
-                            <div class="text-center">
-                                <i class="fas fa-dolly text-4xl mb-3"></i>
-                                <p>Click "New Transfer" to move stock between allocations.</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
             },
 
             // --- SALES REPORT ---
@@ -1526,9 +1597,9 @@
                             <div class="flex items-center gap-4">
                                 <div class="flex flex-col">
                                     <label class="text-xs font-semibold text-gray-500 mb-1">Filter by Date</label>
-                                    <input type="date" id="sr-date-filter" class="border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-700">
+                                    <input type="date" id="sr-date-filter" class="border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-700 shadow-sm">
                                 </div>
-                                <div class="bg-blue-50 border border-blue-100 rounded-lg px-6 py-2 text-right">
+                                <div class="bg-blue-50 border border-blue-100 rounded-lg px-6 py-2 text-right shadow-sm">
                                     <p class="text-xs font-bold text-blue-500 uppercase tracking-wide">Total Revenue</p>
                                     <p class="text-2xl font-bold text-blue-700" id="sr-total-revenue">${cSym}0.00</p>
                                 </div>
@@ -1614,7 +1685,6 @@
                 const container = document.getElementById('page-content');
                 const mainWh = appState.warehouses.find(w => w.isMain);
                 
-                // Logic: Focus on Main Warehouse if one exists. Otherwise look at total stock.
                 let lowStockItems = [];
                 
                 appState.products.forEach(p => {
@@ -1629,7 +1699,6 @@
                     }
                     
                     if(relevantStock <= min) {
-                        // Calculate if it's available elsewhere
                         const totalOther = p.stock - relevantStock;
                         lowStockItems.push({
                             ...p,
@@ -1676,7 +1745,7 @@
                                                         <i class="fas fa-exchange-alt"></i> Transfer Stock
                                                     </button>` 
                                                     : 
-                                                    `<button onclick="showToast('PO Drafted for ${p.name.replace(/'/g, "\\'")}', 'info')" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-blue-600 px-4 py-1.5 rounded-lg text-xs font-semibold transition shadow-sm flex items-center gap-2 ml-auto">
+                                                    `<button onclick="navigateTo('purchase_orders'); setTimeout(()=>showToast('Drafting PO for ${p.name.replace(/'/g, "\\'")}'), 100);" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-blue-600 px-4 py-1.5 rounded-lg text-xs font-semibold transition shadow-sm flex items-center gap-2 ml-auto">
                                                         <i class="fas fa-file-invoice"></i> Draft PO
                                                     </button>`
                                                 }
@@ -1690,44 +1759,124 @@
                 `;
             },
 
-            // --- SYSTEM SETTINGS ---
-            system_settings: () => {
+            // --- STOCK TRANSFER ---
+            stock_transfer: () => {
                 const container = document.getElementById('page-content');
-                const s = appState.settings[0] || { companyName: '', currency: '₹', id: null, gst: '', phone: '', email: '', address: '' };
+                
+                container.innerHTML = `
+                    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col mt-4 pb-4">
+                        <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl shrink-0">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-exchange-alt text-blue-500 mr-2"></i>Stock Transfer</h2>
+                                <p class="text-sm text-gray-500 mt-1">Move inventory physically between warehouses or transit locations.</p>
+                            </div>
+                        </div>
+                        <div class="p-8 space-y-6">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Select Product *</label>
+                                <select id="pg-tr-product" class="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-lg" onchange="window.StockTransfer.onPageProductChange()">
+                                    <option value="">-- Choose Product to Transfer --</option>
+                                    ${appState.products.map(p => `<option value="${p.id}">${p.name} (SKU: ${p.sku})</option>`).join('')}
+                                </select>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
+                                <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-3 border border-gray-200 z-10 hidden md:flex items-center justify-center shadow-sm">
+                                    <i class="fas fa-arrow-right text-blue-500 text-xl"></i>
+                                </div>
+                                <div class="bg-red-50 p-5 rounded-xl border border-red-100 shadow-inner">
+                                    <label class="block text-sm font-bold text-gray-700 mb-2 text-red-700"><i class="fas fa-sign-out-alt mr-1"></i> From Location *</label>
+                                    <select id="pg-tr-source" class="w-full border border-red-200 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-red-500 bg-white shadow-sm text-md" onchange="window.StockTransfer.onPageSourceChange()">
+                                        <option value="">-- Select Source --</option>
+                                    </select>
+                                    <div class="mt-3 bg-white p-3 rounded border border-red-100 flex justify-between items-center shadow-sm">
+                                        <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Available to Move</span>
+                                        <span class="text-lg font-black text-red-600" id="pg-tr-source-avail">0</span>
+                                    </div>
+                                </div>
+                                <div class="bg-green-50 p-5 rounded-xl border border-green-100 shadow-inner">
+                                    <label class="block text-sm font-bold text-gray-700 mb-2 text-green-700"><i class="fas fa-sign-in-alt mr-1"></i> To Location *</label>
+                                    <select id="pg-tr-dest" class="w-full border border-green-200 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-green-500 bg-white shadow-sm text-md">
+                                        <option value="">-- Select Destination --</option>
+                                        <option value="unassigned">Unassigned / Transit</option>
+                                        ${appState.warehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="border-t border-gray-200 pt-6 mt-2 flex flex-col items-center">
+                                <label class="block text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider text-center">Quantity to Transfer</label>
+                                <input type="number" id="pg-tr-qty" value="1" min="1" class="w-48 border border-gray-300 rounded-xl px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 text-3xl font-black text-center text-blue-600 shadow-inner">
+                            </div>
+
+                            <div class="mt-8 flex justify-center pt-2">
+                                <button onclick="window.StockTransfer.executePage()" class="px-8 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold shadow-lg transition flex items-center gap-3 text-lg hover:-translate-y-1 transform">
+                                    <i class="fas fa-exchange-alt"></i> Confirm Transfer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            // --- SYSTEM SETTINGS ---
+            general_settings: () => {
+                const container = document.getElementById('page-content');
+                const s = getGlobalSettings();
+                const rawId = appState.settings[0] ? appState.settings[0].id : '';
                 
                 container.innerHTML = `
                     <div class="max-w-4xl mx-auto space-y-6 h-full pb-10">
                         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                            <h2 class="text-xl font-bold text-gray-800 mb-4 border-b border-gray-100 pb-2"><i class="fas fa-building mr-2 text-blue-500"></i>Company Profile</h2>
-                            <form onsubmit="window.SettingsForm.save(event, '${s.id || ''}')" class="space-y-4">
+                            <h2 class="text-xl font-bold text-gray-800 mb-4 border-b border-gray-100 pb-2"><i class="fas fa-building mr-2 text-blue-500"></i>Company Profile & Logic</h2>
+                            <form onsubmit="window.SettingsForm.save(event, '${rawId}')" class="space-y-6">
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-                                        <input type="text" id="set-company" value="${s.companyName || ''}" placeholder="Nexus Inv" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                        <input type="text" id="set-company" value="${s.companyName}" placeholder="Nexus Inv" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">GSTIN Number</label>
-                                        <input type="text" id="set-gst" value="${s.gst || ''}" placeholder="22AAAAA0000A1Z5" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                        <input type="text" id="set-gst" value="${s.gst}" placeholder="22AAAAA0000A1Z5" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                                        <input type="text" id="set-phone" value="${s.phone || ''}" placeholder="+91 9876543210" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                        <input type="text" id="set-phone" value="${s.phone}" placeholder="+91 9876543210" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                                        <input type="email" id="set-email" value="${s.email || ''}" placeholder="billing@company.com" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                        <input type="email" id="set-email" value="${s.email}" placeholder="billing@company.com" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Default Currency Symbol</label>
-                                        <input type="text" id="set-currency" value="${s.currency || '₹'}" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                        <input type="text" id="set-currency" value="${s.currency}" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
                                     </div>
                                     <div class="col-span-1 md:col-span-2">
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Company Address</label>
-                                        <textarea id="set-address" rows="3" placeholder="123 Business Road..." class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">${s.address || ''}</textarea>
+                                        <textarea id="set-address" rows="3" placeholder="123 Business Road..." class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">${s.address}</textarea>
                                     </div>
                                 </div>
+                                
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg p-5">
+                                    <h3 class="text-md font-bold text-gray-800 mb-3"><i class="fas fa-sliders-h mr-2"></i>Global Feature Toggles</h3>
+                                    <div class="space-y-3">
+                                        <label class="flex items-center gap-3 cursor-pointer">
+                                            <input type="checkbox" id="set-transport" ${s.enableTransport ? 'checked' : ''} class="w-5 h-5 text-blue-600 rounded"> 
+                                            <span class="text-sm text-gray-700 font-medium">Enable Transport Cost Calculation on POs</span>
+                                        </label>
+                                        <label class="flex items-center gap-3 cursor-pointer">
+                                            <input type="checkbox" id="set-storage" ${s.enableStorage ? 'checked' : ''} class="w-5 h-5 text-blue-600 rounded"> 
+                                            <span class="text-sm text-gray-700 font-medium">Enable Storage/Cooling Cost on Products</span>
+                                        </label>
+                                        <label class="flex items-center gap-3 cursor-pointer">
+                                            <input type="checkbox" id="set-toggle-gst" ${s.enableGst ? 'checked' : ''} class="w-5 h-5 text-blue-600 rounded"> 
+                                            <span class="text-sm text-gray-700 font-medium">Enable GST & Tax calculation in Billing/Products</span>
+                                        </label>
+                                    </div>
+                                </div>
+
                                 <div class="flex justify-end pt-2">
-                                    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition">Save Settings</button>
+                                    <button type="submit" class="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-blue-700 transition shadow-sm">Save All Settings</button>
                                 </div>
                             </form>
                         </div>
@@ -1743,7 +1892,7 @@
                         <div class="bg-red-50 rounded-xl shadow-sm border border-red-200 p-6 mt-6">
                             <h2 class="text-xl font-bold text-red-800 mb-2"><i class="fas fa-exclamation-triangle mr-2 text-red-600"></i>Danger Zone</h2>
                             <p class="text-sm text-red-600 mb-4">This will permanently delete your account and all associated encrypted data from the cloud. This action CANNOT be undone.</p>
-                            <button onclick="window.SettingsForm.deleteEverything()" class="bg-red-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2">
+                            <button onclick="window.SettingsForm.deleteEverything()" class="bg-red-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2 shadow-sm">
                                 <i class="fas fa-trash-alt"></i> Delete Account & All Data
                             </button>
                         </div>
@@ -1760,15 +1909,28 @@
         window.ProductForm = {
             open: (product = null) => {
                 const title = product ? "Edit Product" : "Add New Product";
-                const p = product || { name: '', sku: '', category: '', price: 0, cost: 0, stock: 0, minStock: 5, maxStock: 100, taxRate: 0, allocations: {} };
+                const p = product || { name: '', sku: '', category: '', price: 0, stock: 0, minStock: 5, taxRate: 0, allocations: {}, capacities: {} };
+                const settings = getGlobalSettings();
+                const cSym = settings.currency;
                 
                 // Build dynamic warehouse inputs
                 let whInputs = appState.warehouses.map(w => {
                     const alloc = p.allocations ? (p.allocations[w.id] || 0) : 0;
+                    const cap = p.capacities ? (p.capacities[w.id] || 0) : 0;
                     return `
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1 truncate" title="${w.name}">${w.name} Stock</label>
-                            <input type="number" id="pf-wh-${w.id}" value="${alloc}" min="0" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm">
+                        <div class="border border-gray-200 p-3 rounded-lg bg-gray-50 shadow-sm relative">
+                            ${w.isMain ? '<div class="absolute -top-2 right-2 bg-yellow-400 text-white text-[9px] font-bold px-1.5 rounded uppercase shadow-sm">Main</div>' : ''}
+                            <label class="block text-xs font-bold text-gray-800 mb-2 truncate" title="${w.name}"><i class="fas fa-map-marker-alt text-red-400 mr-1"></i> ${w.name}</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] text-gray-500 uppercase font-semibold mb-1">In Stock</label>
+                                    <input type="number" id="pf-wh-${w.id}" value="${alloc}" min="0" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm outline-none focus:border-blue-500 bg-white shadow-inner">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-gray-500 uppercase font-semibold mb-1">Max Cap.</label>
+                                    <input type="number" id="pf-cap-${w.id}" value="${cap}" min="0" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm outline-none focus:border-blue-500 bg-white shadow-inner" placeholder="∞">
+                                </div>
+                            </div>
                         </div>
                     `;
                 }).join('');
@@ -1776,68 +1938,113 @@
                 // Add unassigned
                 const unassignedStock = p.allocations ? (p.allocations['unassigned'] || 0) : (p.stock || 0);
                 whInputs += `
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Unassigned Stock</label>
-                        <input type="number" id="pf-wh-unassigned" value="${unassignedStock}" min="0" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm bg-gray-50">
+                    <div class="border border-dashed border-gray-300 p-3 rounded-lg bg-white opacity-75 shadow-sm">
+                        <label class="block text-xs font-bold text-gray-600 mb-2"><i class="fas fa-truck-loading mr-1"></i> Unassigned</label>
+                        <div>
+                            <label class="block text-[10px] text-gray-500 uppercase font-semibold mb-1">In Transit / Raw</label>
+                            <input type="number" id="pf-wh-unassigned" value="${unassignedStock}" min="0" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm outline-none focus:border-blue-500 bg-gray-100 shadow-inner">
+                        </div>
                     </div>
                 `;
 
+                // Costings display
+                const bCost = p.baseCost || 0;
+                const tCost = settings.enableTransport ? (p.transportCost || 0) : 0;
+                const sCost = settings.enableStorage ? (p.storageCost || 0) : 0;
+                const totalCost = bCost + tCost + sCost;
+
                 showModal(`
-                    <div class="p-6">
-                        <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-xl font-bold text-gray-800">${title}</h2>
-                            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+                    <div class="p-6 bg-white rounded-xl">
+                        <div class="flex justify-between items-center mb-6 border-b pb-3">
+                            <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-box text-blue-500 mr-2"></i>${title}</h2>
+                            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center transition"><i class="fas fa-times"></i></button>
                         </div>
-                        <form id="product-form" onsubmit="window.ProductForm.save(event, '${product ? product.id : ''}')" class="space-y-4">
-                            <div class="grid grid-cols-2 gap-4">
+                        <form id="product-form" onsubmit="window.ProductForm.save(event, '${product ? product.id : ''}')" class="space-y-6">
+                            
+                            <!-- Basic Info -->
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
-                                    <input type="text" id="pf-name" value="${p.name}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">Product Name *</label>
+                                    <input type="text" id="pf-name" value="${p.name}" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm shadow-sm">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">SKU *</label>
-                                    <input type="text" id="pf-sku" value="${p.sku}" required class="w-full border border-gray-300 rounded px-3 py-2 uppercase focus:ring-blue-500 focus:border-blue-500 outline-none">
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-3 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                                    <input type="text" id="pf-cat" value="${p.category}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">SKU Code *</label>
+                                    <input type="text" id="pf-sku" value="${p.sku}" required class="w-full border border-gray-300 rounded-lg px-3 py-2 uppercase focus:ring-blue-500 focus:border-blue-500 outline-none text-sm shadow-sm font-mono">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Min Threshold</label>
-                                    <input type="number" id="pf-min" value="${p.minStock}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Max Capacity</label>
-                                    <input type="number" id="pf-max" value="${p.maxStock || 100}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">Category</label>
+                                    <input type="text" id="pf-cat" value="${p.category}" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm shadow-sm">
                                 </div>
                             </div>
-                            <div class="grid grid-cols-3 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Selling Price *</label>
-                                    <input type="number" step="0.01" id="pf-price" value="${p.price}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+
+                            <!-- Financials -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- Costing Breakdown -->
+                                <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 shadow-sm">
+                                    <h3 class="text-sm font-bold text-blue-800 mb-3"><i class="fas fa-calculator mr-1 text-blue-500"></i> Costing Analytics</h3>
+                                    <div class="space-y-2 text-sm">
+                                        <div class="flex justify-between items-center text-gray-600">
+                                            <span>Base Purchase Avg:</span>
+                                            <div class="relative w-24">
+                                                <span class="absolute left-2 top-1 text-gray-400">${cSym}</span>
+                                                <input type="number" step="0.01" id="pf-base-cost" value="${bCost}" class="w-full pl-6 pr-2 py-1 text-right border border-blue-300 rounded outline-none focus:ring-1 focus:ring-blue-500 font-mono shadow-inner">
+                                            </div>
+                                        </div>
+                                        ${settings.enableTransport ? `
+                                        <div class="flex justify-between items-center text-gray-600">
+                                            <span>Transport Avg:</span>
+                                            <span class="font-mono bg-white px-2 py-0.5 rounded border border-gray-200">${cSym}${tCost.toFixed(2)}</span>
+                                        </div>` : ''}
+                                        ${settings.enableStorage ? `
+                                        <div class="flex justify-between items-center text-gray-600">
+                                            <span>Storage/Cooling:</span>
+                                            <div class="relative w-24">
+                                                <span class="absolute left-2 top-1 text-gray-400">${cSym}</span>
+                                                <input type="number" step="0.01" id="pf-storage-cost" value="${sCost}" class="w-full pl-6 pr-2 py-1 text-right border border-blue-300 rounded outline-none focus:ring-1 focus:ring-blue-500 font-mono shadow-inner">
+                                            </div>
+                                        </div>` : ''}
+                                        <div class="border-t border-blue-200 mt-2 pt-2 flex justify-between items-center font-bold text-gray-800">
+                                            <span>Total Unit Cost:</span>
+                                            <span class="font-mono text-lg">${cSym}${totalCost.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                    <p class="text-[10px] text-blue-500 mt-3 italic leading-tight">Transport cost updates automatically using weighted moving average upon receiving Shipments.</p>
                                 </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Cost Price *</label>
-                                    <input type="number" step="0.01" id="pf-cost" value="${p.cost}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tax Rate (%)</label>
-                                    <input type="number" step="0.01" id="pf-tax" value="${p.taxRate || 0}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                
+                                <!-- Pricing & Tax -->
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 mb-1 text-green-700"><i class="fas fa-tag mr-1"></i> Selling Price *</label>
+                                        <div class="relative">
+                                            <span class="absolute left-3 top-2 text-gray-500 font-bold">${cSym}</span>
+                                            <input type="number" step="0.01" id="pf-price" value="${p.price}" required class="w-full pl-8 border border-green-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 outline-none font-bold text-gray-800 shadow-sm">
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-4">
+                                        ${settings.enableGst ? `
+                                        <div>
+                                            <label class="block text-xs font-bold text-gray-700 mb-1">Tax Rate (%)</label>
+                                            <input type="number" step="0.01" id="pf-tax" value="${p.taxRate || 0}" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 outline-none text-sm shadow-sm">
+                                        </div>` : ''}
+                                        <div>
+                                            <label class="block text-xs font-bold text-gray-700 mb-1 text-red-600" title="Low Stock Warning Threshold"><i class="fas fa-bell mr-1"></i> Min Threshold</label>
+                                            <input type="number" id="pf-min" value="${p.minStock}" class="w-full border border-red-200 rounded-lg px-3 py-2 focus:ring-red-500 outline-none text-sm shadow-sm bg-red-50">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             
-                            <div class="border-t border-gray-200 pt-4 mt-2">
-                                <h3 class="text-sm font-bold text-gray-800 mb-3">Warehouse Stock Allocations</h3>
-                                <div class="grid grid-cols-4 gap-3">
+                            <!-- Logistics / Warehousing -->
+                            <div class="border border-gray-200 rounded-lg p-4 shadow-sm">
+                                <h3 class="text-sm font-bold text-gray-800 mb-3"><i class="fas fa-network-wired text-blue-500 mr-2"></i>Warehouse Inventory & Limits</h3>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                     ${whInputs}
                                 </div>
                             </div>
 
-                            <div class="mt-6 flex justify-end gap-3 pt-2">
-                                <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 font-medium">Cancel</button>
-                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">Save Product</button>
+                            <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                                <button type="button" onclick="closeModal()" class="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-bold shadow-sm transition">Cancel</button>
+                                <button type="submit" class="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-md transition inline-flex items-center gap-2"><i class="fas fa-save"></i> Save Product</button>
                             </div>
                         </form>
                     </div>
@@ -1845,33 +2052,48 @@
             },
             save: async (e, id) => {
                 e.preventDefault();
+                const settings = getGlobalSettings();
                 
                 let allocations = {};
+                let capacities = {};
                 let totalStock = 0;
                 
                 appState.warehouses.forEach(w => {
-                    let el = document.getElementById(`pf-wh-${w.id}`);
-                    if(el) {
-                        let val = parseInt(el.value) || 0;
+                    let qtyEl = document.getElementById(`pf-wh-${w.id}`);
+                    let capEl = document.getElementById(`pf-cap-${w.id}`);
+                    if(qtyEl) {
+                        let val = parseInt(qtyEl.value) || 0;
                         allocations[w.id] = val;
                         totalStock += val;
+                    }
+                    if(capEl) {
+                        capacities[w.id] = parseInt(capEl.value) || 0; // 0 implies unlimited technically visually, but let's store 0
                     }
                 });
                 let unVal = parseInt(document.getElementById(`pf-wh-unassigned`).value) || 0;
                 allocations['unassigned'] = unVal;
                 totalStock += unVal;
 
+                let existingP = id ? appState.products.find(x => x.id === id) : null;
+                const bCostEl = document.getElementById('pf-base-cost');
+                const tCost = existingP ? existingP.transportCost : 0;
+                const sCostEl = document.getElementById('pf-storage-cost');
+
                 const data = {
                     name: document.getElementById('pf-name').value,
                     sku: document.getElementById('pf-sku').value.toUpperCase(),
                     category: document.getElementById('pf-cat').value,
                     price: parseFloat(document.getElementById('pf-price').value),
-                    cost: parseFloat(document.getElementById('pf-cost').value),
-                    taxRate: parseFloat(document.getElementById('pf-tax').value) || 0,
+                    taxRate: settings.enableGst ? (parseFloat(document.getElementById('pf-tax')?.value) || 0) : 0,
                     stock: totalStock,
                     allocations: allocations,
-                    minStock: parseInt(document.getElementById('pf-min').value),
-                    maxStock: parseInt(document.getElementById('pf-max').value) || 0
+                    capacities: capacities,
+                    minStock: parseInt(document.getElementById('pf-min').value) || 0,
+                    
+                    // Costings
+                    baseCost: bCostEl ? (parseFloat(bCostEl.value) || 0) : (existingP ? existingP.baseCost : 0),
+                    transportCost: tCost,
+                    storageCost: sCostEl ? (parseFloat(sCostEl.value) || 0) : (existingP ? existingP.storageCost : 0)
                 };
 
                 const success = await DB.save('products', data, id ? id : null);
@@ -1891,47 +2113,50 @@
             }
         };
 
-        // Stock Transfer Logic
+        // Stock Transfer Logic (Full Page Embedded & Modal versions)
         window.StockTransfer = {
             open: (prefillProduct = null, prefillDest = null) => {
                 showModal(`
                     <div class="p-6">
                         <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-xl font-bold text-gray-800">Transfer Stock</h2>
+                            <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-exchange-alt text-blue-500 mr-2"></i>Transfer Stock</h2>
                             <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
                         </div>
-                        <div class="space-y-4">
+                        <div class="space-y-5 bg-gray-50 border border-gray-100 p-5 rounded-xl">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Select Product *</label>
-                                <select id="tr-product" class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" onchange="window.StockTransfer.onProductChange()">
+                                <label class="block text-sm font-bold text-gray-700 mb-1">Select Product *</label>
+                                <select id="tr-product" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" onchange="window.StockTransfer.onProductChange()">
                                     <option value="">-- Choose Product --</option>
                                     ${appState.products.map(p => `<option value="${p.id}" ${prefillProduct === p.id ? 'selected' : ''}>${p.name} (SKU: ${p.sku})</option>`).join('')}
                                 </select>
                             </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">From Location *</label>
-                                    <select id="tr-source" class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" onchange="window.StockTransfer.onSourceChange()">
-                                        <option value="">-- Select Source --</option>
-                                    </select>
-                                    <p class="text-xs text-gray-500 mt-1" id="tr-source-avail">Available: 0</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 relative">
+                                <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-2 border border-gray-200 z-10 hidden md:block shadow-sm">
+                                    <i class="fas fa-arrow-right text-gray-400"></i>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">To Location *</label>
-                                    <select id="tr-dest" class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                    <label class="block text-sm font-bold text-gray-700 mb-1 text-red-600">From Location *</label>
+                                    <select id="tr-source" class="w-full border border-red-200 rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-red-500 bg-white shadow-sm" onchange="window.StockTransfer.onSourceChange()">
+                                        <option value="">-- Select Source --</option>
+                                    </select>
+                                    <p class="text-xs text-gray-500 mt-1 font-semibold" id="tr-source-avail">Available to move: 0</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1 text-green-600">To Location *</label>
+                                    <select id="tr-dest" class="w-full border border-green-200 rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-green-500 bg-white shadow-sm">
                                         <option value="">-- Select Destination --</option>
                                         <option value="unassigned" ${prefillDest === 'unassigned' ? 'selected' : ''}>Unassigned / Transit</option>
                                         ${appState.warehouses.map(w => `<option value="${w.id}" ${prefillDest === w.id ? 'selected' : ''}>${w.name}</option>`).join('')}
                                     </select>
                                 </div>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Quantity to Move *</label>
-                                <input type="number" id="tr-qty" value="1" min="1" class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                            <div class="pt-2 border-t border-gray-200">
+                                <label class="block text-sm font-bold text-gray-800 mb-1">Quantity to Move *</label>
+                                <input type="number" id="tr-qty" value="1" min="1" class="w-1/3 border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-lg font-bold shadow-inner">
                             </div>
                             <div class="mt-6 flex justify-end gap-3 pt-2">
-                                <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 font-medium">Cancel</button>
-                                <button onclick="window.StockTransfer.execute()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">Execute Transfer</button>
+                                <button type="button" onclick="closeModal()" class="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 font-bold shadow-sm transition">Cancel</button>
+                                <button onclick="window.StockTransfer.execute()" class="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-md transition flex items-center gap-2"><i class="fas fa-exchange-alt"></i> Execute Transfer</button>
                             </div>
                         </div>
                     </div>
@@ -1942,7 +2167,7 @@
                 const pId = document.getElementById('tr-product').value;
                 const sourceSel = document.getElementById('tr-source');
                 sourceSel.innerHTML = '<option value="">-- Select Source --</option>';
-                document.getElementById('tr-source-avail').innerText = 'Available: 0';
+                document.getElementById('tr-source-avail').innerText = 'Available to move: 0';
                 
                 if(!pId) return;
                 const p = appState.products.find(x => x.id === pId);
@@ -1956,7 +2181,7 @@
                             const wh = appState.warehouses.find(w => w.id === whId);
                             if(wh) name = wh.name;
                         }
-                        sourceSel.innerHTML += `<option value="${whId}" data-qty="${qty}">${name}</option>`;
+                        sourceSel.innerHTML += `<option value="${whId}" data-qty="${qty}">${name} (Qty: ${qty})</option>`;
                     }
                 });
             },
@@ -1964,10 +2189,10 @@
                 const sourceSel = document.getElementById('tr-source');
                 const opt = sourceSel.options[sourceSel.selectedIndex];
                 if(opt && opt.value) {
-                    document.getElementById('tr-source-avail').innerText = `Available: ${opt.getAttribute('data-qty')}`;
+                    document.getElementById('tr-source-avail').innerText = `Available to move: ${opt.getAttribute('data-qty')}`;
                     document.getElementById('tr-qty').max = opt.getAttribute('data-qty');
                 } else {
-                    document.getElementById('tr-source-avail').innerText = 'Available: 0';
+                    document.getElementById('tr-source-avail').innerText = 'Available to move: 0';
                 }
             },
             execute: async () => {
@@ -1986,7 +2211,6 @@
 
                 if(!allocs[source] || allocs[source] < qty) return showToast("Not enough stock in source", "error");
 
-                // Execute transfer in memory
                 allocs[source] -= qty;
                 allocs[dest] = (allocs[dest] || 0) + qty;
                 p.allocations = allocs;
@@ -1995,6 +2219,69 @@
                 if(await DB.save('products', cleanP, id)) {
                     showToast("Stock transferred successfully!");
                     closeModal();
+                }
+            },
+            // Handlers for the embedded page version
+            onPageProductChange: () => {
+                const pId = document.getElementById('pg-tr-product').value;
+                const sourceSel = document.getElementById('pg-tr-source');
+                sourceSel.innerHTML = '<option value="">-- Select Source --</option>';
+                document.getElementById('pg-tr-source-avail').innerText = '0';
+                
+                if(!pId) return;
+                const p = appState.products.find(x => x.id === pId);
+                const allocs = getProductAllocations(p);
+                
+                Object.keys(allocs).forEach(whId => {
+                    const qty = allocs[whId];
+                    if(qty > 0) {
+                        let name = 'Unassigned / Transit';
+                        if(whId !== 'unassigned') {
+                            const wh = appState.warehouses.find(w => w.id === whId);
+                            if(wh) name = wh.name;
+                        }
+                        sourceSel.innerHTML += `<option value="${whId}" data-qty="${qty}">${name} (Qty: ${qty})</option>`;
+                    }
+                });
+            },
+            onPageSourceChange: () => {
+                const sourceSel = document.getElementById('pg-tr-source');
+                const opt = sourceSel.options[sourceSel.selectedIndex];
+                if(opt && opt.value) {
+                    document.getElementById('pg-tr-source-avail').innerText = opt.getAttribute('data-qty');
+                    document.getElementById('pg-tr-qty').max = opt.getAttribute('data-qty');
+                } else {
+                    document.getElementById('pg-tr-source-avail').innerText = '0';
+                }
+            },
+            executePage: async () => {
+                const pId = document.getElementById('pg-tr-product').value;
+                const source = document.getElementById('pg-tr-source').value;
+                const dest = document.getElementById('pg-tr-dest').value;
+                const qty = parseInt(document.getElementById('pg-tr-qty').value);
+
+                if(!pId || !source || !dest) return showToast("Please select product and locations", "error");
+                if(source === dest) return showToast("Source and destination must be different", "error");
+                if(isNaN(qty) || qty <= 0) return showToast("Enter valid quantity", "error");
+
+                const p = appState.products.find(x => x.id === pId);
+                if(!p) return;
+                const allocs = getProductAllocations(p);
+
+                if(!allocs[source] || allocs[source] < qty) return showToast("Not enough stock in source", "error");
+
+                allocs[source] -= qty;
+                allocs[dest] = (allocs[dest] || 0) + qty;
+                p.allocations = allocs;
+
+                const { id, ...cleanP } = p;
+                if(await DB.save('products', cleanP, id)) {
+                    showToast("Stock transferred successfully!");
+                    document.getElementById('pg-tr-product').value = '';
+                    document.getElementById('pg-tr-source').innerHTML = '<option value="">-- Select Source --</option>';
+                    document.getElementById('pg-tr-dest').value = '';
+                    document.getElementById('pg-tr-qty').value = '1';
+                    document.getElementById('pg-tr-source-avail').innerText = '0';
                 }
             }
         };
@@ -2156,37 +2443,68 @@
         window.SupplierForm = {
             open: (supplier = null) => {
                 const title = supplier ? "Edit Supplier" : "Add New Supplier";
-                const s = supplier || { name: '', contact: '', phone: '', email: '', balance: 0 };
+                const s = supplier || { name: '', contact: '', phone: '', email: '', balance: 0, products: [] };
+                const selectedProducts = s.products || [];
+                
+                const productsHTML = appState.products.map(p => `
+                    <label class="flex items-center gap-2 p-2 border border-gray-200 rounded cursor-pointer hover:bg-blue-50 transition">
+                        <input type="checkbox" name="supplier_products" value="${p.id}" ${selectedProducts.includes(p.id) ? 'checked' : ''} class="w-4 h-4 text-blue-600">
+                        <span class="text-sm text-gray-700 font-medium">${p.name} <span class="text-[10px] text-gray-400 font-mono font-normal block">${p.sku}</span></span>
+                    </label>
+                `).join('');
+
                 showModal(`
                     <div class="p-6">
-                        <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-xl font-bold text-gray-800">${title}</h2>
-                            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+                        <div class="flex justify-between items-center mb-6 border-b pb-3">
+                            <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-building text-blue-500 mr-2"></i>${title}</h2>
+                            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center transition"><i class="fas fa-times"></i></button>
                         </div>
                         <form id="supplier-form" onsubmit="window.SupplierForm.save(event, '${supplier ? supplier.id : ''}')" class="space-y-4">
-                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Company Name *</label><input type="text" id="sf-name" value="${s.name}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
-                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Contact Person</label><input type="text" id="sf-contact" value="${s.contact}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div><label class="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" id="sf-email" value="${s.email}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
-                                <div><label class="block text-sm font-medium text-gray-700 mb-1">Phone</label><input type="text" id="sf-phone" value="${s.phone}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
+                            <div class="bg-gray-50 p-4 rounded-lg border border-gray-100 space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Company Name *</label><input type="text" id="sf-name" value="${s.name}" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"></div>
+                                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Contact Person</label><input type="text" id="sf-contact" value="${s.contact}" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"></div>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" id="sf-email" value="${s.email}" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"></div>
+                                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Phone</label><input type="text" id="sf-phone" value="${s.phone}" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"></div>
+                                </div>
                             </div>
+                            
+                            <div class="border border-blue-100 p-4 rounded-lg bg-white shadow-sm">
+                                <label class="block text-sm font-bold text-blue-800 mb-2"><i class="fas fa-boxes mr-1"></i> Products Supplied by this Vendor</label>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 border border-gray-200 rounded-lg bg-gray-50 shadow-inner">
+                                    ${productsHTML || '<p class="text-xs text-gray-500 italic p-2">No products available in the system. Add products first.</p>'}
+                                </div>
+                                <p class="text-[10px] text-gray-500 mt-2">Selected products will appear when generating a Purchase Order for this supplier.</p>
+                            </div>
+
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Opening Balance (You Owe)</label>
-                                <input type="number" step="0.01" id="sf-balance" value="${s.balance}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                <label class="block text-sm font-bold text-gray-700 mb-1">Opening Balance (You Owe)</label>
+                                <input type="number" step="0.01" id="sf-balance" value="${s.balance}" class="w-full sm:w-1/2 border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm">
                             </div>
-                            <div class="mt-6 flex justify-end gap-3"><button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 font-medium">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">Save Supplier</button></div>
+                            
+                            <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-100">
+                                <button type="button" onclick="closeModal()" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-bold shadow-sm transition">Cancel</button>
+                                <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-md transition inline-flex items-center gap-2"><i class="fas fa-save"></i> Save Supplier</button>
+                            </div>
                         </form>
                     </div>
                 `);
             },
             save: async (e, id) => {
                 e.preventDefault();
+                
+                const selectedProductInputs = document.querySelectorAll('input[name="supplier_products"]:checked');
+                const selectedProducts = Array.from(selectedProductInputs).map(input => input.value);
+
                 const data = { 
                     name: document.getElementById('sf-name').value, 
                     contact: document.getElementById('sf-contact').value, 
                     email: document.getElementById('sf-email').value, 
                     phone: document.getElementById('sf-phone').value,
-                    balance: parseFloat(document.getElementById('sf-balance').value) || 0
+                    balance: parseFloat(document.getElementById('sf-balance').value) || 0,
+                    products: selectedProducts
                 };
                 if(await DB.save('suppliers', data, id ? id : null)) { showToast(id ? "Supplier updated" : "Supplier created"); closeModal(); }
             },
@@ -2212,7 +2530,7 @@
                         <form id="warehouse-form" onsubmit="window.WarehouseForm.save(event, '${warehouse ? warehouse.id : ''}')" class="space-y-4">
                             <div><label class="block text-sm font-medium text-gray-700 mb-1">Warehouse Name *</label><input type="text" id="wf-name" value="${w.name}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
                             <div><label class="block text-sm font-medium text-gray-700 mb-1">Location / Address</label><input type="text" id="wf-location" value="${w.location}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
-                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Capacity (Optional)</label><input type="text" id="wf-capacity" value="${w.capacity}" placeholder="e.g. 5000 sq ft" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Description/Notes (Optional)</label><input type="text" id="wf-capacity" value="${w.capacity}" placeholder="e.g. Cold storage, North Wing" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></div>
                             <div class="flex items-center gap-2 mt-2">
                                 <input type="checkbox" id="wf-ismain" ${w.isMain ? 'checked' : ''} class="w-4 h-4 text-blue-600">
                                 <label class="text-sm font-medium text-gray-700">Set as Main Warehouse</label>
@@ -2244,9 +2562,105 @@
             },
             edit: (id) => { const w = appState.warehouses.find(x => x.id === id); if(w) window.WarehouseForm.open(w); },
             delete: (id) => {
-                showConfirm("Are you sure you want to delete this warehouse?", async () => {
+                showConfirm("Are you sure you want to delete this warehouse? Warning: Attached allocations may become orphaned.", async () => {
                     if(await DB.delete('warehouses', id)) showToast("Warehouse deleted");
                 });
+            },
+            manageStock: (whId) => {
+                let whName = 'Unassigned / Transit';
+                if(whId !== 'unassigned') {
+                    const w = appState.warehouses.find(x => x.id === whId);
+                    if(!w) return;
+                    whName = w.name;
+                }
+
+                const productsList = appState.products.map(p => {
+                    const qty = p.allocations ? (p.allocations[whId] || 0) : 0;
+                    return `
+                        <tr class="border-b border-gray-100 last:border-0 hover:bg-blue-50 transition">
+                            <td class="py-3 px-4">
+                                <div class="font-semibold text-sm text-gray-800">${p.name}</div>
+                                <div class="text-[10px] text-gray-500 font-mono">${p.sku}</div>
+                            </td>
+                            <td class="py-3 px-4 text-center font-bold text-gray-700 w-32">${qty}</td>
+                            <td class="py-3 px-4 text-right w-40">
+                                <input type="number" id="ms-qty-${p.id}" value="${qty}" min="0" class="w-full max-w-[100px] border border-blue-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-center font-bold text-blue-700 shadow-inner bg-white inline-block">
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                showModal(`
+                    <div class="flex flex-col h-[85vh] bg-white rounded-xl">
+                        <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl shrink-0">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-boxes text-blue-500 mr-2"></i>Manage Inventory</h2>
+                                <p class="text-sm text-gray-500 mt-1">Location: <span class="font-bold text-blue-700">${whName}</span></p>
+                            </div>
+                            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 bg-white border border-gray-200 rounded-full w-8 h-8 flex items-center justify-center shadow-sm"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="flex-1 overflow-y-auto p-6 bg-gray-50/30">
+                            <div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                                <table class="w-full text-left border-collapse">
+                                    <thead class="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 z-10 shadow-sm border-b border-gray-200">
+                                        <tr>
+                                            <th class="py-3 px-4 font-semibold">Product Details</th>
+                                            <th class="w-32 py-3 px-4 text-center font-semibold">Current</th>
+                                            <th class="w-40 py-3 px-4 text-right font-semibold">New Qty</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100">
+                                        ${productsList || '<tr><td colspan="3" class="text-center py-8 text-gray-500">No products to manage</td></tr>'}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="p-4 border-t border-gray-100 flex justify-end gap-3 bg-white shrink-0 rounded-b-xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                            <button onclick="closeModal()" class="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-bold transition shadow-sm">Cancel</button>
+                            <button onclick="window.WarehouseForm.manageStockSave('${whId}')" class="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold transition shadow-sm flex items-center gap-2">
+                                <i class="fas fa-save"></i> Save Updates
+                            </button>
+                        </div>
+                    </div>
+                `);
+            },
+            manageStockSave: async (whId) => {
+                const productsToUpdate = [];
+                appState.products.forEach(p => {
+                    const input = document.getElementById(`ms-qty-${p.id}`);
+                    if(input) {
+                        const newQty = parseInt(input.value);
+                        if(isNaN(newQty) || newQty < 0) return;
+                        
+                        const oldQty = p.allocations ? (p.allocations[whId] || 0) : 0;
+                        if(newQty !== oldQty) {
+                            const diff = newQty - oldQty;
+                            p.allocations = p.allocations || {};
+                            p.allocations[whId] = newQty;
+                            p.stock = (Number(p.stock) || 0) + diff;
+                            productsToUpdate.push(p);
+                        }
+                    }
+                });
+
+                if(productsToUpdate.length === 0) {
+                    showToast("No changes detected.", "info");
+                    closeModal();
+                    return;
+                }
+
+                showToast(`Saving ${productsToUpdate.length} updates...`, "info");
+                
+                try {
+                    for(let p of productsToUpdate) {
+                        const {id, ...clean} = p;
+                        await DB.save('products', clean, id);
+                    }
+                    showToast("Inventory successfully synced!");
+                    closeModal();
+                } catch(e) {
+                    showToast("Error updating stock", "error");
+                }
             }
         };
 
@@ -2301,7 +2715,6 @@
                 const currentVal = select.value;
                 select.innerHTML = `<option value="">Walk-in Customer (Unnamed)</option>` + 
                     appState.customers.map(c => `<option value="${c.id}">${c.name} ${c.company ? `(${c.company})` : ''}</option>`).join('');
-                // Keep the selection if it still exists
                 if(appState.customers.some(c => c.id === currentVal)) select.value = currentVal;
                 window.POS.onCustomerChange();
             },
@@ -2340,7 +2753,8 @@
                 const container = document.getElementById('pos-products');
                 if(!container) return;
                 
-                const cSym = appState.settings[0]?.currency || '₹';
+                const settings = getGlobalSettings();
+                const cSym = settings.currency;
                 const term = search.toLowerCase();
                 const items = appState.products.filter(p => p.stock > 0 && (p.name.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term)));
                 
@@ -2351,7 +2765,7 @@
                             <div class="font-semibold text-gray-800 text-sm leading-tight line-clamp-2">${p.name}</div>
                         </div>
                         <div class="flex justify-between items-end">
-                            <span class="text-xs text-gray-500">Stk: ${p.stock}</span>
+                            <span class="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded font-bold">Stk: ${p.stock}</span>
                             <span class="font-bold text-blue-600">${cSym}${Number(p.price).toFixed(2)}</span>
                         </div>
                     </div>
@@ -2418,13 +2832,15 @@
                 const container = document.getElementById('pos-cart');
                 if(!container) return;
 
-                const cSym = appState.settings[0]?.currency || '₹';
+                const settings = getGlobalSettings();
+                const cSym = settings.currency;
 
                 if(window.POS.cart.length === 0) {
-                    container.innerHTML = '<div class="text-center text-gray-400 mt-10">Cart is empty</div>';
+                    container.innerHTML = '<div class="text-center text-gray-400 mt-10"><i class="fas fa-shopping-basket text-4xl mb-3 opacity-50 block"></i>Cart is empty</div>';
                     document.getElementById('pos-subtotal').innerText = `${cSym}0.00`;
                     document.getElementById('pos-discount-amt').innerText = `-${cSym}0.00`;
-                    document.getElementById('pos-tax-amt').innerText = `+${cSym}0.00`;
+                    const taxAmt = document.getElementById('pos-tax-amt');
+                    if(taxAmt) taxAmt.innerText = `+${cSym}0.00`;
                     document.getElementById('pos-total').innerText = `${cSym}0.00`;
                     return;
                 }
@@ -2441,7 +2857,7 @@
                         if(itemDisc > lineTotal) itemDisc = lineTotal;
                     }
                     
-                    item.calculatedDiscount = itemDisc; // cache for saving
+                    item.calculatedDiscount = itemDisc; 
                     subtotal += lineTotal;
                     totalDiscount += itemDisc;
 
@@ -2475,7 +2891,7 @@
                                 ${itemDiscUI}
                             </div>
                         </div>
-                        <div class="flex items-center mx-1 bg-gray-100 rounded-md border border-gray-200">
+                        <div class="flex items-center mx-1 bg-gray-100 rounded-md border border-gray-200 shadow-inner">
                             <button onclick="window.POS.updateQty('${item.id}', -1)" class="w-7 h-7 text-gray-600 hover:bg-gray-200 rounded-l-md flex items-center justify-center font-bold transition">-</button>
                             <input type="number" value="${item.qty}" 
                                    oninput="this.style.width = (this.value.length + 1) + 'ch';"
@@ -2508,13 +2924,17 @@
 
                 document.getElementById('pos-subtotal').innerText = `${cSym}${subtotal.toFixed(2)}`;
                 document.getElementById('pos-discount-amt').innerText = `-${cSym}${totalDiscount.toFixed(2)}`;
-                document.getElementById('pos-tax-amt').innerText = `+${cSym}${taxTotal.toFixed(2)}`;
+                if(settings.enableGst) {
+                    const taxAmt = document.getElementById('pos-tax-amt');
+                    if(taxAmt) taxAmt.innerText = `+${cSym}${taxTotal.toFixed(2)}`;
+                }
                 document.getElementById('pos-total').innerText = `${cSym}${finalTotal.toFixed(2)}`;
             },
             checkout: async (generateBill) => {
                 if(window.POS.cart.length === 0) return showToast("Cart is empty", "error");
                 
-                const cSym = appState.settings[0]?.currency || '₹';
+                const settings = getGlobalSettings();
+                const cSym = settings.currency;
                 
                 let subtotal = 0;
                 let taxTotal = 0;
@@ -2599,7 +3019,6 @@
                     showToast("Sale completed successfully!");
                     
                     if(generateBill) {
-                        const settings = appState.settings[0] || {};
                         const brand = settings.companyName || 'NEXUS INV';
                         const address = (settings.address || '').replace(/\n/g, '<br>');
                         const phone = settings.phone || '';
@@ -2671,7 +3090,7 @@
                                             <th style="text-align: right;">Qty</th>
                                             <th style="text-align: right;">Rate (${cSym})</th>
                                             ${window.POS.discountMode === 'item' ? `<th style="text-align: right;">Discount</th>` : ''}
-                                            <th style="text-align: right;">Tax</th>
+                                            ${settings.enableGst ? `<th style="text-align: right;">Tax</th>` : ''}
                                             <th style="text-align: right;">Amount (${cSym})</th>
                                         </tr>
                                     </thead>
@@ -2683,12 +3102,12 @@
                                             <tr>
                                                 <td>
                                                     <strong>${i.name}</strong><br>
-                                                    <span style="font-size: 12px; color: #666;">SKU: ${i.sku} ${i.taxRate && !window.POS.excludeTax ? `| Tax: ${i.taxRate}%` : ''}</span>
+                                                    <span style="font-size: 12px; color: #666;">SKU: ${i.sku} ${i.taxRate && !window.POS.excludeTax && settings.enableGst ? `| Tax: ${i.taxRate}%` : ''}</span>
                                                 </td>
                                                 <td style="text-align: right;">${i.qty}</td>
                                                 <td style="text-align: right;">${i.price.toFixed(2)}</td>
                                                 ${window.POS.discountMode === 'item' ? `<td style="text-align: right;">${(i.calculatedDiscount||0).toFixed(2)}</td>` : ''}
-                                                <td style="text-align: right;">${(i.calculatedTax||0).toFixed(2)}</td>
+                                                ${settings.enableGst ? `<td style="text-align: right;">${(i.calculatedTax||0).toFixed(2)}</td>` : ''}
                                                 <td style="text-align: right;">${amount.toFixed(2)}</td>
                                             </tr>
                                             `;
@@ -2699,7 +3118,7 @@
                                 <div class="totals">
                                     <div class="totals-row"><span>Subtotal:</span><span>${cSym}${subtotal.toFixed(2)}</span></div>
                                     ${totalDiscount > 0 ? `<div class="totals-row"><span>Total Discount:</span><span>-${cSym}${totalDiscount.toFixed(2)}</span></div>` : ''}
-                                    ${taxTotal > 0 ? `<div class="totals-row"><span>Total Tax:</span><span>+${cSym}${taxTotal.toFixed(2)}</span></div>` : ''}
+                                    ${taxTotal > 0 && settings.enableGst ? `<div class="totals-row"><span>Total Tax:</span><span>+${cSym}${taxTotal.toFixed(2)}</span></div>` : ''}
                                     <div class="totals-row bold"><span>Grand Total:</span><span>${cSym}${finalTotal.toFixed(2)}</span></div>
                                 </div>
                                 
@@ -2721,27 +3140,67 @@
         // Purchase Order Logic
         window.POManager = {
             cart: [],
+            onSupplierSelect: () => {
+                const supplierId = document.getElementById('po-supplier').value;
+                const productSelect = document.getElementById('po-product');
+                const costInput = document.getElementById('po-cost');
+                
+                costInput.value = '';
+                
+                if (!supplierId) {
+                    productSelect.innerHTML = '<option value="">-- Select a Supplier First --</option>';
+                    productSelect.disabled = true;
+                    return;
+                }
+                
+                const supplier = appState.suppliers.find(s => s.id === supplierId);
+                const suppliedProductIds = supplier.products || [];
+                const suppliedProducts = appState.products.filter(p => suppliedProductIds.includes(p.id));
+                
+                productSelect.disabled = false;
+                
+                if (suppliedProducts.length === 0) {
+                    productSelect.innerHTML = '<option value="">-- No products linked to this supplier --</option>';
+                    productSelect.disabled = true;
+                } else {
+                    productSelect.innerHTML = '<option value="">-- Choose Product --</option>' + 
+                        suppliedProducts.map(p => `<option value="${p.id}" data-cost="${p.baseCost || 0}">${p.name} (${p.sku})</option>`).join('');
+                }
+            },
             onProductSelect: () => {
                 const select = document.getElementById('po-product');
                 const selectedOption = select.options[select.selectedIndex];
                 const costInput = document.getElementById('po-cost');
-                if(selectedOption && selectedOption.value) costInput.value = selectedOption.getAttribute('data-cost');
-                else costInput.value = '';
+                // The cost here is just a default recommendation (last baseCost)
+                if(selectedOption && selectedOption.value) {
+                    costInput.value = selectedOption.getAttribute('data-cost') > 0 ? selectedOption.getAttribute('data-cost') : '';
+                } else costInput.value = '';
             },
             addItem: () => {
                 const pId = document.getElementById('po-product').value;
                 const qty = parseInt(document.getElementById('po-qty').value);
                 const cost = parseFloat(document.getElementById('po-cost').value);
+                const whSel = document.getElementById('po-item-warehouse');
+                const warehouseId = whSel.value;
+                const warehouseName = whSel.options[whSel.selectedIndex].text;
 
                 if(!pId) return showToast("Please select a product", "error");
                 if(isNaN(qty) || qty <= 0) return showToast("Invalid quantity", "error");
-                if(isNaN(cost) || cost < 0) return showToast("Invalid cost", "error");
+                if(isNaN(cost) || cost < 0) return showToast("Invalid unit cost", "error");
 
                 const product = appState.products.find(x => x.id === pId);
-                const existing = window.POManager.cart.find(x => x.id === pId);
-
-                if (existing) { existing.qty += qty; existing.cost = cost; } 
-                else { window.POManager.cart.push({ id: product.id, name: product.name, sku: product.sku, qty, cost }); }
+                
+                // We don't merge identical products if they have different warehouses or different costs
+                // For simplicity, we just add a new line item.
+                window.POManager.cart.push({ 
+                    id: product.id, 
+                    name: product.name, 
+                    sku: product.sku, 
+                    qty, 
+                    cost,
+                    warehouseId,
+                    warehouseName
+                });
 
                 document.getElementById('po-product').value = '';
                 document.getElementById('po-qty').value = '1';
@@ -2766,31 +3225,59 @@
                     const lineTotal = item.qty * item.cost;
                     total += lineTotal;
                     return `
-                        <tr class="hover:bg-gray-50 transition">
-                            <td class="px-6 py-4 font-medium text-gray-800">${item.name} <span class="text-xs text-gray-400 ml-1">(${item.sku})</span></td>
-                            <td class="px-6 py-4 text-right">${item.qty}</td>
-                            <td class="px-6 py-4 text-right">${cSym}${item.cost.toFixed(2)}</td>
-                            <td class="px-6 py-4 text-right font-semibold">${cSym}${lineTotal.toFixed(2)}</td>
-                            <td class="px-6 py-4 text-center"><button onclick="window.POManager.removeItem(${index})" class="text-red-500 hover:text-red-700"><i class="fas fa-times"></i></button></td>
+                        <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
+                            <td class="px-6 py-4">
+                                <div class="font-bold text-gray-800">${item.name} <span class="text-xs text-gray-400 font-mono ml-1">${item.sku}</span></div>
+                                <div class="text-[10px] text-gray-500 uppercase mt-1 tracking-wide"><i class="fas fa-arrow-right text-red-400"></i> ${item.warehouseName}</div>
+                            </td>
+                            <td class="px-6 py-4 text-right font-medium">${item.qty}</td>
+                            <td class="px-6 py-4 text-right text-gray-600">${cSym}${item.cost.toFixed(2)}</td>
+                            <td class="px-6 py-4 text-right font-bold text-gray-800">${cSym}${lineTotal.toFixed(2)}</td>
+                            <td class="px-6 py-4 text-center"><button onclick="window.POManager.removeItem(${index})" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-1 rounded"><i class="fas fa-times"></i></button></td>
                         </tr>
                     `;
                 }).join('');
-                document.getElementById('po-total-display').innerText = `Total: ${cSym}${total.toFixed(2)}`;
+                
+                // Add Transport to total display if available
+                const transCostEl = document.getElementById('po-transport-cost');
+                const transTotal = transCostEl ? (parseFloat(transCostEl.value) || 0) : 0;
+                
+                document.getElementById('po-total-display').innerText = `Total: ${cSym}${(total + transTotal).toFixed(2)}`;
             },
             submit: async () => {
                 const supplierId = document.getElementById('po-supplier').value;
-                const warehouseId = document.getElementById('po-warehouse').value; // track destination
                 
                 if(!supplierId) return showToast("Please select a supplier", "error");
                 if(window.POManager.cart.length === 0) return showToast("Cart is empty", "error");
 
-                const total = window.POManager.cart.reduce((sum, item) => sum + (item.qty * item.cost), 0);
-                const poData = { date: new Date().toISOString(), supplierId, warehouseId, items: window.POManager.cart, total, status: 'Pending' };
+                const transCostEl = document.getElementById('po-transport-cost');
+                const transportTotal = transCostEl ? (parseFloat(transCostEl.value) || 0) : 0;
+                
+                const itemsTotal = window.POManager.cart.reduce((sum, item) => sum + (item.qty * item.cost), 0);
+                const overallTotal = itemsTotal + transportTotal;
+                
+                const totalQty = window.POManager.cart.reduce((sum, item) => sum + item.qty, 0);
+
+                // Add statuses and distribute transport cost
+                window.POManager.cart.forEach(item => {
+                    item.status = 'Pending';
+                    item.unitTransportCost = totalQty > 0 ? (transportTotal / totalQty) : 0;
+                });
+
+                const poData = { 
+                    date: new Date().toISOString(), 
+                    supplierId, 
+                    items: window.POManager.cart, 
+                    total: overallTotal, 
+                    status: 'Pending',
+                    transportTotal
+                };
 
                 const success = await DB.save('purchase_orders', poData);
                 if(success) {
                     showToast("Purchase Order created and moved to Shipments!");
                     window.POManager.cart = [];
+                    if(transCostEl) transCostEl.value = '0';
                     Views.purchase_orders(); 
                 }
             }
@@ -2798,178 +3285,67 @@
 
         // Shipment Manager Logic
         window.ShipmentManager = {
-            receive: (id) => {
-                const po = appState.purchase_orders.find(x => x.id === id);
-                if(!po || po.status === 'Received') return;
+            receiveGroup: async (poId, whId) => {
+                const po = appState.purchase_orders.find(x => x.id === poId);
+                if(!po) return;
 
-                showConfirm("Are you sure you want to mark this shipment as received? This will instantly update your inventory stock levels and average costs.", async () => {
-                    for(let item of po.items) {
+                const itemsToReceive = po.items.filter(i => (i.warehouseId || 'unassigned') === whId && i.status !== 'Received');
+                if(itemsToReceive.length === 0) return;
+
+                showConfirm(`Receive these items into ${itemsToReceive[0].warehouseName}? Inventory averages will update instantly.`, async () => {
+                    
+                    let supplierValueAdded = 0;
+
+                    for(let item of itemsToReceive) {
                         const product = appState.products.find(p => p.id === item.id);
                         if(product) {
                             const oldStock = Number(product.stock) || 0;
-                            const oldCost = Number(product.cost) || 0;
+                            const oldBaseCost = Number(product.baseCost) || 0;
+                            const oldTransportCost = Number(product.transportCost) || 0;
+
                             const newStock = oldStock + item.qty;
-                            const newCost = newStock > 0 ? ((oldStock * oldCost) + (item.qty * item.cost)) / newStock : oldCost;
+                            
+                            // Moving averages
+                            product.baseCost = ((oldStock * oldBaseCost) + (item.qty * item.cost)) / newStock;
+                            product.transportCost = ((oldStock * oldTransportCost) + (item.qty * (item.unitTransportCost || 0))) / newStock;
 
                             product.stock = newStock;
-                            product.cost = newCost;
 
-                            let destWh = po.warehouseId || 'unassigned';
+                            let destWh = item.warehouseId || 'unassigned';
                             product.allocations = product.allocations || {};
                             product.allocations[destWh] = (product.allocations[destWh] || 0) + item.qty;
+
+                            item.status = 'Received';
+                            supplierValueAdded += (item.qty * item.cost) + (item.qty * (item.unitTransportCost || 0));
 
                             const { id: pid, ...cleanProduct } = product;
                             await DB.save('products', cleanProduct, pid);
                         }
                     }
 
-                    po.status = 'Received';
+                    // Check if whole PO is received
+                    const allReceived = po.items.every(i => i.status === 'Received');
+                    if(allReceived) po.status = 'Received';
+
                     const { id: poid, ...cleanPO } = po;
                     await DB.save('purchase_orders', cleanPO, poid);
 
+                    // Add to supplier balance (Total PO cost was just an estimate, but we add what's received)
+                    // Note: Transport cost might belong to supplier or 3rd party. Assuming supplier here.
                     const supplier = appState.suppliers.find(s => s.id === po.supplierId);
                     if(supplier) {
-                        supplier.balance = (Number(supplier.balance) || 0) + Number(po.total);
+                        supplier.balance = (Number(supplier.balance) || 0) + supplierValueAdded;
                         const { id: sid, ...cleanS } = supplier;
                         await DB.save('suppliers', cleanS, sid);
                     }
 
-                    showToast("Shipment received! Inventory successfully updated.");
+                    showToast("Shipment group received! Inventory successfully updated.");
                 });
             },
             delete: async (id) => {
-                showConfirm("Are you sure you want to delete this Purchase Order?", async () => {
+                showConfirm("Are you sure you want to delete this Purchase Order? Any already-received items will NOT be reverted.", async () => {
                     if(await DB.delete('purchase_orders', id)) showToast("Purchase Order Deleted");
                 });
-            }
-        };
-
-        // Stock Transfer Logic
-        window.StockTransfer = {
-            open: (prefillProduct = null, prefillDest = null) => {
-                showModal(`
-                    <div class="p-6">
-                        <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-xl font-bold text-gray-800">Transfer Stock</h2>
-                            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
-                        </div>
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Select Product *</label>
-                                <select id="tr-product" class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" onchange="window.StockTransfer.onProductChange()">
-                                    <option value="">-- Choose Product --</option>
-                                    ${appState.products.map(p => `<option value="${p.id}" ${prefillProduct === p.id ? 'selected' : ''}>${p.name} (SKU: ${p.sku})</option>`).join('')}
-                                </select>
-                            </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">From Location *</label>
-                                    <select id="tr-source" class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" onchange="window.StockTransfer.onSourceChange()">
-                                        <option value="">-- Select Source --</option>
-                                    </select>
-                                    <p class="text-xs text-gray-500 mt-1" id="tr-source-avail">Available: 0</p>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">To Location *</label>
-                                    <select id="tr-dest" class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
-                                        <option value="">-- Select Destination --</option>
-                                        <option value="unassigned" ${prefillDest === 'unassigned' ? 'selected' : ''}>Unassigned / Transit</option>
-                                        ${appState.warehouses.map(w => `<option value="${w.id}" ${prefillDest === w.id ? 'selected' : ''}>${w.name}</option>`).join('')}
-                                    </select>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Quantity to Move *</label>
-                                <input type="number" id="tr-qty" value="1" min="1" class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
-                            </div>
-                            <div class="mt-6 flex justify-end gap-3 pt-2">
-                                <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 font-medium">Cancel</button>
-                                <button onclick="window.StockTransfer.execute()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">Execute Transfer</button>
-                            </div>
-                        </div>
-                    </div>
-                `);
-                if(prefillProduct) window.StockTransfer.onProductChange();
-            },
-            onProductChange: () => {
-                const pId = document.getElementById('tr-product').value;
-                const sourceSel = document.getElementById('tr-source');
-                sourceSel.innerHTML = '<option value="">-- Select Source --</option>';
-                document.getElementById('tr-source-avail').innerText = 'Available: 0';
-                
-                if(!pId) return;
-                const p = appState.products.find(x => x.id === pId);
-                const allocs = getProductAllocations(p);
-                
-                Object.keys(allocs).forEach(whId => {
-                    const qty = allocs[whId];
-                    if(qty > 0) {
-                        let name = 'Unassigned / Transit';
-                        if(whId !== 'unassigned') {
-                            const wh = appState.warehouses.find(w => w.id === whId);
-                            if(wh) name = wh.name;
-                        }
-                        sourceSel.innerHTML += `<option value="${whId}" data-qty="${qty}">${name}</option>`;
-                    }
-                });
-            },
-            onSourceChange: () => {
-                const sourceSel = document.getElementById('tr-source');
-                const opt = sourceSel.options[sourceSel.selectedIndex];
-                if(opt && opt.value) {
-                    document.getElementById('tr-source-avail').innerText = `Available: ${opt.getAttribute('data-qty')}`;
-                    document.getElementById('tr-qty').max = opt.getAttribute('data-qty');
-                } else {
-                    document.getElementById('tr-source-avail').innerText = 'Available: 0';
-                }
-            },
-            execute: async () => {
-                const pId = document.getElementById('tr-product').value;
-                const source = document.getElementById('tr-source').value;
-                const dest = document.getElementById('tr-dest').value;
-                const qty = parseInt(document.getElementById('tr-qty').value);
-
-                if(!pId || !source || !dest) return showToast("Please select product and locations", "error");
-                if(source === dest) return showToast("Source and destination must be different", "error");
-                if(isNaN(qty) || qty <= 0) return showToast("Enter valid quantity", "error");
-
-                const p = appState.products.find(x => x.id === pId);
-                if(!p) return;
-                const allocs = getProductAllocations(p);
-
-                if(!allocs[source] || allocs[source] < qty) return showToast("Not enough stock in source", "error");
-
-                allocs[source] -= qty;
-                allocs[dest] = (allocs[dest] || 0) + qty;
-                p.allocations = allocs;
-
-                const { id, ...cleanP } = p;
-                if(await DB.save('products', cleanP, id)) {
-                    showToast("Stock transferred successfully!");
-                    closeModal();
-                }
-            }
-        };
-
-        // Stock Audit Logic
-        window.StockAudit = {
-            sync: async (id) => {
-                const newQtyInput = document.getElementById(`adj-qty-${id}`);
-                const reasonInput = document.getElementById(`adj-reason-${id}`);
-                const newQty = parseInt(newQtyInput.value);
-                const reason = reasonInput.value || 'Manual Audit';
-                const product = appState.products.find(p => p.id === id);
-
-                if(!product) return showToast("Product not found", "error");
-                if(isNaN(newQty) || newQty < 0) return showToast("Invalid quantity", "error");
-                if(newQty === Number(product.stock)) return showToast("Actual count matches system. No update needed.", "info");
-
-                product.stock = newQty;
-                const { id: pid, ...cleanProduct } = product;
-                if(await DB.save('products', cleanProduct, pid)) {
-                    showToast(`Stock updated to ${newQty} for ${product.name} (${reason})`);
-                    reasonInput.value = ''; 
-                }
             }
         };
 
@@ -2983,7 +3359,10 @@
                     gst: document.getElementById('set-gst').value,
                     phone: document.getElementById('set-phone').value,
                     email: document.getElementById('set-email').value,
-                    address: document.getElementById('set-address').value
+                    address: document.getElementById('set-address').value,
+                    enableTransport: document.getElementById('set-transport').checked,
+                    enableStorage: document.getElementById('set-storage').checked,
+                    enableGst: document.getElementById('set-toggle-gst').checked
                 };
                 if (await DB.save('settings', data, id ? id : null)) {
                     localStorage.setItem('companyName', data.companyName); // Update local cache
