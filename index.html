@@ -26,7 +26,7 @@
         .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
         
         /* Loader */
-        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #blue-600; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #3b82f6; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         .spinner-white { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #fff; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -51,7 +51,7 @@
                 <p class="text-gray-500 mb-6 text-sm">Your data is encrypted end-to-end. Only you can access it.</p>
             </div>
             
-            <!-- Login & Signup Architecture (Instagram Style) -->
+            <!-- Login & Signup Architecture -->
             <div id="login-section" class="flex flex-col w-full">
                 
                 <!-- LOGIN MODE -->
@@ -59,11 +59,11 @@
                     <div class="flex flex-col gap-3 mb-2">
                         <button id="btn-login-google" class="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-3 transition shadow-sm">
                             <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5 bg-white rounded-full p-0.5" alt="Google">
-                            <span>Log in with Google</span>
+                            <span>Continue with Google</span>
                         </button>
-                        <button id="btn-login-local" class="w-full bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg hover:bg-gray-900 transition flex items-center justify-center gap-3 shadow-sm">
+                        <button id="btn-login-local" class="w-full bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg hover:bg-gray-900 transition flex items-center justify-center gap-3 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
                             <i class="fas fa-laptop-house text-lg"></i>
-                            <span>Log in with Local Account</span>
+                            <span>Continue with Local Account</span>
                         </button>
                     </div>
 
@@ -83,9 +83,9 @@
                     <div class="flex flex-col gap-3 mb-2">
                         <button id="btn-signup-google" class="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-3 transition shadow-sm">
                             <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5 bg-white rounded-full p-0.5" alt="Google">
-                            <span>Sign up using Google</span>
+                            <span>Sign up using Google Account</span>
                         </button>
-                        <button id="btn-signup-local" class="w-full bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg hover:bg-gray-900 transition flex items-center justify-center gap-3 shadow-sm">
+                        <button id="btn-signup-local" class="w-full bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg hover:bg-gray-900 transition flex items-center justify-center gap-3 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
                             <i class="fas fa-laptop-house text-lg"></i>
                             <span>Sign up using Local Account</span>
                         </button>
@@ -107,22 +107,30 @@
 
             <!-- Initial Setup Form (First Login) -->
             <div id="setup-section" class="hidden">
-                <h2 class="text-xl font-bold mb-2 text-gray-800">Welcome! Let's get started.</h2>
-                <p class="text-xs text-gray-500 mb-6">Setup your company name and encryption PIN.</p>
+                <h2 class="text-2xl font-bold mb-2 text-gray-800">Welcome! Let's get started.</h2>
+                <p class="text-sm text-gray-500 mb-6">Setup your company name and encryption PIN.</p>
                 
-                <input type="text" id="setup-company" placeholder="Company Name" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 mb-3">
-                <input type="password" id="setup-pin" placeholder="Create PIN (Min 4 digits)" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-xl tracking-[0.2em] focus:ring-2 focus:ring-blue-500 outline-none mb-4" autocomplete="new-password">
+                <input type="text" id="setup-company" placeholder="Company Name" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                <input type="password" id="setup-pin" placeholder="Create PIN (Min 4 digits)" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 mb-6" autocomplete="new-password">
                 
-                <button id="btn-setup" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 transition flex justify-center items-center mb-2">
+                <button id="btn-setup" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 transition flex justify-center items-center mb-3">
                     Complete Setup
                 </button>
-                <p class="text-xs text-red-500 text-left font-semibold mt-2">Warning: There is NO password or PIN reset option. Keep your PIN safe.</p>
+                <p class="text-xs text-red-500 text-left font-semibold mt-2 mb-4">Warning: There is NO password or PIN reset option. Keep your PIN safe.</p>
+
+                <button id="btn-cancel-setup" class="text-sm text-gray-500 hover:text-gray-800 transition w-full text-center font-medium mt-2">Cancel & Sign Out</button>
             </div>
 
             <!-- Return PIN Verification -->
             <div id="pin-section" class="hidden">
-                <p class="text-sm font-semibold mb-4 text-gray-700">Enter your Encryption PIN</p>
+                <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                    <i class="fas fa-lock"></i>
+                </div>
+                <h2 id="pin-company-heading" class="text-2xl font-bold mb-2 text-gray-800">Welcome Back</h2>
+                <p class="text-sm font-semibold mb-6 text-gray-700">Enter your Encryption PIN</p>
+                
                 <input type="password" id="e2e-pin" placeholder="••••••••" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-2xl tracking-[0.5em] focus:ring-2 focus:ring-blue-500 outline-none mb-4" autocomplete="new-password">
+                
                 <button id="btn-unlock" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 transition flex justify-center items-center mb-4">
                     <span id="btn-unlock-text">Unlock Vault</span>
                     <div id="btn-unlock-spinner" class="spinner-white hidden"></div>
@@ -307,12 +315,14 @@
                     await Promise.all(deletePromises);
                 }
                 await deleteUser(userObj);
+                localStorage.removeItem('hasLocalAccount');
+                localStorage.removeItem('companyName');
             } catch(e) {
                 console.error("Wipe incomplete. Some permissions may require re-auth.", e);
             }
         };
 
-        // UI Logic for Auth Modes
+        // UI Logic for Auth Modes & Grey Out Logic
         window.AuthUI = {
             setMode: (mode) => {
                 const loginMode = document.getElementById('login-mode');
@@ -325,8 +335,33 @@
                     loginMode.classList.add('hidden');
                     signupMode.classList.remove('hidden');
                 }
+                window.AuthUI.updateButtonStates();
+            },
+            updateButtonStates: () => {
+                const hasLocal = localStorage.getItem('hasLocalAccount') === 'true';
+                const btnLoginLocal = document.getElementById('btn-login-local');
+                const btnSignupLocal = document.getElementById('btn-signup-local');
+
+                if (hasLocal) {
+                    // Local account exists -> Enable Login, Disable Signup
+                    btnLoginLocal.disabled = false;
+                    btnLoginLocal.classList.remove('opacity-50', 'cursor-not-allowed');
+                    
+                    btnSignupLocal.disabled = true;
+                    btnSignupLocal.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    // No local account -> Disable Login, Enable Signup
+                    btnLoginLocal.disabled = true;
+                    btnLoginLocal.classList.add('opacity-50', 'cursor-not-allowed');
+                    
+                    btnSignupLocal.disabled = false;
+                    btnSignupLocal.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
             }
         };
+        
+        // Ensure UI buttons update on load
+        window.AuthUI.updateButtonStates();
 
         // ==========================================
         // 4. DATABASE SERVICE (Firestore + E2EE)
@@ -373,13 +408,7 @@
         // ==========================================
         // 5. AUTHENTICATION & PIN FLOW
         // ==========================================
-        const initAuth = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                try { await signInWithCustomToken(auth, __initial_auth_token); } catch (e) { }
-            }
-        };
-
-        // Reusable auth handlers bound to both Login and Signup mode buttons
+        // Google Auth Handlers
         const handleGoogleAuth = async () => {
             try { 
                 await signInWithPopup(auth, provider); 
@@ -395,19 +424,32 @@
             }
         };
         
-        const handleLocalAuth = async () => {
+        // Local Auth Handlers
+        const handleLocalLogin = async () => {
+            if (auth.currentUser && auth.currentUser.isAnonymous) {
+                checkVaultSetupStatus(auth.currentUser);
+            } else {
+                showToast("No active local account found. It may have been cleared by your browser.", "error");
+                localStorage.removeItem('hasLocalAccount');
+                window.AuthUI.updateButtonStates();
+            }
+        };
+
+        const handleLocalSignup = async () => {
             try { 
-                await signInAnonymously(auth); 
+                await signInAnonymously(auth);
+                localStorage.setItem('hasLocalAccount', 'true');
+                window.AuthUI.updateButtonStates();
             } catch(e) { 
-                showToast("Local Account login failed: " + e.message, "error"); 
+                showToast("Local Account creation failed: " + e.message, "error"); 
             }
         };
 
         // Attach to all four buttons
         document.getElementById('btn-login-google').onclick = handleGoogleAuth;
         document.getElementById('btn-signup-google').onclick = handleGoogleAuth;
-        document.getElementById('btn-login-local').onclick = handleLocalAuth;
-        document.getElementById('btn-signup-local').onclick = handleLocalAuth;
+        document.getElementById('btn-login-local').onclick = handleLocalLogin;
+        document.getElementById('btn-signup-local').onclick = handleLocalSignup;
 
         document.getElementById('btn-logout').onclick = () => {
             e2eKey = null; 
@@ -415,13 +457,19 @@
             activeListeners.forEach(unsub => unsub()); 
             activeListeners = [];
             
+            // Hide App, Show Auth Screen
             document.getElementById('app-screen').classList.add('hidden');
             document.getElementById('auth-screen').classList.remove('hidden');
             
-            // Fix: Force UI to show PIN screen and hide Setup screen
+            // Force UI to show PIN screen and hide Login/Setup screens
+            document.getElementById('login-section').classList.add('hidden');
             document.getElementById('setup-section').classList.add('hidden');
             document.getElementById('pin-section').classList.remove('hidden');
-            document.getElementById('auth-branding').classList.remove('hidden');
+            document.getElementById('auth-branding').classList.add('hidden');
+            
+            // Set Dynamic PIN Heading
+            const cName = localStorage.getItem('companyName');
+            document.getElementById('pin-company-heading').innerText = cName ? cName : "Welcome Back";
             
             document.getElementById('e2e-pin').value = '';
             document.getElementById('setup-company').value = '';
@@ -429,8 +477,25 @@
             showToast("Vault Locked", "info");
         };
 
+        // Sign out inside PIN screen
         document.getElementById('btn-switch-account').onclick = () => {
             showConfirm("Are you sure? If you are using an Anonymous Account, signing out will make you lose access to it permanently.", async () => {
+                if (auth.currentUser && auth.currentUser.isAnonymous) {
+                    localStorage.removeItem('hasLocalAccount');
+                    localStorage.removeItem('companyName');
+                }
+                await signOut(auth);
+                window.location.reload();
+            });
+        };
+
+        // Cancel and Sign out inside Setup screen
+        document.getElementById('btn-cancel-setup').onclick = () => {
+            showConfirm("Are you sure? If you cancel, you will be signed out.", async () => {
+                if (auth.currentUser && auth.currentUser.isAnonymous) {
+                    localStorage.removeItem('hasLocalAccount');
+                    localStorage.removeItem('companyName');
+                }
                 await signOut(auth);
                 window.location.reload();
             });
@@ -442,11 +507,15 @@
                 const verifRef = doc(db, 'artifacts', appId, 'users', user.uid, '_security', 'pin_verify');
                 const verifDoc = await getDoc(verifRef);
                 
-                document.getElementById('auth-branding').classList.remove('hidden');
+                document.getElementById('auth-branding').classList.add('hidden');
                 
                 if (verifDoc.exists()) {
                     document.getElementById('pin-section').classList.remove('hidden');
                     document.getElementById('setup-section').classList.add('hidden');
+                    
+                    // Set Dynamic PIN Heading
+                    const cName = localStorage.getItem('companyName');
+                    document.getElementById('pin-company-heading').innerText = cName ? cName : "Welcome Back";
                 } else {
                     document.getElementById('pin-section').classList.add('hidden');
                     document.getElementById('setup-section').classList.remove('hidden');
@@ -462,24 +531,16 @@
                 document.getElementById('user-avatar').innerText = user.email ? user.email[0].toUpperCase() : 'A';
                 document.getElementById('login-section').classList.add('hidden');
                 
-                // Ensure the Login/Signup tabs hide when asking for PIN
-                const tabs = document.getElementById('auth-tabs');
-                if(tabs) tabs.classList.add('hidden');
-                
                 checkVaultSetupStatus(user);
             } else {
                 currentUser = null;
                 document.getElementById('auth-branding').classList.remove('hidden'); 
-                
-                // Ensure the Login/Signup tabs return when logged out
-                const tabs = document.getElementById('auth-tabs');
-                if(tabs) tabs.classList.remove('hidden');
-                
                 document.getElementById('login-section').classList.remove('hidden');
                 document.getElementById('pin-section').classList.add('hidden');
                 document.getElementById('setup-section').classList.add('hidden');
                 document.getElementById('auth-screen').classList.remove('hidden');
                 document.getElementById('app-screen').classList.add('hidden');
+                window.AuthUI.updateButtonStates();
             }
         });
 
@@ -501,6 +562,7 @@
                 
                 // Save Initial Settings
                 await DB.save('settings', { companyName: company, currency: '₹' });
+                localStorage.setItem('companyName', company); // Cache for PIN screen
                 
                 startApp();
             } catch (e) {
@@ -537,6 +599,11 @@
                 
                 failedPinAttempts = 0; // Reset on success
                 e2eKey = pin;
+                
+                // Ensure heading updates if logged in from another device
+                const cName = localStorage.getItem('companyName');
+                document.getElementById('pin-company-heading').innerText = cName ? cName : "Welcome Back";
+
                 startApp();
             } catch (e) {
                 showToast(e.message, "error");
@@ -563,11 +630,18 @@
                 if(currentView === 'dashboard') Views.dashboard(); 
                 if(currentView === 'sales_report') Views.sales_report();
             });
-            DB.listen('customers', 'customers', () => { if(currentView === 'customers') Views.customers(); });
+            DB.listen('customers', 'customers', () => { 
+                if(currentView === 'customers') Views.customers(); 
+                if(currentView === 'billing') window.POS.renderCustomerSelect();
+            });
             DB.listen('suppliers', 'suppliers', () => { if(currentView === 'suppliers') Views.suppliers(); });
             DB.listen('warehouses', 'warehouses', () => { if(currentView === 'warehouses') Views.warehouses(); });
             DB.listen('purchase_orders', 'purchase_orders', () => { if(currentView === 'purchase_orders') Views.purchase_orders(); });
             DB.listen('settings', 'settings', () => { 
+                const s = appState.settings[0];
+                if(s && s.companyName) {
+                    localStorage.setItem('companyName', s.companyName); // silently cache for PIN screen
+                }
                 window.SettingsForm.applySettings();
                 if(currentView === 'system_settings') Views.system_settings(); 
             });
@@ -863,9 +937,29 @@
                         </div>
 
                         <div class="w-full lg:w-96 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col flex-shrink-0">
-                            <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                                <h3 class="font-bold text-gray-800">Current Sale</h3>
-                                <button onclick="window.POS.clear()" class="text-xs text-red-500 hover:text-red-700">Clear</button>
+                            <!-- Advanced Customer Panel -->
+                            <div class="p-4 border-b border-gray-100 bg-gray-50 flex flex-col gap-3">
+                                <div class="flex justify-between items-center">
+                                    <h3 class="font-bold text-gray-800">Current Sale</h3>
+                                    <button onclick="window.POS.clear()" class="text-xs text-red-500 hover:text-red-700">Clear Cart</button>
+                                </div>
+                                
+                                <div class="flex gap-2">
+                                    <select id="pos-customer" onchange="window.POS.onCustomerChange()" class="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="">Walk-in Customer</option>
+                                        <!-- populated dynamically -->
+                                    </select>
+                                    <button onclick="window.CustomerForm.open()" class="bg-blue-100 text-blue-600 px-3 rounded-lg hover:bg-blue-200 transition" title="Add Customer"><i class="fas fa-plus"></i></button>
+                                </div>
+
+                                <div id="pos-customer-info" class="hidden bg-white p-3 rounded-lg border border-gray-200 text-sm shadow-sm flex flex-col gap-1">
+                                    <!-- info populated by JS -->
+                                </div>
+
+                                <select id="pos-payment-type" class="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white mt-1">
+                                    <option value="Paid">Paid Instantly</option>
+                                    <option value="Credit" disabled>Pay Later (Credit)</option>
+                                </select>
                             </div>
                             
                             <div class="flex-1 p-4 overflow-y-auto space-y-3" id="pos-cart">
@@ -887,6 +981,8 @@
                 `;
 
                 window.POS.renderProducts();
+                window.POS.renderCustomerSelect(); // initialize selector
+
                 document.getElementById('pos-search').addEventListener('input', (e) => {
                     window.POS.renderProducts(e.target.value);
                 });
@@ -910,9 +1006,10 @@
                             <table class="w-full text-left border-collapse">
                                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm">
                                     <tr>
-                                        <th class="px-6 py-3 font-medium">Name</th>
-                                        <th class="px-6 py-3 font-medium">Email</th>
-                                        <th class="px-6 py-3 font-medium">Phone</th>
+                                        <th class="px-6 py-3 font-medium">Customer (Company)</th>
+                                        <th class="px-6 py-3 font-medium">Contact Info</th>
+                                        <th class="px-6 py-3 font-medium text-center">Rating</th>
+                                        <th class="px-6 py-3 font-medium text-right">Balance (Owes)</th>
                                         <th class="px-6 py-3 font-medium text-right">Actions</th>
                                     </tr>
                                 </thead>
@@ -924,7 +1021,7 @@
                 Views.renderCustomersTable(appState.customers);
                 document.getElementById('search-customer').addEventListener('input', (e) => {
                     const term = e.target.value.toLowerCase();
-                    const filtered = appState.customers.filter(c => c.name.toLowerCase().includes(term) || (c.email||'').toLowerCase().includes(term));
+                    const filtered = appState.customers.filter(c => c.name.toLowerCase().includes(term) || (c.company||'').toLowerCase().includes(term) || (c.email||'').toLowerCase().includes(term));
                     Views.renderCustomersTable(filtered);
                 });
             },
@@ -932,20 +1029,38 @@
                 const tbody = document.getElementById('customers-table-body');
                 if(!tbody) return;
                 if(data.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">No customers found.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">No customers found.</td></tr>`;
                     return;
                 }
-                tbody.innerHTML = data.map(c => `
+                
+                const cSym = appState.settings[0]?.currency || '₹';
+
+                tbody.innerHTML = data.map(c => {
+                    let stars = ''; for(let i=0; i<(c.rating||5); i++) stars += '⭐';
+                    const bal = Number(c.balance || 0);
+                    
+                    return `
                     <tr class="hover:bg-gray-50 transition">
-                        <td class="px-6 py-4 font-medium text-gray-800">${c.name}</td>
-                        <td class="px-6 py-4 text-gray-600">${c.email || 'N/A'}</td>
-                        <td class="px-6 py-4 text-gray-600">${c.phone || 'N/A'}</td>
+                        <td class="px-6 py-4">
+                            <div class="font-medium text-gray-800">${c.name}</div>
+                            <div class="text-xs text-gray-500">${c.company || '-'}</div>
+                        </td>
+                        <td class="px-6 py-4 text-gray-600 text-xs">
+                            ${c.phone || 'N/A'}<br>${c.email || ''}
+                        </td>
+                        <td class="px-6 py-4 text-center text-xs tracking-widest">${stars}</td>
                         <td class="px-6 py-4 text-right">
-                            <button onclick="window.CustomerForm.edit('${c.id}')" class="text-blue-500 hover:text-blue-700 mr-3"><i class="fas fa-edit"></i></button>
-                            <button onclick="window.CustomerForm.delete('${c.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                            <div class="font-bold ${bal > 0 ? 'text-red-600' : 'text-green-600'}">${cSym}${bal.toFixed(2)}</div>
+                            ${c.lastTransactionDate ? `<div class="text-[10px] text-gray-400 mt-1" title="Last Transaction">Last: ${new Date(c.lastTransactionDate).toLocaleDateString()}</div>` : ''}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            ${bal > 0 ? `<button onclick="window.CustomerForm.receivePayment('${c.id}')" class="text-green-600 hover:text-green-800 mr-3" title="Settle Payment"><i class="fas fa-hand-holding-usd"></i></button>` : ''}
+                            <button onclick="window.CustomerForm.edit('${c.id}')" class="text-blue-500 hover:text-blue-700 mr-3" title="Edit Customer"><i class="fas fa-edit"></i></button>
+                            <button onclick="window.CustomerForm.delete('${c.id}')" class="text-red-500 hover:text-red-700" title="Delete"><i class="fas fa-trash"></i></button>
                         </td>
                     </tr>
-                `).join('');
+                    `
+                }).join('');
             },
 
             // --- SUPPLIERS ---
@@ -1210,7 +1325,7 @@
                                         <tr>
                                             <th class="px-6 py-3 font-medium">Date & Time</th>
                                             <th class="px-6 py-3 font-medium">Order ID</th>
-                                            <th class="px-6 py-3 font-medium">Type</th>
+                                            <th class="px-6 py-3 font-medium">Customer & Type</th>
                                             <th class="px-6 py-3 font-medium">Items Summary</th>
                                             <th class="px-6 py-3 font-medium text-right">Total Amount</th>
                                         </tr>
@@ -1267,7 +1382,8 @@
                             <td class="px-6 py-4 text-gray-600 whitespace-nowrap">${dateStr}</td>
                             <td class="px-6 py-4 font-mono text-xs text-gray-500">${s.id ? s.id.substring(0,8).toUpperCase() : 'N/A'}</td>
                             <td class="px-6 py-4">
-                                <span class="bg-gray-100 px-2 py-1 rounded text-xs text-gray-600 font-medium">${s.type || 'Standard'}</span>
+                                <div class="font-semibold text-gray-800">${s.customerName || 'Walk-in'}</div>
+                                <div class="text-xs ${s.paymentStatus === 'Credit' ? 'text-red-500 font-bold' : 'text-green-600'}">${s.paymentStatus || 'Paid'} | ${s.type || 'Standard'}</div>
                             </td>
                             <td class="px-6 py-4 text-gray-700 truncate max-w-md" title="${itemsSummary}">${itemsSummary}</td>
                             <td class="px-6 py-4 text-right font-bold text-gray-800">${cSym}${(Number(s.total) || 0).toFixed(2)}</td>
@@ -1466,7 +1582,7 @@
         window.CustomerForm = {
             open: (customer = null) => {
                 const title = customer ? "Edit Customer" : "Add New Customer";
-                const c = customer || { name: '', email: '', phone: '', address: '' };
+                const c = customer || { name: '', company: '', email: '', phone: '', address: '', rating: 5, balance: 0 };
                 showModal(`
                     <div class="p-6">
                         <div class="flex justify-between items-center mb-6">
@@ -1474,9 +1590,15 @@
                             <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
                         </div>
                         <form id="customer-form" onsubmit="window.CustomerForm.save(event, '${customer ? customer.id : ''}')" class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-                                <input type="text" id="cf-name" value="${c.name}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                                    <input type="text" id="cf-name" value="${c.name}" required class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                                    <input type="text" id="cf-company" value="${c.company}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                </div>
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
@@ -1486,6 +1608,16 @@
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                                     <input type="text" id="cf-phone" value="${c.phone}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Rating (1-5)</label>
+                                    <input type="number" min="1" max="5" id="cf-rating" value="${c.rating}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Opening Balance (Owes)</label>
+                                    <input type="number" step="0.01" id="cf-balance" value="${c.balance}" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
                                 </div>
                             </div>
                             <div>
@@ -1502,14 +1634,61 @@
             },
             save: async (e, id) => {
                 e.preventDefault();
-                const data = { name: document.getElementById('cf-name').value, email: document.getElementById('cf-email').value, phone: document.getElementById('cf-phone').value, address: document.getElementById('cf-address').value };
-                if(await DB.save('customers', data, id ? id : null)) { showToast(id ? "Customer updated" : "Customer created"); closeModal(); }
+                const data = { 
+                    name: document.getElementById('cf-name').value, 
+                    company: document.getElementById('cf-company').value,
+                    email: document.getElementById('cf-email').value, 
+                    phone: document.getElementById('cf-phone').value, 
+                    address: document.getElementById('cf-address').value,
+                    rating: parseInt(document.getElementById('cf-rating').value) || 5,
+                    balance: parseFloat(document.getElementById('cf-balance').value) || 0
+                };
+                if(await DB.save('customers', data, id ? id : null)) { 
+                    showToast(id ? "Customer updated" : "Customer created"); 
+                    closeModal(); 
+                }
             },
             edit: (id) => { const c = appState.customers.find(x => x.id === id); if(c) window.CustomerForm.open(c); },
             delete: (id) => {
                 showConfirm("Are you sure you want to delete this customer?", async () => {
                     if(await DB.delete('customers', id)) showToast("Customer deleted");
                 });
+            },
+            receivePayment: (id) => {
+                const c = appState.customers.find(x => x.id === id);
+                if(!c) return;
+                const cSym = appState.settings[0]?.currency || '₹';
+                showModal(`
+                    <div class="p-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">Receive Payment</h2>
+                        <p class="mb-1 text-sm text-gray-600">Customer: <b class="text-gray-800">${c.name}</b> ${c.company ? `(${c.company})` : ''}</p>
+                        <p class="mb-6 text-sm text-gray-600">Current Balance: <span class="font-bold text-red-600">${cSym}${Number(c.balance).toFixed(2)}</span></p>
+                        
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Amount Received (${cSym})</label>
+                        <input type="number" step="0.01" id="pay-amt" placeholder="0.00" class="w-full border border-gray-300 rounded-lg px-3 py-3 outline-none focus:ring-2 focus:ring-blue-500 mb-6 font-semibold text-lg text-green-600">
+                        
+                        <div class="flex justify-end gap-3">
+                            <button onclick="closeModal()" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">Cancel</button>
+                            <button onclick="window.CustomerForm.processPayment('${id}')" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center gap-2"><i class="fas fa-check"></i> Settle Balance</button>
+                        </div>
+                    </div>
+                `);
+            },
+            processPayment: async (id) => {
+                const amt = parseFloat(document.getElementById('pay-amt').value);
+                if(isNaN(amt) || amt <= 0) return showToast("Enter a valid amount", "error");
+                const c = appState.customers.find(x => x.id === id);
+                if(!c) return;
+                
+                c.balance = (Number(c.balance) || 0) - amt;
+                c.lastTransactionDate = new Date().toISOString();
+                
+                const {id: pid, ...cleanC} = c;
+                if(await DB.save('customers', cleanC, pid)) {
+                    const cSym = appState.settings[0]?.currency || '₹';
+                    showToast(`Payment of ${cSym}${amt.toFixed(2)} recorded.`);
+                    closeModal();
+                }
             }
         };
 
@@ -1585,6 +1764,47 @@
         // Point of Sale Logic
         window.POS = {
             cart: [],
+            renderCustomerSelect: () => {
+                const select = document.getElementById('pos-customer');
+                if(!select) return;
+                const currentVal = select.value;
+                select.innerHTML = `<option value="">Walk-in Customer (Unnamed)</option>` + 
+                    appState.customers.map(c => `<option value="${c.id}">${c.name} ${c.company ? `(${c.company})` : ''}</option>`).join('');
+                // Keep the selection if it still exists
+                if(appState.customers.some(c => c.id === currentVal)) select.value = currentVal;
+                window.POS.onCustomerChange();
+            },
+            onCustomerChange: () => {
+                const cId = document.getElementById('pos-customer').value;
+                const infoDiv = document.getElementById('pos-customer-info');
+                const payType = document.getElementById('pos-payment-type');
+                
+                if(!infoDiv || !payType) return;
+
+                if(!cId) {
+                    infoDiv.classList.add('hidden');
+                    payType.value = 'Paid';
+                    payType.options[1].disabled = true; // Block credit for Walk-ins
+                } else {
+                    const c = appState.customers.find(x => x.id === cId);
+                    if(!c) return;
+                    const cSym = appState.settings[0]?.currency || '₹';
+                    let stars = ''; for(let i=0; i<(c.rating||5); i++) stars += '⭐';
+                    
+                    infoDiv.innerHTML = `
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="font-bold text-gray-800">${c.company || c.name}</span>
+                            <span class="text-xs tracking-widest text-yellow-400">${stars}</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-gray-500">Current Balance:</span>
+                            <span class="font-bold ${c.balance > 0 ? 'text-red-500' : 'text-green-600'}">${cSym}${Number(c.balance||0).toFixed(2)}</span>
+                        </div>
+                    `;
+                    infoDiv.classList.remove('hidden');
+                    payType.options[1].disabled = false; // Allow credit
+                }
+            },
             renderProducts: (search = "") => {
                 const container = document.getElementById('pos-products');
                 if(!container) return;
@@ -1671,11 +1891,19 @@
                 
                 const cSym = appState.settings[0]?.currency || '₹';
                 const total = window.POS.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+                
+                const cId = document.getElementById('pos-customer').value;
+                const pType = document.getElementById('pos-payment-type').value;
+                const customer = cId ? appState.customers.find(x => x.id === cId) : null;
+                
                 const saleData = {
                     date: new Date().toISOString(),
                     items: window.POS.cart.map(i => ({ id: i.id, name: i.name, sku: i.sku, price: i.price, qty: i.qty })),
                     total: total,
-                    type: generateBill ? 'Billed' : 'Quick Sell'
+                    type: generateBill ? 'Billed' : 'Quick Sell',
+                    paymentStatus: pType,
+                    customerId: cId || null,
+                    customerName: customer ? (customer.company || customer.name) : 'Walk-in Customer'
                 };
 
                 const saleSuccess = await DB.save('sales', saleData);
@@ -1690,18 +1918,32 @@
                         }
                     }
 
+                    // Update Customer Balance if Credit is selected
+                    if (pType === 'Credit' && customer) {
+                        customer.balance = (Number(customer.balance) || 0) + total;
+                        customer.lastTransactionDate = new Date().toISOString();
+                        const { id, ...cleanC } = customer;
+                        await DB.save('customers', cleanC, id);
+                    }
+
                     showToast("Sale completed successfully!");
                     
                     if(generateBill) {
                         const brand = appState.settings[0]?.companyName || 'NEXUS INV';
+                        const custHeader = customer ? `<p style="text-align:center; font-size: 12px; margin-top: -10px;">To: ${customer.name} ${customer.company ? `(${customer.company})` : ''}</p>` : '';
+                        
                         const receiptWindow = window.open('', '_blank');
                         receiptWindow.document.write(`
                             <html><head><title>Receipt</title><style>body{font-family:monospace; padding: 20px; width: 300px; margin: 0 auto;}</style></head>
                             <body>
-                                <h2 style="text-align:center; text-transform:uppercase;">${brand}</h2>
-                                <p style="text-align:center">${new Date().toLocaleString()}</p><hr>
+                                <h2 style="text-align:center; text-transform:uppercase; margin-bottom: 5px;">${brand}</h2>
+                                ${custHeader}
+                                <p style="text-align:center; font-size: 10px;">${new Date().toLocaleString()}</p>
+                                <hr>
                                 ${window.POS.cart.map(i => `<div style="display:flex;justify-content:space-between"><span>${i.name} (x${i.qty})</span><span>${cSym}${(i.price*i.qty).toFixed(2)}</span></div>`).join('')}
-                                <hr><h3 style="text-align:right">TOTAL: ${cSym}${total.toFixed(2)}</h3>
+                                <hr>
+                                <div style="display:flex;justify-content:space-between; margin-bottom: 5px;"><span>Payment:</span><strong>${pType}</strong></div>
+                                <h3 style="text-align:right; margin-top:0;">TOTAL: ${cSym}${total.toFixed(2)}</h3>
                                 <p style="text-align:center">Thank you!</p>
                             </body></html>
                         `);
@@ -1711,6 +1953,7 @@
 
                     window.POS.clear();
                     window.POS.renderProducts(); 
+                    window.POS.onCustomerChange(); // Update info card dynamically
                 }
             }
         };
@@ -1837,6 +2080,7 @@
                     currency: document.getElementById('set-currency').value
                 };
                 if (await DB.save('settings', data, id ? id : null)) {
+                    localStorage.setItem('companyName', data.companyName); // Update local cache
                     showToast("System settings updated successfully!");
                 }
             },
@@ -1876,9 +2120,6 @@
                 });
             }
         };
-
-        // Initialize Call
-        initAuth();
 
     </script>
 </body>
