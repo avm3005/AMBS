@@ -39,6 +39,17 @@
         input[type="number"] {
             -moz-appearance: textfield;
         }
+        
+        /* Print Styles */
+        @media print {
+            body * { visibility: hidden; }
+            #modal-container { display: block !important; position: static; }
+            #modal-container, #modal-container * { visibility: visible; }
+            .no-print { display: none !important; }
+            .print-area { box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; padding: 0 !important; border: none !important; }
+            /* Hide modal backdrop background */
+            #modal-container > div { background: transparent !important; padding: 0 !important; }
+        }
     </style>
 </head>
 <body class="text-gray-800 overflow-hidden h-screen flex">
@@ -153,40 +164,64 @@
     <div id="app-screen" class="w-full h-full flex hidden">
         
         <!-- Sidebar -->
-        <aside class="w-64 bg-gray-900 text-gray-300 flex flex-col h-full flex-shrink-0 z-10 shadow-xl">
-            <div class="h-16 flex items-center px-6 border-b border-gray-800 font-bold text-white text-lg tracking-wide">
-                <i class="fas fa-layer-group text-blue-500 mr-3"></i> <span id="brand-name" class="truncate">Nexus Inv</span>
-            </div>
-            
-            <div class="flex-1 overflow-y-auto sidebar-scroll py-4 px-3 space-y-1" id="sidebar-nav">
-                <!-- Navigation inserted by JS -->
+        <aside id="sidebar" class="w-64 bg-gray-900 text-gray-300 flex flex-col h-full flex-shrink-0 z-10 shadow-xl transition-all duration-300">
+            <!-- Navigation inserted by JS -->
+            <div class="flex-1 overflow-y-auto sidebar-scroll py-2 px-3 space-y-1" id="sidebar-nav">
             </div>
 
-            <div class="p-4 border-t border-gray-800 text-xs text-gray-500 text-center flex flex-col gap-1 items-center">
-                <div>E2EE Active <i class="fas fa-lock text-green-500 ml-1"></i></div>
+            <!-- Vault button docked to bottom -->
+            <div class="p-4 border-t border-gray-800 flex flex-col gap-3 mt-auto shrink-0">
+                <button id="btn-logout" class="w-full bg-gray-800 hover:bg-gray-700 text-white font-medium py-2.5 px-4 rounded transition flex items-center justify-center gap-2">
+                    <i class="fas fa-lock text-blue-500"></i> Lock Vault
+                </button>
             </div>
         </aside>
 
         <!-- Main Content -->
         <main class="flex-1 flex flex-col h-full bg-gray-50 overflow-hidden relative">
             <!-- Header -->
-            <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0 z-10 shadow-sm">
-                <div class="flex items-center gap-4">
-                    <h2 id="page-title" class="text-xl font-semibold text-gray-800">Dashboard</h2>
+            <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0 z-10 shadow-sm relative">
+                <div class="flex items-center gap-4 flex-shrink-0">
+                    <h2 id="page-title" class="text-xl font-semibold text-gray-800 hidden sm:block">Dashboard</h2>
                     <!-- Cloud Sync Indicator -->
                     <div id="sync-status-container" class="hidden items-center gap-1.5 bg-gray-50 px-3 py-1 rounded-full border border-gray-200 transition-all duration-300 shadow-sm">
                         <i id="sync-status-icon" class="fas fa-cloud text-gray-400 text-xs"></i>
                         <span id="sync-status-text" class="text-xs text-gray-500 font-medium">Synced</span>
                     </div>
                 </div>
-                <div class="flex items-center gap-4">
-                    <button class="text-gray-400 hover:text-gray-600"><i class="fas fa-bell"></i></button>
-                    <div class="h-8 w-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm" id="user-avatar">
-                        U
-                    </div>
-                    <button id="btn-logout" class="text-sm text-gray-500 hover:text-gray-800 font-medium"><i class="fas fa-lock mr-1"></i> Lock Vault</button>
+
+                <!-- Global Search -->
+                <div class="flex-1 max-w-2xl mx-4 relative hidden md:block">
+                    <input type="text" id="global-search" placeholder="Search orders, dates, menus... (Ctrl+M)" class="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-full text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 focus:bg-white transition-all shadow-inner placeholder-gray-400">
+                    <i class="fas fa-search absolute left-4 top-2.5 text-gray-400"></i>
+                    <button id="global-search-clear" class="absolute right-3 top-2 text-gray-400 hover:text-gray-700 hidden outline-none text-lg" onclick="window.SearchUI.closeSearch()"><i class="fas fa-times-circle"></i></button>
+                </div>
+
+                <div class="flex items-center gap-5 flex-shrink-0">
+                    <!-- Mobile Search Trigger -->
+                    <button class="md:hidden text-gray-500 hover:text-gray-800" onclick="document.getElementById('global-search').focus()">
+                        <i class="fas fa-search text-xl"></i>
+                    </button>
+                    <button id="btn-bell" onclick="window.UI.showAlerts()" class="text-gray-500 hover:text-gray-800 relative" title="Alerts">
+                        <i class="fas fa-bell text-xl text-green-500"></i>
+                    </button>
+                    <!-- Company Name Button instead of Circle Avatar -->
+                    <button class="font-bold text-gray-700 hover:text-blue-600 transition truncate max-w-[200px] bg-gray-100 hover:bg-gray-200 px-4 py-1.5 rounded-full shadow-sm flex items-center gap-2" id="user-avatar-btn" onclick="window.UI.showCompanyInfo()">
+                        Company Name
+                    </button>
                 </div>
             </header>
+
+            <!-- Search Results Overlay -->
+            <div id="search-overlay" class="hidden flex-1 overflow-y-auto p-6 relative bg-gray-50 z-20">
+                <div class="max-w-5xl mx-auto">
+                    <div class="flex justify-between items-end border-b border-gray-200 pb-3 mb-4">
+                        <h2 class="text-2xl font-bold text-gray-800"><i class="fas fa-search text-blue-500 mr-2"></i>Search Results</h2>
+                        <button onclick="window.SearchUI.closeSearch()" class="text-sm font-semibold text-gray-600 hover:text-gray-900 bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded-lg transition shadow-sm">Close Search (Esc)</button>
+                    </div>
+                    <div id="search-results-content"></div>
+                </div>
+            </div>
 
             <!-- Dynamic Page Content -->
             <div id="page-content" class="flex-1 overflow-y-auto p-6 relative">
@@ -235,7 +270,7 @@
             warehouses: [],
             purchase_orders: [],
             settings: [],
-            transfers: [] // Track stock transfer history
+            transfers: [] 
         };
 
         let currentChart = null;
@@ -248,10 +283,12 @@
                 enableTransport: s.enableTransport !== false,
                 enableStorage: s.enableStorage !== false,
                 enableGst: s.enableGst !== false,
+                taxInclusive: s.taxInclusive === true,
                 gst: s.gst || '',
                 phone: s.phone || '',
                 email: s.email || '',
-                address: s.address || ''
+                address: s.address || '',
+                searchShortcut: s.searchShortcut || 'm'
             };
         };
 
@@ -301,8 +338,8 @@
         const showModal = (contentHtml) => {
             const container = document.getElementById('modal-container');
             container.innerHTML = `
-                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto transform transition-all scale-100">
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4 transition-opacity">
+                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto transform transition-all scale-100 flex flex-col">
                         ${contentHtml}
                     </div>
                 </div>
@@ -384,6 +421,274 @@
             }
         };
 
+        // Bell Icon Logic
+        const updateBellIcon = () => {
+            const bellBtn = document.getElementById('btn-bell');
+            if(!bellBtn) return;
+            const mainWh = appState.warehouses.find(w => w.isMain);
+            let state = 'green';
+            let alerts = [];
+
+            appState.products.forEach(p => {
+                const min = Number(p.minStock || 5);
+                const allocs = getProductAllocations(p);
+                
+                let mainStock = 0;
+                if(mainWh) {
+                    mainStock = allocs[mainWh.id] || 0;
+                } else {
+                    mainStock = p.stock || 0; // fallback if no main
+                }
+
+                if(mainStock <= min) {
+                    state = 'red';
+                    alerts.push({p, loc: mainWh ? mainWh.name : 'Overall', stock: mainStock, min});
+                } else {
+                    let secondaryAlert = false;
+                    appState.warehouses.forEach(w => {
+                        if(!w.isMain && (allocs[w.id]||0) <= min && (allocs[w.id]||0) > 0) {
+                            secondaryAlert = true;
+                            alerts.push({p, loc: w.name, stock: allocs[w.id], min});
+                        }
+                    });
+                    if(secondaryAlert && state !== 'red') state = 'yellow';
+                }
+            });
+
+            window.currentAlerts = alerts;
+            
+            bellBtn.innerHTML = `<i class="fas fa-bell text-xl text-${state}-500"></i>`;
+            if(alerts.length > 0) {
+                bellBtn.innerHTML += `<span class="absolute top-0 right-0 -mt-1 -mr-1 bg-${state}-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center border border-white font-bold">${alerts.length}</span>`;
+            }
+        };
+
+        window.UI = {
+            showAlerts: () => {
+                const mainWh = appState.warehouses.find(w => w.isMain);
+                let lowStockItems = [];
+                
+                appState.products.forEach(p => {
+                    const min = Number(p.minStock || 5);
+                    const allocs = getProductAllocations(p);
+                    let relevantStock = 0;
+                    
+                    if (mainWh) {
+                        relevantStock = Number(allocs[mainWh.id] || 0);
+                    } else {
+                        relevantStock = Number(p.stock);
+                    }
+                    
+                    if(relevantStock <= min) {
+                        const totalOther = p.stock - relevantStock;
+                        lowStockItems.push({
+                            ...p,
+                            relevantStock,
+                            availableElsewhere: totalOther > 0
+                        });
+                    }
+                });
+
+                const list = lowStockItems.length === 0 ? '<div class="text-center text-gray-500 py-10"><i class="fas fa-check-circle text-4xl text-green-400 mb-3 block"></i>All stock levels are healthy!</div>' : 
+                    `
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm z-10">
+                            <tr>
+                                <th class="px-4 py-2 font-medium">Product</th>
+                                <th class="px-4 py-2 font-medium text-center">Stock</th>
+                                <th class="px-4 py-2 font-medium text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm divide-y divide-gray-100">
+                            ${lowStockItems.map(p => `
+                                <tr class="hover:bg-red-50 transition">
+                                    <td class="px-4 py-3">
+                                        <div class="font-bold text-gray-800">${p.name}</div>
+                                        <div class="font-mono text-xs text-gray-500">${p.sku}</div>
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        <span class="bg-red-100 text-red-700 px-2 py-1 rounded font-bold">${p.relevantStock} <span class="text-xs font-normal">/ ${p.minStock || 5} min</span></span>
+                                    </td>
+                                    <td class="px-4 py-3 text-right">
+                                        ${mainWh && p.availableElsewhere ? 
+                                            `<button onclick="closeModal(); window.StockTransfer.open('${p.id}', '${mainWh.id}')" class="bg-yellow-50 border border-yellow-300 text-yellow-700 hover:bg-yellow-100 px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow-sm flex items-center gap-1 ml-auto">
+                                                <i class="fas fa-exchange-alt"></i> Transfer
+                                            </button>` 
+                                            : 
+                                            `<button onclick="closeModal(); navigateTo('purchase_orders'); setTimeout(()=>showToast('Drafting PO for ${p.name.replace(/'/g, "\\'")}'), 100);" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-blue-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow-sm flex items-center gap-1 ml-auto">
+                                                <i class="fas fa-file-invoice"></i> Draft PO
+                                            </button>`
+                                        }
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    `;
+                
+                showModal(`
+                    <div class="p-0 sm:p-6 w-full max-w-3xl mx-auto h-full sm:h-auto max-h-[90vh] flex flex-col bg-white rounded-xl overflow-hidden">
+                        <div class="p-6 sm:p-0 border-b border-gray-100 flex justify-between items-center mb-0 sm:mb-4 bg-red-50 sm:bg-transparent rounded-t-xl shrink-0">
+                            <div>
+                                <h2 class="text-xl font-bold text-red-800 sm:text-gray-800"><i class="fas fa-exclamation-triangle text-red-500 mr-2"></i> Low Stock Alerts</h2>
+                                <p class="text-sm text-red-600 sm:text-gray-500 mt-1">${mainWh ? `(${mainWh.name} - MAIN)` : '(Total Stock)'}</p>
+                            </div>
+                            <button onclick="closeModal()" class="text-gray-500 hover:text-gray-800"><i class="fas fa-times text-xl"></i></button>
+                        </div>
+                        <div class="flex-1 overflow-auto hide-scroll rounded border-t sm:border border-gray-100 bg-white">
+                            ${list}
+                        </div>
+                    </div>
+                `);
+            },
+            showCompanyInfo: () => {
+                const s = getGlobalSettings();
+                showModal(`
+                    <div class="p-6 text-center max-w-sm mx-auto w-full">
+                        <div class="flex justify-end mb-2">
+                            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-800"><i class="fas fa-times text-lg"></i></button>
+                        </div>
+                        <div class="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl font-bold shadow-inner border-2 border-white outline outline-blue-100">
+                            ${s.companyName ? s.companyName[0].toUpperCase() : 'C'}
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-1">${s.companyName || 'My Company'}</h2>
+                        <p class="text-sm text-gray-500 mb-6">${s.email || 'No email provided'}</p>
+                        
+                        <div class="text-left bg-gray-50 p-4 rounded-lg border border-gray-100 space-y-3 text-sm shadow-sm mb-6">
+                            <div class="flex"><span class="text-gray-400 font-semibold w-20 flex-shrink-0"><i class="fas fa-phone mr-1"></i> Phone:</span> <span class="text-gray-700 font-medium">${s.phone || 'N/A'}</span></div>
+                            <div class="flex"><span class="text-gray-400 font-semibold w-20 flex-shrink-0"><i class="fas fa-file-invoice mr-1"></i> GSTIN:</span> <span class="text-gray-700 font-medium font-mono">${s.gst || 'N/A'}</span></div>
+                            <div class="flex"><span class="text-gray-400 font-semibold w-20 flex-shrink-0"><i class="fas fa-map-pin mr-1"></i> Addr:</span> <span class="text-gray-700 font-medium">${(s.address||'N/A').replace(/\n/g, '<br>')}</span></div>
+                        </div>
+                        
+                        <button onclick="navigateTo('general_settings'); closeModal();" class="mb-3 w-full px-4 py-2.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 font-bold shadow-sm transition flex items-center justify-center gap-2"><i class="fas fa-cog"></i> General Settings</button>
+                        <button onclick="closeModal()" class="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg hover:bg-gray-900 font-bold shadow-md transition">Close Info</button>
+                    </div>
+                `);
+            }
+        };
+
+        // ==========================================
+        // NEW SEARCH SERVICE (Ctrl+M)
+        // ==========================================
+        window.SearchUI = {
+            closeSearch: () => {
+                const searchInput = document.getElementById('global-search');
+                const clearBtn = document.getElementById('global-search-clear');
+                if(searchInput) searchInput.value = '';
+                if(clearBtn) clearBtn.classList.add('hidden');
+                
+                document.getElementById('search-overlay').classList.add('hidden');
+                document.getElementById('page-content').classList.remove('hidden');
+                
+                if (currentView !== 'general_settings') {
+                    const sidebar = document.getElementById('sidebar');
+                    sidebar.classList.add('w-64');
+                    sidebar.classList.remove('w-0', 'overflow-hidden');
+                }
+            },
+            navigate: (viewId) => {
+                window.SearchUI.closeSearch();
+                navigateTo(viewId);
+            },
+            viewSale: (saleId) => {
+                window.SearchUI.closeSearch();
+                navigateTo('history');
+                setTimeout(() => window.SalesManager.viewBill(saleId), 100);
+            },
+            renderResults: (query) => {
+                const container = document.getElementById('search-results-content');
+                let resultsHTML = '';
+                const settings = getGlobalSettings();
+                const cSym = settings.currency;
+
+                // 1. Menus
+                const menus = [
+                    { id: 'dashboard', name: 'Dashboard', icon: 'fa-chart-pie' },
+                    { id: 'products', name: 'Products', icon: 'fa-box' },
+                    { id: 'inventory', name: 'Inventory', icon: 'fa-cubes' },
+                    { id: 'history', name: 'History (Sales)', icon: 'fa-history' },
+                    { id: 'billing', name: 'Billing / POS', icon: 'fa-file-invoice-dollar' },
+                    { id: 'purchase_orders', name: 'Purchase Orders', icon: 'fa-file-signature' },
+                    { id: 'shipments', name: 'Shipments', icon: 'fa-truck-loading' },
+                    { id: 'stock_transfer', name: 'Stock Transfer', icon: 'fa-exchange-alt' },
+                    { id: 'money', name: 'Finances / Money', icon: 'fa-money-bill-wave' },
+                    { id: 'customers', name: 'Customers', icon: 'fa-users' },
+                    { id: 'suppliers', name: 'Suppliers', icon: 'fa-building' },
+                    { id: 'warehouses', name: 'Warehouses', icon: 'fa-warehouse' },
+                    { id: 'general_settings', name: 'Settings', icon: 'fa-cog' }
+                ];
+
+                const matchedMenus = menus.filter(m => m.name.toLowerCase().includes(query));
+                if(matchedMenus.length > 0) {
+                    resultsHTML += `<h3 class="font-bold text-gray-500 uppercase text-xs mb-3 mt-2 tracking-wider">Menus & Views</h3><div class="grid grid-cols-2 md:grid-cols-4 gap-3">`;
+                    matchedMenus.forEach(m => {
+                        resultsHTML += `<div onclick="window.SearchUI.navigate('${m.id}')" class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:border-blue-500 hover:shadow transition flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center"><i class="fas ${m.icon}"></i></div><span class="font-semibold text-gray-700">${m.name}</span></div>`;
+                    });
+                    resultsHTML += `</div>`;
+                }
+
+                // 2. Directories (Customers, Suppliers, Warehouses, Products)
+                const matchedCustomers = appState.customers.filter(c => c.name.toLowerCase().includes(query) || (c.company && c.company.toLowerCase().includes(query)));
+                const matchedSuppliers = appState.suppliers.filter(s => s.name.toLowerCase().includes(query) || (s.contact && s.contact.toLowerCase().includes(query)));
+                const matchedWarehouses = appState.warehouses.filter(w => w.name.toLowerCase().includes(query));
+                const matchedProducts = appState.products.filter(p => p.name.toLowerCase().includes(query) || p.sku.toLowerCase().includes(query));
+
+                if(matchedCustomers.length || matchedSuppliers.length || matchedWarehouses.length || matchedProducts.length) {
+                    resultsHTML += `<h3 class="font-bold text-gray-500 uppercase text-xs mb-3 mt-6 tracking-wider">Directory Matches</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-3">`;
+                    
+                    matchedProducts.slice(0, 4).forEach(p => {
+                        resultsHTML += `<div onclick="window.SearchUI.navigate('products')" class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:bg-gray-50 transition flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center"><i class="fas fa-box"></i></div><div><div class="font-semibold text-gray-800">${p.name}</div><div class="text-[10px] text-gray-400 font-mono">${p.sku}</div></div></div><span class="text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded">Go to Products &rarr;</span></div>`;
+                    });
+                    
+                    matchedCustomers.slice(0, 4).forEach(c => {
+                        resultsHTML += `<div onclick="window.SearchUI.navigate('customers')" class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:bg-gray-50 transition flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-green-50 text-green-500 flex items-center justify-center"><i class="fas fa-user"></i></div><div><div class="font-semibold text-gray-800">${c.name}</div><div class="text-[10px] text-gray-400">${c.company || 'Customer'}</div></div></div><span class="text-xs font-bold text-green-500 bg-green-50 px-2 py-1 rounded">Go to Customers &rarr;</span></div>`;
+                    });
+
+                    matchedSuppliers.slice(0, 4).forEach(s => {
+                        resultsHTML += `<div onclick="window.SearchUI.navigate('suppliers')" class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:bg-gray-50 transition flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-purple-50 text-purple-500 flex items-center justify-center"><i class="fas fa-building"></i></div><div><div class="font-semibold text-gray-800">${s.name}</div><div class="text-[10px] text-gray-400">Supplier</div></div></div><span class="text-xs font-bold text-purple-500 bg-purple-50 px-2 py-1 rounded">Go to Suppliers &rarr;</span></div>`;
+                    });
+
+                    matchedWarehouses.slice(0, 4).forEach(w => {
+                        resultsHTML += `<div onclick="window.SearchUI.navigate('warehouses')" class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:bg-gray-50 transition flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-yellow-50 text-yellow-600 flex items-center justify-center"><i class="fas fa-warehouse"></i></div><div><div class="font-semibold text-gray-800">${w.name}</div><div class="text-[10px] text-gray-400">${w.location || 'Warehouse'}</div></div></div><span class="text-xs font-bold text-yellow-600 bg-yellow-50 px-2 py-1 rounded">Go to Warehouses &rarr;</span></div>`;
+                    });
+
+                    resultsHTML += `</div>`;
+                }
+
+                // 3. Sales / Orders
+                const matchedSales = appState.sales.filter(s => {
+                    const searchStr = `${s.id} ${s.customerName} ${s.total} ${new Date(s.date).toLocaleDateString()} ${new Date(s.date).toISOString()}`.toLowerCase();
+                    return searchStr.includes(query);
+                });
+
+                if(matchedSales.length > 0) {
+                    resultsHTML += `<h3 class="font-bold text-gray-500 uppercase text-xs mb-3 mt-6 tracking-wider">Sales & Orders</h3><div class="space-y-2">`;
+                    matchedSales.slice(0, 10).forEach(s => {
+                        resultsHTML += `<div onclick="window.SearchUI.viewSale('${s.id}')" class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:border-blue-500 transition flex justify-between items-center">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center"><i class="fas fa-file-invoice"></i></div>
+                                <div>
+                                    <div class="font-bold text-gray-800 tracking-wide">Order #${s.id.substring(0,8).toUpperCase()}</div>
+                                    <div class="text-xs text-gray-500 mt-0.5">${s.customerName || 'Walk-in'} • ${new Date(s.date).toLocaleString()}</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <div class="font-bold text-lg text-gray-800">${cSym}${Number(s.total).toFixed(2)}</div>
+                                <i class="fas fa-chevron-right text-gray-300"></i>
+                            </div>
+                        </div>`;
+                    });
+                    resultsHTML += `</div>`;
+                }
+
+                if(!resultsHTML) {
+                    resultsHTML = `<div class="text-center text-gray-400 py-20"><i class="fas fa-search text-5xl mb-4 opacity-30 block"></i><span class="text-lg">No results found for "${query}"</span></div>`;
+                }
+
+                container.innerHTML = resultsHTML;
+            }
+        };
+
         window.AuthUI = {
             setMode: (mode) => {
                 const loginMode = document.getElementById('login-mode');
@@ -430,13 +735,15 @@
                 setSyncStatus('saving');
                 const payload = CryptoService.encrypt(data, e2eKey);
                 try {
+                    let savedId = id;
                     if (id) {
                         await setDoc(doc(DB.getRef(colName), id), { payload, updatedAt: new Date().toISOString() }, { merge: true });
                     } else {
-                        await addDoc(DB.getRef(colName), { payload, createdAt: new Date().toISOString() });
+                        const docRef = await addDoc(DB.getRef(colName), { payload, createdAt: new Date().toISOString() });
+                        savedId = docRef.id;
                     }
                     setSyncStatus('saved');
-                    return true;
+                    return savedId;
                 } catch(e) { console.error("DB Save Error:", e); showToast("Failed to sync to cloud", "error"); setSyncStatus('error'); return false; }
             },
 
@@ -501,6 +808,8 @@
         const initAuth = async () => {
             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                 await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                // Let user choose from login screen
             }
         };
 
@@ -580,7 +889,6 @@
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
-                document.getElementById('user-avatar').innerText = user.email ? user.email[0].toUpperCase() : 'A';
                 document.getElementById('login-section').classList.add('hidden');
                 checkVaultSetupStatus(user);
             } else {
@@ -609,7 +917,7 @@
                 await setDoc(verifRef, { payload });
                 
                 e2eKey = pin;
-                await DB.save('settings', { companyName: company, currency: '₹', enableTransport: true, enableStorage: true, enableGst: true });
+                await DB.save('settings', { companyName: company, currency: '₹', enableTransport: true, enableStorage: true, enableGst: true, taxInclusive: false, searchShortcut: 'm' });
                 localStorage.setItem('companyName', company); 
                 
                 startApp();
@@ -666,14 +974,14 @@
             document.getElementById('sync-status-container').classList.remove('hidden');
             
             DB.listen('products', 'products', () => { 
+                updateBellIcon();
                 if(currentView === 'products') Views.products(); 
                 if(currentView === 'inventory') Views.inventory(); 
-                if(currentView === 'low_stock') Views.low_stock();
                 if(currentView === 'billing') window.POS.renderProducts();
             });
             DB.listen('sales', 'sales', () => { 
                 if(currentView === 'dashboard') Views.dashboard(); 
-                if(currentView === 'sales_report') Views.sales_report();
+                if(currentView === 'history') Views.history();
             });
             DB.listen('customers', 'customers', () => { 
                 if(currentView === 'customers') Views.customers(); 
@@ -686,6 +994,7 @@
                 if(currentView === 'purchase_orders') Views.purchase_orders();
             });
             DB.listen('warehouses', 'warehouses', () => { 
+                updateBellIcon();
                 if(currentView === 'warehouses') Views.warehouses(); 
                 if(currentView === 'products') Views.products(); 
                 if(currentView === 'purchase_orders') Views.purchase_orders();
@@ -701,8 +1010,10 @@
                 const s = appState.settings[0];
                 if(s && s.companyName) {
                     localStorage.setItem('companyName', s.companyName); 
+                    const btn = document.getElementById('user-avatar-btn');
+                    if(btn) btn.innerText = s.companyName;
                 }
-                window.SettingsForm.applySettings();
+                if(window.SettingsForm.applySettings) window.SettingsForm.applySettings();
                 if(currentView === 'general_settings') Views.general_settings(); 
                 if(currentView === 'products') Views.products();
                 if(currentView === 'billing') Views.billing();
@@ -715,6 +1026,16 @@
         let currentView = 'dashboard';
         const navigateTo = (viewId) => {
             currentView = viewId;
+            const sidebar = document.getElementById('sidebar');
+            
+            if (viewId === 'general_settings') {
+                sidebar.classList.add('w-0', 'overflow-hidden');
+                sidebar.classList.remove('w-64');
+            } else {
+                sidebar.classList.add('w-64');
+                sidebar.classList.remove('w-0', 'overflow-hidden');
+            }
+
             document.querySelectorAll('.nav-item').forEach(el => {
                 el.classList.remove('bg-gray-800', 'text-white', 'border-l-4', 'border-blue-500');
                 el.classList.add('text-gray-400');
@@ -724,6 +1045,10 @@
                     document.getElementById('page-title').innerText = el.innerText.trim();
                 }
             });
+
+            if (viewId === 'general_settings') {
+                document.getElementById('page-title').innerText = 'General Settings';
+            }
 
             if (Views[viewId]) Views[viewId]();
             else Views.placeholder(viewId);
@@ -735,7 +1060,8 @@
                 { group: 'Main', items: [
                     { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard' },
                     { id: 'products', icon: 'fa-box', label: 'Products' },
-                    { id: 'inventory', icon: 'fa-cubes', label: 'Inventory' }
+                    { id: 'inventory', icon: 'fa-cubes', label: 'Inventory' },
+                    { id: 'history', icon: 'fa-history', label: 'History' }
                 ]},
                 { group: 'Operations', items: [
                     { id: 'billing', icon: 'fa-file-invoice-dollar', label: 'Billing / POS' },
@@ -748,19 +1074,12 @@
                     { id: 'customers', icon: 'fa-users', label: 'Customers' },
                     { id: 'suppliers', icon: 'fa-building', label: 'Suppliers' },
                     { id: 'warehouses', icon: 'fa-warehouse', label: 'Warehouses' }
-                ]},
-                { group: 'Reports', items: [
-                    { id: 'sales_report', icon: 'fa-chart-line', label: 'Sales Report' },
-                    { id: 'low_stock', icon: 'fa-exclamation-triangle', label: 'Low Stock' }
-                ]},
-                { group: 'Settings', items: [
-                    { id: 'general_settings', icon: 'fa-cog', label: 'General Settings' }
                 ]}
             ];
 
             let html = '';
-            menu.forEach(section => {
-                html += `<div class="px-4 mt-6 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">${section.group}</div>`;
+            menu.forEach((section, index) => {
+                html += `<div class="px-4 ${index === 0 ? 'mt-2' : 'mt-6'} mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">${section.group}</div>`;
                 section.items.forEach(item => {
                     html += `
                         <button onclick="navigateTo('${item.id}')" data-view="${item.id}" class="nav-item w-full flex items-center px-4 py-2.5 text-sm font-medium rounded-r-lg transition-colors duration-200 hover:bg-gray-800 hover:text-white">
@@ -794,7 +1113,15 @@
                 const settings = getGlobalSettings();
                 
                 const totalProducts = appState.products.length;
-                const lowStockCount = appState.products.filter(p => Number(p.stock) <= Number(p.minStock || 5)).length;
+                const mainWh = appState.warehouses.find(w => w.isMain);
+                
+                let lowStockCount = 0;
+                appState.products.forEach(p => {
+                    const min = Number(p.minStock || 5);
+                    const allocs = getProductAllocations(p);
+                    const ms = mainWh ? (allocs[mainWh.id]||0) : (p.stock||0);
+                    if(ms <= min) lowStockCount++;
+                });
                 
                 let stockValue = 0;
                 appState.products.forEach(p => {
@@ -807,19 +1134,19 @@
 
                 container.innerHTML = `
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center cursor-pointer hover:shadow-md transition" onclick="navigateTo('products')">
                             <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xl mr-4"><i class="fas fa-box"></i></div>
                             <div><p class="text-sm text-gray-500 font-medium">Total Products</p><p class="text-2xl font-bold text-gray-800">${totalProducts}</p></div>
                         </div>
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center cursor-pointer hover:shadow-md transition" onclick="window.UI.showAlerts()">
                             <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xl mr-4"><i class="fas fa-exclamation-triangle"></i></div>
                             <div><p class="text-sm text-gray-500 font-medium">Low Stock Alerts</p><p class="text-2xl font-bold text-gray-800">${lowStockCount}</p></div>
                         </div>
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center cursor-pointer hover:shadow-md transition" onclick="navigateTo('inventory')">
                             <div class="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xl mr-4"><i class="fas fa-dollar-sign"></i></div>
                             <div><p class="text-sm text-gray-500 font-medium">Est. Stock Value</p><p class="text-2xl font-bold text-gray-800">${cSym}${stockValue.toFixed(2)}</p></div>
                         </div>
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center cursor-pointer hover:shadow-md transition" onclick="navigateTo('history')">
                             <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xl mr-4"><i class="fas fa-shopping-cart"></i></div>
                             <div><p class="text-sm text-gray-500 font-medium">Total Sales</p><p class="text-2xl font-bold text-gray-800">${cSym}${totalSales.toFixed(2)}</p></div>
                         </div>
@@ -834,10 +1161,10 @@
                         </div>
                         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col h-[350px]">
                             <h3 class="text-lg font-semibold text-gray-800 mb-4 flex-shrink-0">Recent Sales</h3>
-                            <div class="overflow-y-auto flex-1 hide-scroll">
+                            <div class="overflow-y-auto flex-1 hide-scroll pr-2">
                                 ${appState.sales.length === 0 ? '<p class="text-gray-500 text-sm">No sales yet.</p>' : 
-                                  appState.sales.slice().reverse().slice(0, 10).map(s => `
-                                    <div class="flex justify-between items-center py-3 border-b border-gray-50 last:border-0">
+                                  appState.sales.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0, 10).map(s => `
+                                    <div class="flex justify-between items-center py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer rounded px-2 -mx-2 transition" onclick="window.SalesManager.viewBill('${s.id}')">
                                         <div>
                                             <p class="text-sm font-semibold text-gray-800">Order #${s.id.substring(0,6).toUpperCase()}</p>
                                             <p class="text-xs text-gray-500">${new Date(s.date).toLocaleString()}</p>
@@ -865,13 +1192,131 @@
                             labels: Object.keys(catData),
                             datasets: [{
                                 data: Object.values(catData),
-                                backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+                                backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16'],
                                 borderWidth: 0
                             }]
                         },
                         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
                     });
                 }
+            },
+
+            // --- GENERAL SETTINGS ---
+            general_settings: () => {
+                const container = document.getElementById('page-content');
+                const s = getGlobalSettings();
+                container.innerHTML = `
+                    <div class="max-w-3xl mx-auto mt-6 bg-white p-8 rounded-xl shadow-sm border border-gray-100">
+                        <div class="flex justify-between items-center mb-6 border-b pb-3">
+                            <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-cog text-blue-500 mr-2"></i>General Settings</h2>
+                            <button onclick="navigateTo('dashboard')" class="text-gray-500 hover:text-gray-800"><i class="fas fa-times text-xl"></i></button>
+                        </div>
+                        <form id="settings-form" onsubmit="window.SettingsForm.save(event, '${appState.settings[0] ? appState.settings[0].id : ''}')" class="space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1">Company Name *</label>
+                                    <input type="text" id="set-company" value="${s.companyName}" required class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1">Currency Symbol *</label>
+                                    <input type="text" id="set-currency" value="${s.currency}" required class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1">Phone Number</label>
+                                    <input type="text" id="set-phone" value="${s.phone}" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1">Email Address</label>
+                                    <input type="email" id="set-email" value="${s.email}" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1">GSTIN / Tax ID</label>
+                                    <input type="text" id="set-gst" value="${s.gst}" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1">Search Shortcut (Ctrl + Key)</label>
+                                    <input type="text" id="set-search-shortcut" value="${s.searchShortcut}" maxlength="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm uppercase font-mono text-center tracking-widest">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">Company Address</label>
+                                <textarea id="set-address" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" rows="3">${s.address}</textarea>
+                            </div>
+                            
+                            <h3 class="text-lg font-bold text-gray-800 border-b pb-2 mt-8 mb-4">Feature Toggles</h3>
+                            <div class="space-y-3">
+                                <label class="flex items-center gap-3 cursor-pointer">
+                                    <input type="checkbox" id="set-transport" ${s.enableTransport ? 'checked' : ''} class="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                                    <span class="text-sm font-medium text-gray-800">Enable Transport Cost Calculation</span>
+                                </label>
+                                <label class="flex items-center gap-3 cursor-pointer">
+                                    <input type="checkbox" id="set-storage" ${s.enableStorage ? 'checked' : ''} class="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                                    <span class="text-sm font-medium text-gray-800">Enable Storage Cost Calculation</span>
+                                </label>
+                                <label class="flex items-center gap-3 cursor-pointer">
+                                    <input type="checkbox" id="set-toggle-gst" ${s.enableGst ? 'checked' : ''} class="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                                    <span class="text-sm font-medium text-gray-800">Enable GST / Tax Features</span>
+                                </label>
+                                <label class="flex items-center gap-3 cursor-pointer">
+                                    <input type="checkbox" id="set-tax-inclusive" ${s.taxInclusive ? 'checked' : ''} class="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                                    <span class="text-sm font-medium text-gray-800">Prices are Tax Inclusive (requires Tax Features enabled)</span>
+                                </label>
+                            </div>
+
+                            <div class="flex justify-between items-center pt-6 mt-8 border-t border-gray-200">
+                                <button type="button" onclick="window.SettingsForm.exportData()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold shadow-sm transition"><i class="fas fa-download mr-2"></i>Export Backup</button>
+                                <button type="submit" class="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-md transition text-lg"><i class="fas fa-save mr-2"></i>Save Settings</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+            },
+
+            // --- STOCK TRANSFER (INLINE VIEW) ---
+            stock_transfer: () => {
+                const container = document.getElementById('page-content');
+                container.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-3xl mx-auto mt-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-6"><i class="fas fa-exchange-alt text-blue-500 mr-2"></i>Transfer Stock</h2>
+                        <div class="space-y-5 bg-gray-50 border border-gray-100 p-5 rounded-xl">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Select Product *</label>
+                                <select id="pg-tr-product" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" onchange="window.StockTransfer.onPageProductChange()">
+                                    <option value="">-- Choose Product --</option>
+                                    ${appState.products.map(p => `<option value="${p.id}">${p.name} (SKU: ${p.sku})</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 relative">
+                                <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-2 border border-gray-200 z-10 hidden md:block shadow-sm">
+                                    <i class="fas fa-arrow-right text-gray-400"></i>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1 text-red-600">From Location *</label>
+                                    <select id="pg-tr-source" class="w-full border border-red-200 rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-red-500 bg-white shadow-sm" onchange="window.StockTransfer.onPageSourceChange()">
+                                        <option value="">-- Select Source --</option>
+                                    </select>
+                                    <p class="text-xs text-gray-500 mt-1 font-semibold">Available to move: <span id="pg-tr-source-avail">0</span></p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1 text-green-600">To Location *</label>
+                                    <select id="pg-tr-dest" class="w-full border border-green-200 rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-green-500 bg-white shadow-sm">
+                                        <option value="">-- Select Destination --</option>
+                                        <option value="unassigned">Unassigned / Transit</option>
+                                        ${appState.warehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="pt-2 border-t border-gray-200">
+                                <label class="block text-sm font-bold text-gray-800 mb-1">Quantity to Move *</label>
+                                <input type="number" id="pg-tr-qty" value="1" min="1" class="w-1/3 border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-lg font-bold shadow-inner">
+                            </div>
+                            <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-200">
+                                <button onclick="window.StockTransfer.executePage()" class="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-md transition flex items-center gap-2"><i class="fas fa-exchange-alt"></i> Execute Transfer</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                window.StockTransfer.onPageProductChange();
             },
 
             // --- PRODUCTS ---
@@ -895,7 +1340,7 @@
                                         <th class="px-6 py-3 font-medium">SKU</th>
                                         <th class="px-6 py-3 font-medium">Name</th>
                                         <th class="px-6 py-3 font-medium">Category</th>
-                                        <th class="px-6 py-3 font-medium">Total Cost</th>
+                                        <th class="px-6 py-3 font-medium">Base Cost</th>
                                         <th class="px-6 py-3 font-medium">Selling Price</th>
                                         <th class="px-6 py-3 font-medium text-center">Total Stock</th>
                                         <th class="px-6 py-3 font-medium text-right">Actions</th>
@@ -939,14 +1384,12 @@
                         return `${whName}: ${qty}`;
                     }).filter(x=>x).join(' | ');
                     
-                    const totalCost = (Number(p.baseCost) || 0) + (settings.enableTransport ? (Number(p.transportCost) || 0) : 0) + (settings.enableStorage ? (Number(p.storageCost) || 0) : 0);
-
                     return `
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-6 py-4 font-mono text-xs text-gray-500">${p.sku}</td>
                         <td class="px-6 py-4 font-medium text-gray-800">${p.name}</td>
                         <td class="px-6 py-4"><span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">${p.category || 'N/A'}</span></td>
-                        <td class="px-6 py-4 text-gray-600 font-semibold">${cSym}${totalCost.toFixed(2)}</td>
+                        <td class="px-6 py-4 text-gray-600 font-semibold">${cSym}${Number(p.baseCost || 0).toFixed(2)}</td>
                         <td class="px-6 py-4 text-green-600 font-semibold">${cSym}${Number(p.price).toFixed(2)}</td>
                         <td class="px-6 py-4 text-center">
                             <span class="${p.stock <= p.minStock ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'} px-2 py-1 rounded font-bold text-xs cursor-help" title="${breakdown || 'No stock'}">
@@ -973,7 +1416,7 @@
                         if(qty <= 0) return '';
 
                         const caps = p.capacities || {};
-                        const max = caps[w.id] ? caps[w.id] : Math.max(100, qty * 2); // default fallback
+                        const max = caps[w.id] ? caps[w.id] : Math.max(100, qty * 2); 
                         const pct = Math.min(100, (qty / max) * 100);
                         const color = qty <= (p.minStock||5) ? 'bg-red-500' : 'bg-green-500';
                         return `
@@ -1048,7 +1491,7 @@
                 }
 
                 if(!warehouseHTML && !unassignedHTML) {
-                    warehouseHTML = '<div class="bg-white p-6 rounded-xl border border-gray-100 text-center text-gray-500 shadow-sm">No inventory locations defined yet.</div>';
+                    warehouseHTML = '<div class="bg-white p-6 rounded-xl border border-gray-100 text-center text-gray-500 shadow-sm col-span-full">No inventory locations defined yet.</div>';
                 }
 
                 container.innerHTML = `
@@ -1086,6 +1529,7 @@
                 window.POS.discountVal = 0;
                 window.POS.discountType = '%';
                 window.POS.excludeTax = false;
+                window.POS.editingSaleId = null;
 
                 const settings = getGlobalSettings();
                 const cSym = settings.currency;
@@ -1104,14 +1548,15 @@
 
                         <div class="w-full lg:w-[400px] bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col flex-shrink-0">
                             <!-- Advanced Customer Panel -->
-                            <div class="p-4 border-b border-gray-100 bg-gray-50 flex flex-col gap-3">
+                            <div class="p-4 border-b border-gray-100 bg-gray-50 flex flex-col gap-3 relative">
+                                <div id="pos-editing-badge" class="hidden absolute -top-3 left-4 bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase shadow-sm animate-pulse">Editing Bill</div>
                                 <div class="flex justify-between items-center mb-1">
                                     <h3 class="font-bold text-gray-800"><i class="fas fa-shopping-cart text-blue-500 mr-2"></i>Current Sale</h3>
                                     <button onclick="window.POS.clear()" class="text-xs text-red-500 hover:text-red-700 bg-red-50 px-2 py-1 rounded">Clear Cart</button>
                                 </div>
                                 
                                 <div class="flex gap-2">
-                                    <input type="date" id="pos-date" class="border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" value="${new Date().toISOString().split('T')[0]}">
+                                    <input type="date" id="pos-date" class="border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 shadow-sm w-32" value="${new Date().toISOString().split('T')[0]}">
                                     <select id="pos-discount-mode" onchange="window.POS.changeDiscountMode()" class="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 shadow-sm bg-white">
                                         <option value="none">No Discount</option>
                                         <option value="total">Discount on Total</option>
@@ -1126,8 +1571,7 @@
                                     <button onclick="window.CustomerForm.open()" class="bg-blue-600 text-white px-3 rounded-lg hover:bg-blue-700 transition shadow-sm" title="Add Customer"><i class="fas fa-plus"></i></button>
                                 </div>
 
-                                <div id="pos-customer-info" class="hidden bg-white p-3 rounded-lg border border-gray-200 text-sm shadow-sm flex flex-col gap-1 mt-1">
-                                </div>
+                                <div id="pos-customer-info" class="hidden bg-white p-3 rounded-lg border border-gray-200 text-sm shadow-sm flex flex-col gap-1 mt-1"></div>
 
                                 <select id="pos-payment-type" class="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white mt-1 shadow-sm">
                                     <option value="Paid">Paid Instantly</option>
@@ -1162,8 +1606,8 @@
                                 <div class="flex justify-between text-xl font-bold text-gray-800 mb-4 border-t border-dashed border-gray-300 pt-3"><span>Total</span><span id="pos-total">${cSym}0.00</span></div>
                                 
                                 <div class="grid grid-cols-2 gap-3">
-                                    <button onclick="window.POS.checkout(false)" class="bg-gray-800 text-white py-3 rounded-lg font-semibold hover:bg-gray-900 transition shadow-md">Quick Sell</button>
-                                    <button onclick="window.POS.checkout(true)" class="bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-md"><i class="fas fa-print"></i> Print Bill</button>
+                                    <button onclick="window.POS.checkout(false)" class="bg-gray-800 text-white py-3 rounded-lg font-semibold hover:bg-gray-900 transition shadow-md" id="btn-quick-sell">Quick Sell</button>
+                                    <button onclick="window.POS.checkout(true)" class="bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-md" id="btn-print-bill"><i class="fas fa-print"></i> Generate Bill</button>
                                 </div>
                             </div>
                         </div>
@@ -1504,7 +1948,7 @@
                             ${settings.enableTransport ? `
                             <div class="mt-2 pt-4 border-t border-gray-100">
                                 <label class="block text-xs font-medium text-gray-700 mb-1">Total Transport Cost for PO (${cSym})</label>
-                                <input type="number" step="0.01" id="po-transport-cost" value="0" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm shadow-sm">
+                                <input type="number" step="0.01" id="po-transport-cost" value="0" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm shadow-sm" oninput="window.POManager.renderCart()">
                                 <p class="text-[10px] text-gray-400 mt-1">Cost is distributed proportionally by quantity across items.</p>
                             </div>
                             ` : ''}
@@ -1578,32 +2022,45 @@
                             groups[whId] = { name: i.warehouseName || 'Unassigned / Transit', items: [], status: 'Received' };
                         }
                         groups[whId].items.push(i);
-                        if(i.status !== 'Received') groups[whId].status = 'Pending';
+                        if(i.status !== 'Received' && i.status !== 'Cancelled') groups[whId].status = 'Pending';
                     });
 
                     const groupHTML = Object.entries(groups).map(([whId, g]) => {
                         const isPending = g.status === 'Pending';
-                        const itemsList = g.items.map(i => `<span class="${i.status === 'Received' ? 'text-gray-400 line-through' : 'text-gray-700'}">${i.qty}x ${i.name}</span>`).join(', ');
+                        const isCancelled = g.items.every(i => i.status === 'Cancelled' || i.status === 'Received');
+                        const allCancelled = g.items.every(i => i.status === 'Cancelled');
+
+                        const itemsList = g.items.map(i => {
+                            let style = 'text-gray-700';
+                            if(i.status === 'Received') style = 'text-green-600 line-through';
+                            if(i.status === 'Cancelled') style = 'text-red-500 line-through';
+                            return `<span class="${style}">${i.qty}x ${i.name}</span>`;
+                        }).join(', ');
                         
                         return `
                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-50 p-3 border border-gray-200 rounded-lg mt-2">
                                 <div class="mb-2 sm:mb-0">
                                     <div class="text-sm font-bold text-gray-800"><i class="fas fa-map-marker-alt text-red-500 mr-1"></i> ${g.name}</div>
-                                    <div class="text-xs text-gray-500 mt-1 max-w-lg truncate" title="${g.items.map(i=>`${i.qty}x ${i.name}`).join(', ')}">${itemsList}</div>
+                                    <div class="text-xs text-gray-500 mt-1 max-w-lg truncate" title="${g.items.map(i=>`${i.qty}x ${i.name} (${i.status})`).join(', ')}">${itemsList}</div>
                                 </div>
-                                ${isPending 
-                                    ? `<button onclick="window.ShipmentManager.receiveGroup('${po.id}', '${whId}')" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1.5 px-4 rounded shadow-sm transition text-xs flex items-center gap-1 flex-shrink-0"><i class="fas fa-check"></i> Receive Here</button>` 
-                                    : `<span class="bg-gray-200 text-gray-600 px-3 py-1 rounded text-xs font-bold flex items-center gap-1"><i class="fas fa-check-double"></i> Received</span>`
-                                }
+                                <div class="flex gap-2">
+                                    ${isPending 
+                                        ? `<button onclick="window.ShipmentManager.receiveGroup('${po.id}', '${whId}')" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1.5 px-3 rounded shadow-sm transition text-xs flex items-center gap-1 flex-shrink-0"><i class="fas fa-check"></i> Receive</button>
+                                           <button onclick="window.ShipmentManager.cancelGroup('${po.id}', '${whId}')" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-1.5 px-3 rounded shadow-sm transition text-xs flex items-center gap-1 flex-shrink-0"><i class="fas fa-times"></i> Cancel</button>` 
+                                        : (allCancelled ? `<span class="bg-red-100 text-red-600 px-3 py-1 rounded text-xs font-bold flex items-center gap-1"><i class="fas fa-ban"></i> Cancelled</span>` : `<span class="bg-gray-200 text-gray-600 px-3 py-1 rounded text-xs font-bold flex items-center gap-1"><i class="fas fa-check-double"></i> Received</span>`)
+                                    }
+                                </div>
                             </div>
                         `;
                     }).join('');
 
-                    const isFullyReceived = po.status === 'Received';
+                    const isArchived = po.status === 'Received' || po.status === 'Cancelled';
 
                     return `
-                        <div class="bg-white border ${isFullyReceived ? 'border-gray-200 opacity-60' : 'border-blue-200 shadow-sm'} rounded-xl p-5 relative overflow-hidden">
-                            ${isFullyReceived ? '<div class="absolute top-0 right-0 bg-gray-200 text-gray-600 text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wide">Archived</div>' : ''}
+                        <div class="bg-white border ${isArchived ? 'border-gray-200 opacity-60 hover:opacity-100 transition' : 'border-blue-200 shadow-sm'} rounded-xl p-5 relative overflow-hidden">
+                            ${po.status === 'Received' ? '<div class="absolute top-0 right-0 bg-green-100 text-green-700 text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wide">Received</div>' : ''}
+                            ${po.status === 'Cancelled' ? '<div class="absolute top-0 right-0 bg-red-100 text-red-700 text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wide">Cancelled</div>' : ''}
+                            ${po.status === 'Partially Received' ? '<div class="absolute top-0 right-0 bg-yellow-100 text-yellow-700 text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wide">Partial</div>' : ''}
                             
                             <div class="flex justify-between items-start mb-3">
                                 <div>
@@ -1612,7 +2069,8 @@
                                 </div>
                                 <div class="text-right">
                                     <p class="font-bold text-gray-800 text-lg">${cSym}${Number(po.total).toFixed(2)}</p>
-                                    <p class="text-xs text-blue-600 font-semibold cursor-pointer hover:underline" onclick="window.ShipmentManager.delete('${po.id}')">Delete Order</p>
+                                    ${!isArchived ? `<p class="text-xs text-red-600 font-semibold cursor-pointer hover:underline mt-1" onclick="window.ShipmentManager.cancelPO('${po.id}')">Cancel Entire Order</p>` : ''}
+                                    ${isArchived ? `<p class="text-xs text-red-600 font-semibold cursor-pointer hover:underline mt-1" onclick="window.ShipmentManager.delete('${po.id}')">Delete Record</p>` : ''}
                                 </div>
                             </div>
                             
@@ -1625,23 +2083,27 @@
                 }).join('');
             },
 
-            // --- SALES REPORT ---
-            sales_report: () => {
+            // --- HISTORY (SALES) ---
+            history: () => {
                 const container = document.getElementById('page-content');
                 const cSym = appState.settings[0]?.currency || '₹';
                 container.innerHTML = `
                     <div class="flex flex-col h-full gap-6">
                         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 flex-shrink-0">
                             <div>
-                                <h2 class="text-xl font-bold text-gray-800">Sales Report</h2>
-                                <p class="text-sm text-gray-500 mt-1">View and filter sales history.</p>
+                                <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-history text-blue-500 mr-2"></i>Sales History</h2>
+                                <p class="text-sm text-gray-500 mt-1">View, filter, edit, and delete sales records.</p>
                             </div>
-                            <div class="flex items-center gap-4">
+                            <div class="flex items-center gap-4 flex-wrap">
                                 <div class="flex flex-col">
-                                    <label class="text-xs font-semibold text-gray-500 mb-1">Filter by Date</label>
-                                    <input type="date" id="sr-date-filter" class="border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-700 shadow-sm">
+                                    <label class="text-xs font-semibold text-gray-500 mb-1">From Date</label>
+                                    <input type="date" id="sr-date-from" class="border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-700 shadow-sm">
                                 </div>
-                                <div class="bg-blue-50 border border-blue-100 rounded-lg px-6 py-2 text-right shadow-sm">
+                                <div class="flex flex-col">
+                                    <label class="text-xs font-semibold text-gray-500 mb-1">To Date</label>
+                                    <input type="date" id="sr-date-to" class="border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-700 shadow-sm">
+                                </div>
+                                <div class="bg-blue-50 border border-blue-100 rounded-lg px-6 py-2 text-right shadow-sm ml-auto">
                                     <p class="text-xs font-bold text-blue-500 uppercase tracking-wide">Total Revenue</p>
                                     <p class="text-2xl font-bold text-blue-700" id="sr-total-revenue">${cSym}0.00</p>
                                 </div>
@@ -1658,6 +2120,7 @@
                                             <th class="px-6 py-3 font-medium">Customer & Type</th>
                                             <th class="px-6 py-3 font-medium">Items Summary</th>
                                             <th class="px-6 py-3 font-medium text-right">Total Amount</th>
+                                            <th class="px-6 py-3 font-medium text-right">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody class="text-sm divide-y divide-gray-100" id="sr-table-body">
@@ -1671,18 +2134,20 @@
 
                 Views.renderSalesReportTable(appState.sales);
 
-                document.getElementById('sr-date-filter').addEventListener('change', (e) => {
-                    const dateVal = e.target.value; 
-                    if (!dateVal) {
-                        Views.renderSalesReportTable(appState.sales);
-                        return;
-                    }
+                const filterSales = () => {
+                    const fromVal = document.getElementById('sr-date-from').value;
+                    const toVal = document.getElementById('sr-date-to').value;
                     const filtered = appState.sales.filter(s => {
                         const saleDate = new Date(s.date).toISOString().split('T')[0];
-                        return saleDate === dateVal;
+                        if(fromVal && saleDate < fromVal) return false;
+                        if(toVal && saleDate > toVal) return false;
+                        return true;
                     });
                     Views.renderSalesReportTable(filtered);
-                });
+                };
+
+                document.getElementById('sr-date-from').addEventListener('change', filterSales);
+                document.getElementById('sr-date-to').addEventListener('change', filterSales);
             },
 
             renderSalesReportTable: (salesData) => {
@@ -1697,7 +2162,7 @@
                 revenueEl.innerText = `${cSym}${totalRevenue.toFixed(2)}`;
 
                 if(sortedSales.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">No sales records found for this period.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-gray-500">No sales records found for this period.</td></tr>';
                     return;
                 }
 
@@ -1715,280 +2180,16 @@
                                 <div class="font-semibold text-gray-800">${s.customerName || 'Walk-in'}</div>
                                 <div class="text-xs ${s.paymentStatus === 'Credit' ? 'text-red-500 font-bold' : 'text-green-600'}">${s.paymentStatus || 'Paid'} | ${s.type || 'Standard'}</div>
                             </td>
-                            <td class="px-6 py-4 text-gray-700 truncate max-w-md" title="${itemsSummary}">${itemsSummary}</td>
+                            <td class="px-6 py-4 text-gray-700 truncate max-w-sm" title="${itemsSummary}">${itemsSummary}</td>
                             <td class="px-6 py-4 text-right font-bold text-gray-800">${cSym}${(Number(s.total) || 0).toFixed(2)}</td>
+                            <td class="px-6 py-4 text-right whitespace-nowrap">
+                                <button onclick="window.SalesManager.viewBill('${s.id}')" class="text-blue-500 hover:text-blue-700 mr-3" title="View / Print"><i class="fas fa-eye"></i></button>
+                                <button onclick="window.SalesManager.editBillModal('${s.id}')" class="text-orange-500 hover:text-orange-700 mr-3" title="Edit Bill"><i class="fas fa-edit"></i></button>
+                                <button onclick="window.SalesManager.deleteBill('${s.id}')" class="text-red-500 hover:text-red-700" title="Delete Bill"><i class="fas fa-trash"></i></button>
+                            </td>
                         </tr>
                     `;
                 }).join('');
-            },
-
-            // --- LOW STOCK REPORT ---
-            low_stock: () => {
-                const container = document.getElementById('page-content');
-                const mainWh = appState.warehouses.find(w => w.isMain);
-                
-                let lowStockItems = [];
-                
-                appState.products.forEach(p => {
-                    const min = Number(p.minStock || 5);
-                    const allocs = getProductAllocations(p);
-                    let relevantStock = 0;
-                    
-                    if (mainWh) {
-                        relevantStock = Number(allocs[mainWh.id] || 0);
-                    } else {
-                        relevantStock = Number(p.stock);
-                    }
-                    
-                    if(relevantStock <= min) {
-                        const totalOther = p.stock - relevantStock;
-                        lowStockItems.push({
-                            ...p,
-                            relevantStock,
-                            availableElsewhere: totalOther > 0
-                        });
-                    }
-                });
-
-                container.innerHTML = `
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
-                        <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-red-50 rounded-t-xl border-l-4 border-red-500">
-                            <div>
-                                <h2 class="text-xl font-bold text-red-800">Low Stock Alerts ${mainWh ? `(${mainWh.name} - MAIN)` : '(Total Stock)'}</h2>
-                                <p class="text-sm text-red-600 mt-1">Items at or below their minimum stock threshold.</p>
-                            </div>
-                            <div class="bg-white px-4 py-2 rounded-lg shadow-sm font-bold text-red-600 border border-red-100">
-                                ${lowStockItems.length} Items Require Attention
-                            </div>
-                        </div>
-                        <div class="flex-1 overflow-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0 shadow-sm z-10">
-                                    <tr>
-                                        <th class="px-6 py-3 font-medium">SKU</th>
-                                        <th class="px-6 py-3 font-medium">Product Name</th>
-                                        <th class="px-6 py-3 font-medium text-center">Relevant Stock</th>
-                                        <th class="px-6 py-3 font-medium text-center">Min Threshold</th>
-                                        <th class="px-6 py-3 font-medium text-right">Recommended Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="text-sm divide-y divide-gray-100">
-                                    ${lowStockItems.length > 0 ? lowStockItems.map(p => `
-                                        <tr class="hover:bg-red-50 transition">
-                                            <td class="px-6 py-4 font-mono text-xs text-gray-500">${p.sku}</td>
-                                            <td class="px-6 py-4 font-medium text-gray-800">${p.name}</td>
-                                            <td class="px-6 py-4 text-center">
-                                                <span class="bg-red-100 text-red-700 px-3 py-1 rounded font-bold">${p.relevantStock}</span>
-                                            </td>
-                                            <td class="px-6 py-4 text-center text-gray-500 font-medium">${p.minStock || 5}</td>
-                                            <td class="px-6 py-4 text-right">
-                                                ${mainWh && p.availableElsewhere ? 
-                                                    `<button onclick="window.StockTransfer.open('${p.id}', '${mainWh.id}')" class="bg-yellow-50 border border-yellow-300 text-yellow-700 hover:bg-yellow-100 px-4 py-1.5 rounded-lg text-xs font-semibold transition shadow-sm flex items-center gap-2 ml-auto">
-                                                        <i class="fas fa-exchange-alt"></i> Transfer Stock
-                                                    </button>` 
-                                                    : 
-                                                    `<button onclick="navigateTo('purchase_orders'); setTimeout(()=>showToast('Drafting PO for ${p.name.replace(/'/g, "\\'")}'), 100);" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-blue-600 px-4 py-1.5 rounded-lg text-xs font-semibold transition shadow-sm flex items-center gap-2 ml-auto">
-                                                        <i class="fas fa-file-invoice"></i> Draft PO
-                                                    </button>`
-                                                }
-                                            </td>
-                                        </tr>
-                                    `).join('') : `<tr><td colspan="6" class="px-6 py-12 text-center text-gray-500"><i class="fas fa-check-circle text-4xl text-green-400 mb-3 block"></i>All stock levels are healthy!</td></tr>`}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                `;
-            },
-
-            // --- STOCK TRANSFER ---
-            stock_transfer: () => {
-                const container = document.getElementById('page-content');
-                
-                const historyHTML = appState.transfers.sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 10).map(t => {
-                    let sName = 'Unassigned';
-                    if(t.source !== 'unassigned') { const w = appState.warehouses.find(w=>w.id===t.source); if(w) sName = w.name; }
-                    let dName = 'Unassigned';
-                    if(t.dest !== 'unassigned') { const w = appState.warehouses.find(w=>w.id===t.dest); if(w) dName = w.name; }
-                    
-                    return `
-                        <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                            <td class="py-3 px-4 text-gray-500 text-xs">${new Date(t.date).toLocaleString()}</td>
-                            <td class="py-3 px-4 font-medium text-gray-800">${t.productName}</td>
-                            <td class="py-3 px-4 text-red-600 font-medium">${sName}</td>
-                            <td class="py-3 px-4 text-green-600 font-medium">${dName}</td>
-                            <td class="py-3 px-4 font-bold text-center">${t.qty}</td>
-                        </tr>
-                    `;
-                }).join('');
-
-                container.innerHTML = `
-                    <div class="max-w-4xl mx-auto flex flex-col gap-6 h-full pb-10">
-                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col shrink-0">
-                            <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
-                                <div>
-                                    <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-exchange-alt text-blue-500 mr-2"></i>Stock Transfer</h2>
-                                    <p class="text-sm text-gray-500 mt-1">Move inventory physically between warehouses or transit locations.</p>
-                                </div>
-                            </div>
-                            <div class="p-8 space-y-6">
-                                <div>
-                                    <label class="block text-sm font-bold text-gray-700 mb-2">Select Product *</label>
-                                    <select id="pg-tr-product" class="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-lg" onchange="window.StockTransfer.onPageProductChange()">
-                                        <option value="">-- Choose Product to Transfer --</option>
-                                        ${appState.products.map(p => `<option value="${p.id}">${p.name} (SKU: ${p.sku})</option>`).join('')}
-                                    </select>
-                                </div>
-                                
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
-                                    <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-3 border border-gray-200 z-10 hidden md:flex items-center justify-center shadow-sm">
-                                        <i class="fas fa-arrow-right text-blue-500 text-xl"></i>
-                                    </div>
-                                    <div class="bg-red-50 p-5 rounded-xl border border-red-100 shadow-inner">
-                                        <label class="block text-sm font-bold text-gray-700 mb-2 text-red-700"><i class="fas fa-sign-out-alt mr-1"></i> From Location *</label>
-                                        <select id="pg-tr-source" class="w-full border border-red-200 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-red-500 bg-white shadow-sm text-md" onchange="window.StockTransfer.onPageSourceChange()">
-                                            <option value="">-- Select Source --</option>
-                                        </select>
-                                        <div class="mt-3 bg-white p-3 rounded border border-red-100 flex justify-between items-center shadow-sm">
-                                            <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Available to Move</span>
-                                            <span class="text-lg font-black text-red-600" id="pg-tr-source-avail">0</span>
-                                        </div>
-                                    </div>
-                                    <div class="bg-green-50 p-5 rounded-xl border border-green-100 shadow-inner">
-                                        <label class="block text-sm font-bold text-gray-700 mb-2 text-green-700"><i class="fas fa-sign-in-alt mr-1"></i> To Location *</label>
-                                        <select id="pg-tr-dest" class="w-full border border-green-200 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-green-500 bg-white shadow-sm text-md">
-                                            <option value="">-- Select Destination --</option>
-                                            <option value="unassigned">Unassigned / Transit</option>
-                                            ${appState.warehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('')}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div class="border-t border-gray-200 pt-6 mt-2 flex flex-col items-center">
-                                    <label class="block text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider text-center">Quantity to Transfer</label>
-                                    <input type="number" id="pg-tr-qty" value="1" min="1" class="w-48 border border-gray-300 rounded-xl px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 text-3xl font-black text-center text-blue-600 shadow-inner">
-                                </div>
-
-                                <div class="mt-8 flex justify-center pt-2">
-                                    <button onclick="window.StockTransfer.executePage()" class="px-8 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold shadow-lg transition flex items-center gap-3 text-lg hover:-translate-y-1 transform">
-                                        <i class="fas fa-exchange-alt"></i> Confirm Transfer
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- History Section -->
-                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex-1 flex flex-col overflow-hidden">
-                            <div class="p-5 border-b border-gray-100 bg-gray-50 flex justify-between items-center shrink-0">
-                                <h3 class="font-bold text-gray-800"><i class="fas fa-history text-gray-500 mr-2"></i>Recent Transfers History</h3>
-                            </div>
-                            <div class="flex-1 overflow-auto bg-white">
-                                <table class="w-full text-left border-collapse">
-                                    <thead class="bg-white text-gray-500 text-xs uppercase sticky top-0 shadow-[0_2px_4px_rgba(0,0,0,0.02)] z-10">
-                                        <tr>
-                                            <th class="px-4 py-3 font-medium">Date & Time</th>
-                                            <th class="px-4 py-3 font-medium">Product</th>
-                                            <th class="px-4 py-3 font-medium">From Source</th>
-                                            <th class="px-4 py-3 font-medium">To Destination</th>
-                                            <th class="px-4 py-3 font-medium text-center">Qty</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="text-sm divide-y divide-gray-100">
-                                        ${historyHTML || '<tr><td colspan="5" class="py-8 text-center text-gray-400 italic">No recent transfer history.</td></tr>'}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            },
-
-            // --- SYSTEM SETTINGS ---
-            general_settings: () => {
-                const container = document.getElementById('page-content');
-                const s = getGlobalSettings();
-                const rawId = appState.settings[0] ? appState.settings[0].id : '';
-                
-                container.innerHTML = `
-                    <div class="max-w-4xl mx-auto space-y-6 h-full pb-10">
-                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                            <h2 class="text-xl font-bold text-gray-800 mb-4 border-b border-gray-100 pb-2"><i class="fas fa-building mr-2 text-blue-500"></i>Company Profile & Logic</h2>
-                            <form onsubmit="window.SettingsForm.save(event, '${rawId}')" class="space-y-6">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-                                        <input type="text" id="set-company" value="${s.companyName}" placeholder="Nexus Inv" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">GSTIN Number</label>
-                                        <input type="text" id="set-gst" value="${s.gst}" placeholder="22AAAAA0000A1Z5" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                                        <input type="text" id="set-phone" value="${s.phone}" placeholder="+91 9876543210" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                                        <input type="email" id="set-email" value="${s.email}" placeholder="billing@company.com" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Default Currency Symbol</label>
-                                        <input type="text" id="set-currency" value="${s.currency}" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
-                                    </div>
-                                    <div class="col-span-1 md:col-span-2">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Company Address</label>
-                                        <textarea id="set-address" rows="3" placeholder="123 Business Road..." class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">${s.address}</textarea>
-                                    </div>
-                                </div>
-                                
-                                <div class="bg-gray-50 border border-gray-200 rounded-lg p-5">
-                                    <h3 class="text-md font-bold text-gray-800 mb-3"><i class="fas fa-sliders-h mr-2"></i>Global Feature Toggles</h3>
-                                    <div class="space-y-3">
-                                        <label class="flex items-center gap-3 cursor-pointer">
-                                            <input type="checkbox" id="set-transport" ${s.enableTransport ? 'checked' : ''} class="w-5 h-5 text-blue-600 rounded"> 
-                                            <span class="text-sm text-gray-700 font-medium">Enable Transport Cost Calculation on POs</span>
-                                        </label>
-                                        <label class="flex items-center gap-3 cursor-pointer">
-                                            <input type="checkbox" id="set-storage" ${s.enableStorage ? 'checked' : ''} class="w-5 h-5 text-blue-600 rounded"> 
-                                            <span class="text-sm text-gray-700 font-medium">Enable Storage/Cooling Cost on Products</span>
-                                        </label>
-                                        <label class="flex items-center gap-3 cursor-pointer">
-                                            <input type="checkbox" id="set-toggle-gst" ${s.enableGst ? 'checked' : ''} class="w-5 h-5 text-blue-600 rounded"> 
-                                            <span class="text-sm text-gray-700 font-medium">Enable GST & Tax calculation in Billing/Products</span>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div class="flex justify-end pt-2">
-                                    <button type="submit" class="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-blue-700 transition shadow-sm">Save All Settings</button>
-                                </div>
-                            </form>
-                        </div>
-
-                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 border-l-4 border-yellow-500">
-                            <h2 class="text-xl font-bold text-gray-800 mb-2"><i class="fas fa-database mr-2 text-yellow-500"></i>Data Management & Backup</h2>
-                            <p class="text-sm text-gray-500 mb-4">Your data is End-to-End Encrypted securely in real-time. Use these tools to manually export or restore a fully decrypted JSON backup of your current database state directly to/from your local machine.</p>
-                            
-                            <div class="flex flex-col sm:flex-row gap-3">
-                                <button onclick="window.SettingsForm.exportData()" class="bg-gray-800 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-gray-900 transition flex items-center justify-center gap-2 shadow-sm">
-                                    <i class="fas fa-file-export"></i> Export Data (.json)
-                                </button>
-                                <button onclick="document.getElementById('import-file').click()" class="bg-blue-50 border border-blue-200 text-blue-700 px-6 py-2.5 rounded-lg font-semibold hover:bg-blue-100 transition flex items-center justify-center gap-2 shadow-sm">
-                                    <i class="fas fa-file-import"></i> Restore / Import Data
-                                </button>
-                                <input type="file" id="import-file" accept=".json" class="hidden" onchange="window.SettingsForm.importData(event)">
-                            </div>
-                        </div>
-
-                        <div class="bg-red-50 rounded-xl shadow-sm border border-red-200 p-6 mt-6">
-                            <h2 class="text-xl font-bold text-red-800 mb-2"><i class="fas fa-exclamation-triangle mr-2 text-red-600"></i>Danger Zone</h2>
-                            <p class="text-sm text-red-600 mb-4">This will permanently delete your account and all associated encrypted data from the cloud. This action CANNOT be undone.</p>
-                            <button onclick="window.SettingsForm.deleteEverything()" class="bg-red-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2 shadow-sm">
-                                <i class="fas fa-trash-alt"></i> Delete Account & All Data
-                            </button>
-                        </div>
-                    </div>
-                `;
             }
         };
 
@@ -2392,6 +2593,99 @@
             }
         };
 
+        // Settings Logic
+        window.SettingsForm = {
+            save: async (e, id) => {
+                e.preventDefault();
+                const data = {
+                    companyName: document.getElementById('set-company').value,
+                    currency: document.getElementById('set-currency').value,
+                    gst: document.getElementById('set-gst').value,
+                    phone: document.getElementById('set-phone').value,
+                    email: document.getElementById('set-email').value,
+                    address: document.getElementById('set-address').value,
+                    enableTransport: document.getElementById('set-transport').checked,
+                    enableStorage: document.getElementById('set-storage').checked,
+                    enableGst: document.getElementById('set-toggle-gst').checked,
+                    taxInclusive: document.getElementById('set-tax-inclusive')?.checked || false,
+                    searchShortcut: (document.getElementById('set-search-shortcut')?.value || 'm').toLowerCase()
+                };
+                if (await DB.save('settings', data, id ? id : null)) {
+                    localStorage.setItem('companyName', data.companyName); // Update local cache
+                    document.getElementById('user-avatar-btn').innerText = data.companyName || 'Company Name';
+                    showToast("System settings updated successfully!");
+                }
+            },
+            applySettings: () => {
+                const s = appState.settings[0];
+                if(s && s.companyName) {
+                    const btn = document.getElementById('user-avatar-btn');
+                    if(btn) btn.innerText = s.companyName;
+                }
+            },
+            exportData: () => {
+                showConfirm("This will download a completely decrypted backup of your database. Keep it secure.", () => {
+                    const dataStr = JSON.stringify(appState, null, 2);
+                    const blob = new Blob([dataStr], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `inventory_backup_${new Date().toISOString().split('T')[0]}.json`;
+                    
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                        showToast("Data exported successfully!");
+                    }, 0);
+                });
+            },
+            importData: (e) => {
+                const file = e.target.files[0];
+                if(!file) return;
+                
+                showConfirm("WARNING: Restoring data will overwrite corresponding data in the current account. Proceed?", () => {
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                        try {
+                            const data = JSON.parse(event.target.result);
+                            showToast("Importing data... Please wait.", "info");
+                            
+                            const collections = ['settings', 'warehouses', 'products', 'customers', 'suppliers', 'purchase_orders', 'sales', 'transfers'];
+                            
+                            for(let col of collections) {
+                                if(data[col] && Array.isArray(data[col])) {
+                                    for(let item of data[col]) {
+                                        const { id, ...cleanItem } = item;
+                                        await DB.save(col, cleanItem, id);
+                                    }
+                                }
+                            }
+                            showToast("Data restored successfully! Reloading...", "success");
+                            setTimeout(() => window.location.reload(), 1500);
+                        } catch(err) {
+                            showToast("Invalid backup file.", "error");
+                        }
+                    };
+                    reader.readAsText(file);
+                });
+                
+                // clear file input
+                e.target.value = '';
+            },
+            deleteEverything: () => {
+                showConfirm("Are you absolutely sure? This will permanently wipe your account and all data across the cloud.", async () => {
+                    showToast("Deleting all data... Please wait.", "info");
+                    await wipeAccountAndData(currentUser);
+                    showToast("Account deleted successfully.");
+                    setTimeout(() => window.location.reload(), 1500);
+                });
+            }
+        };
+
         // Finance Manager
         window.FinanceManager = {
             paySupplier: (id) => {
@@ -2683,13 +2977,13 @@
                 const productsList = appState.products.map(p => {
                     const qty = p.allocations ? (p.allocations[whId] || 0) : 0;
                     return `
-                        <tr class="border-b border-gray-100 last:border-0 hover:bg-blue-50 transition">
-                            <td class="py-2 px-1">
+                        <tr class="border-b border-gray-100 last:border-0 hover:bg-blue-50 transition w-full flex items-center">
+                            <td class="py-2 px-1 w-full">
                                 <div class="font-semibold text-sm text-gray-800">${p.name}</div>
                                 <div class="text-[10px] text-gray-500 font-mono">${p.sku}</div>
                             </td>
-                            <td class="py-2 px-1 text-center font-bold text-gray-700 w-20">${qty}</td>
-                            <td class="py-2 px-1 text-right w-24">
+                            <td class="py-2 px-1 text-center font-bold text-gray-700 w-20 shrink-0">${qty}</td>
+                            <td class="py-2 px-1 text-right w-24 shrink-0">
                                 <input type="number" id="ms-qty-${p.id}" value="${qty}" min="0" class="w-20 border border-blue-300 rounded px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-center font-bold text-blue-700 shadow-inner bg-white">
                             </td>
                         </tr>
@@ -2710,12 +3004,12 @@
                                 <thead class="text-xs text-gray-400 uppercase border-b border-gray-200 pb-2 mb-2 block w-full table-fixed">
                                     <tr class="w-full flex">
                                         <th class="w-full font-semibold px-1">Product Details</th>
-                                        <th class="w-20 text-center font-semibold px-1">Current</th>
-                                        <th class="w-24 text-right font-semibold px-1">New Qty</th>
+                                        <th class="w-20 text-center font-semibold px-1 shrink-0">Current</th>
+                                        <th class="w-24 text-right font-semibold px-1 shrink-0">New Qty</th>
                                     </tr>
                                 </thead>
                                 <tbody class="block w-full table-fixed">
-                                    ${productsList.replace(/<tr/g, '<tr class="w-full flex items-center"').replace(/<td/g, '<td class="w-full"').replace(/<td class="[^"]* w-20"/g, '<td class="w-20"').replace(/<td class="[^"]* w-24"/g, '<td class="w-24"')}
+                                    ${productsList}
                                 </tbody>
                             </table>
                         </div>
@@ -2775,6 +3069,7 @@
             discountVal: 0,
             discountType: '%',
             excludeTax: false,
+            editingSaleId: null,
 
             changeDiscountMode: () => {
                 window.POS.discountMode = document.getElementById('pos-discount-mode').value;
@@ -2873,7 +3168,7 @@
                             <span class="font-bold text-blue-600">${cSym}${Number(p.price).toFixed(2)}</span>
                         </div>
                     </div>
-                `).join('') || '<div class="col-span-full text-center text-gray-500 mt-4">No products available</div>';
+                `).join('') || '<div class="col-span-full text-center text-gray-500 mt-4">No products available matching search.</div>';
             },
             addToCart: (id) => {
                 const p = appState.products.find(x => x.id === id);
@@ -2882,7 +3177,7 @@
                 const existing = window.POS.cart.find(x => x.id === id);
                 if (existing) {
                     if (existing.qty < p.stock) existing.qty++;
-                    else showToast("Not enough stock", "error");
+                    else showToast("Not enough stock available", "error");
                 } else {
                     window.POS.cart.push({ 
                         ...p, 
@@ -2930,6 +3225,10 @@
                 if (document.getElementById('pos-discount')) {
                     document.getElementById('pos-discount').value = '';
                 }
+                window.POS.editingSaleId = null;
+                const badge = document.getElementById('pos-editing-badge');
+                if(badge) badge.classList.add('hidden');
+                
                 window.POS.updateCartUI(); 
             },
             updateCartUI: () => {
@@ -2950,20 +3249,21 @@
                 }
 
                 let subtotal = 0;
-                let taxTotal = 0;
                 let totalDiscount = 0;
+                let taxTotal = 0;
+                let finalTotal = 0;
 
+                // Step 1: Render and basic line totals
                 container.innerHTML = window.POS.cart.map(item => {
-                    const lineTotal = item.price * item.qty;
+                    const rawLineTotal = item.price * item.qty;
                     let itemDisc = 0;
                     if(window.POS.discountMode === 'item') {
-                        itemDisc = item.itemDiscountType === '%' ? lineTotal * ((item.itemDiscount||0)/100) : (item.itemDiscount||0);
-                        if(itemDisc > lineTotal) itemDisc = lineTotal;
+                        itemDisc = item.itemDiscountType === '%' ? rawLineTotal * ((item.itemDiscount||0)/100) : (item.itemDiscount||0);
+                        if(itemDisc > rawLineTotal) itemDisc = rawLineTotal;
                     }
                     
-                    item.calculatedDiscount = itemDisc; 
-                    subtotal += lineTotal;
-                    totalDiscount += itemDisc;
+                    item.calculatedDiscount = itemDisc;
+                    item.lineAfterDisc = rawLineTotal - itemDisc;
 
                     const widthStylePrice = `width: ${Math.max(item.price.toString().length, 1) + 1}ch;`;
                     const widthStyleQty = `width: ${Math.max(item.qty.toString().length, 1) + 1}ch;`;
@@ -2995,7 +3295,7 @@
                                 ${itemDiscUI}
                             </div>
                         </div>
-                        <div class="flex items-center mx-1 bg-gray-100 rounded-md border border-gray-200 shadow-inner">
+                        <div class="flex items-center mx-1 bg-gray-100 rounded-md border border-gray-200 shadow-inner shrink-0">
                             <button onclick="window.POS.updateQty('${item.id}', -1)" class="w-7 h-7 text-gray-600 hover:bg-gray-200 rounded-l-md flex items-center justify-center font-bold transition">-</button>
                             <input type="number" value="${item.qty}" 
                                    oninput="this.style.width = (this.value.length + 1) + 'ch';"
@@ -3004,65 +3304,204 @@
                                    class="text-center text-sm font-bold bg-white border-x border-gray-200 outline-none appearance-none hide-scroll h-7 px-1 transition-all">
                             <button onclick="window.POS.updateQty('${item.id}', 1)" class="w-7 h-7 text-gray-600 hover:bg-gray-200 rounded-r-md flex items-center justify-center font-bold transition">+</button>
                         </div>
-                        <div class="text-sm font-bold text-gray-800 w-16 text-right">${cSym}${(lineTotal - itemDisc).toFixed(2)}</div>
+                        <div class="text-sm font-bold text-gray-800 w-16 text-right shrink-0">${cSym}${item.lineAfterDisc.toFixed(2)}</div>
                     </div>
                     `;
                 }).join('');
 
+                // Step 2: Global Math (Subtotal, Global Disc, Taxes)
+                subtotal = window.POS.cart.reduce((s, i) => s + (i.price * i.qty), 0);
+                
                 if (window.POS.discountMode === 'total') {
                     totalDiscount = window.POS.discountType === '%' ? subtotal * (window.POS.discountVal / 100) : window.POS.discountVal;
                     if (totalDiscount > subtotal) totalDiscount = subtotal;
+                    
+                    let discRatio = subtotal > 0 ? (subtotal - totalDiscount) / subtotal : 0;
+                    window.POS.cart.forEach(item => {
+                        item.calculatedDiscount = (item.price * item.qty) - ((item.price * item.qty) * discRatio);
+                        item.lineAfterDisc = (item.price * item.qty) * discRatio;
+                    });
+                } else {
+                    totalDiscount = window.POS.cart.reduce((s, i) => s + i.calculatedDiscount, 0);
                 }
-                
-                let discRatio = subtotal > 0 ? (subtotal - totalDiscount) / subtotal : 0;
-                
-                window.POS.cart.forEach(item => {
-                    let lineTotal = item.price * item.qty;
-                    let lineAfterDisc = window.POS.discountMode === 'item' ? lineTotal - (item.calculatedDiscount||0) : lineTotal * discRatio;
-                    let itemTax = window.POS.excludeTax ? 0 : lineAfterDisc * ((item.taxRate || 0) / 100);
-                    item.calculatedTax = itemTax;
-                    taxTotal += itemTax;
-                });
 
-                const finalTotal = subtotal - totalDiscount + taxTotal;
+                // Taxes & Final Total 
+                // Tax Inclusive vs Exclusive
+                window.POS.cart.forEach(item => {
+                    let rate = (settings.enableGst && item.taxRate) ? (item.taxRate / 100) : 0;
+                    let netLine = item.lineAfterDisc;
+                    
+                    if (settings.taxInclusive) {
+                        let baseAmount = netLine / (1 + rate);
+                        let taxPortion = netLine - baseAmount;
+                        
+                        if (window.POS.excludeTax) {
+                            item.calculatedTax = 0;
+                            finalTotal += baseAmount; // customer saves the tax amount
+                        } else {
+                            item.calculatedTax = taxPortion;
+                            finalTotal += netLine;
+                        }
+                        taxTotal += item.calculatedTax;
+                    } else {
+                        let baseAmount = netLine;
+                        let taxPortion = baseAmount * rate;
+                        
+                        if (window.POS.excludeTax) {
+                            item.calculatedTax = 0;
+                            finalTotal += baseAmount;
+                        } else {
+                            item.calculatedTax = taxPortion;
+                            finalTotal += baseAmount + taxPortion;
+                        }
+                        taxTotal += item.calculatedTax;
+                    }
+                });
 
                 document.getElementById('pos-subtotal').innerText = `${cSym}${subtotal.toFixed(2)}`;
                 document.getElementById('pos-discount-amt').innerText = `-${cSym}${totalDiscount.toFixed(2)}`;
-                if(settings.enableGst) {
-                    const taxAmt = document.getElementById('pos-tax-amt');
-                    if(taxAmt) taxAmt.innerText = `+${cSym}${taxTotal.toFixed(2)}`;
+                
+                const taxAmtEl = document.getElementById('pos-tax-amt');
+                if(taxAmtEl) {
+                    if (settings.taxInclusive && !window.POS.excludeTax) {
+                        taxAmtEl.innerText = `(${cSym}${taxTotal.toFixed(2)} Included)`;
+                        taxAmtEl.classList.remove('text-gray-800');
+                        taxAmtEl.classList.add('text-gray-500', 'text-xs', 'italic');
+                    } else {
+                        taxAmtEl.innerText = `+${cSym}${taxTotal.toFixed(2)}`;
+                        taxAmtEl.classList.add('text-gray-800');
+                        taxAmtEl.classList.remove('text-gray-500', 'text-xs', 'italic');
+                    }
                 }
                 document.getElementById('pos-total').innerText = `${cSym}${finalTotal.toFixed(2)}`;
-            },
-            checkout: async (generateBill) => {
-                if(window.POS.cart.length === 0) return showToast("Cart is empty", "error");
                 
+                // Store final for checkout use
+                window.POS.finalCalc = { subtotal, totalDiscount, taxTotal, finalTotal };
+            },
+            
+            generateBillHTML: (saleData) => {
                 const settings = getGlobalSettings();
+                const brand = settings.companyName || 'NEXUS INV';
+                const address = (settings.address || '').replace(/\n/g, '<br>');
+                const phone = settings.phone || '';
+                const email = settings.email || '';
+                const gst = settings.gst || '';
                 const cSym = settings.currency;
                 
-                let subtotal = 0;
-                let taxTotal = 0;
-                let totalDiscount = 0;
-                
-                window.POS.cart.forEach(item => {
-                    subtotal += (item.price * item.qty);
-                    totalDiscount += (item.calculatedDiscount || 0);
-                });
-                
-                if (window.POS.discountMode === 'total') {
-                    totalDiscount = window.POS.discountType === '%' ? subtotal * (window.POS.discountVal / 100) : window.POS.discountVal;
-                    if(totalDiscount > subtotal) totalDiscount = subtotal;
+                const custName = saleData.customerName || 'Walk-in Customer';
+                // Try to find customer details if not fully attached
+                let custContact = '', custAddress = '';
+                if(saleData.customerId) {
+                    const c = appState.customers.find(x => x.id === saleData.customerId);
+                    if(c) {
+                        custContact = `${c.phone || ''} ${c.email ? `| ${c.email}` : ''}`;
+                        custAddress = (c.address || '').replace(/\n/g, '<br>');
+                    }
                 }
-
-                window.POS.cart.forEach(item => {
-                    taxTotal += (item.calculatedTax || 0);
-                });
                 
-                const finalTotal = subtotal - totalDiscount + taxTotal;
+                const invoiceDate = new Date(saleData.date).toLocaleString();
+                const invoiceNumber = saleData.id ? saleData.id.substring(0,8).toUpperCase() : "INV-" + Math.floor(Math.random() * 1000000);
+                
+                return `
+                    <div class="p-8 max-w-3xl mx-auto w-full bg-white print-area" id="bill-print-area">
+                        <div class="no-print flex justify-end gap-3 mb-6 bg-gray-50 p-3 rounded-lg border border-gray-200 shadow-sm">
+                            <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-sm flex items-center transition" onclick="window.print()"><i class="fas fa-print mr-2"></i> Print Invoice</button>
+                            <button class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-bold flex items-center transition" onclick="closeModal()"><i class="fas fa-arrow-left mr-2"></i> Go Back</button>
+                        </div>
+                        
+                        <div class="flex justify-between border-b-2 border-gray-800 pb-6 mb-6">
+                            <div>
+                                <h1 class="text-3xl font-bold text-gray-900 mb-2">${brand}</h1>
+                                <div class="text-sm text-gray-600 space-y-1">
+                                    ${address ? `<div>${address}</div>` : ''}
+                                    ${phone ? `<div><strong>Phone:</strong> ${phone}</div>` : ''}
+                                    ${email ? `<div><strong>Email:</strong> ${email}</div>` : ''}
+                                    ${gst ? `<div><strong>GSTIN:</strong> ${gst}</div>` : ''}
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <h2 class="text-2xl font-bold text-gray-900 mb-2 uppercase tracking-widest text-blue-600">Tax Invoice</h2>
+                                <div class="text-sm text-gray-600 space-y-1">
+                                    <div><strong>Invoice No:</strong> <span class="font-mono text-gray-800">${invoiceNumber}</span></div>
+                                    <div><strong>Date:</strong> ${invoiceDate}</div>
+                                    <div><strong>Payment Mode:</strong> ${saleData.paymentStatus}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-50 p-5 rounded-lg mb-6 border border-gray-200">
+                            <h3 class="font-bold text-gray-500 uppercase text-xs mb-2 tracking-wider">Bill To:</h3>
+                            <div class="font-bold text-xl text-gray-900">${custName}</div>
+                            ${custContact ? `<div class="text-sm text-gray-600 mt-1"><i class="fas fa-address-book text-gray-400 mr-1"></i> ${custContact}</div>` : ''}
+                            ${custAddress ? `<div class="text-sm text-gray-600 mt-1"><i class="fas fa-map-marker-alt text-gray-400 mr-1"></i> ${custAddress}</div>` : ''}
+                        </div>
+
+                        <table class="w-full text-left mb-6 border-collapse">
+                            <thead>
+                                <tr class="bg-gray-800 text-white">
+                                    <th class="p-3 font-bold text-sm border-l border-gray-800 rounded-tl-lg">Item Description</th>
+                                    <th class="p-3 font-bold text-sm text-center border-l border-gray-700">Qty</th>
+                                    <th class="p-3 font-bold text-sm text-right border-l border-gray-700">Rate (${cSym})</th>
+                                    <th class="p-3 font-bold text-sm text-right border-l border-gray-700">Discount</th>
+                                    ${settings.enableGst ? `<th class="p-3 font-bold text-sm text-right border-l border-gray-700">Tax</th>` : ''}
+                                    <th class="p-3 font-bold text-sm text-right border-l border-gray-800 rounded-tr-lg">Amount (${cSym})</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${saleData.items.map((i, index) => {
+                                    let lineTotal = i.price * i.qty;
+                                    let amount = lineTotal - (i.discountAmt||0) + (i.taxAmt||0);
+                                    let isLast = index === saleData.items.length - 1;
+                                    return `
+                                    <tr class="border-b ${isLast ? 'border-gray-800' : 'border-gray-200'} text-sm">
+                                        <td class="p-3 border-x border-gray-200">
+                                            <div class="font-bold text-gray-800 text-base">${i.name}</div>
+                                            <div class="text-xs text-gray-500 font-mono mt-0.5">SKU: ${i.sku} ${settings.enableGst && !saleData.excludeTax && i.taxRate ? `<span class="ml-2 text-blue-500">| Tax: ${i.taxRate}%</span>` : ''}</div>
+                                        </td>
+                                        <td class="p-3 text-center border-x border-gray-200 font-semibold">${i.qty}</td>
+                                        <td class="p-3 text-right border-x border-gray-200">${i.price.toFixed(2)}</td>
+                                        <td class="p-3 text-right border-x border-gray-200 text-red-500">${(i.discountAmt||0) > 0 ? '-' + (i.discountAmt||0).toFixed(2) : '0.00'}</td>
+                                        ${settings.enableGst ? `<td class="p-3 text-right border-x border-gray-200">${(i.taxAmt||0).toFixed(2)}</td>` : ''}
+                                        <td class="p-3 text-right font-bold border-x border-gray-200 bg-gray-50">${amount.toFixed(2)}</td>
+                                    </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+
+                        <div class="flex justify-end">
+                            <div class="w-full md:w-1/2 space-y-2 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                <div class="flex justify-between text-gray-600 text-sm py-1 border-b border-gray-200">
+                                    <span>Subtotal:</span><span class="font-semibold">${cSym}${saleData.subtotal.toFixed(2)}</span>
+                                </div>
+                                ${saleData.discount > 0 ? `
+                                <div class="flex justify-between text-red-500 text-sm py-1 border-b border-gray-200">
+                                    <span>Total Discount:</span><span class="font-bold">-${cSym}${saleData.discount.toFixed(2)}</span>
+                                </div>` : ''}
+                                ${saleData.tax > 0 && settings.enableGst ? `
+                                <div class="flex justify-between text-gray-600 text-sm py-1 border-b border-gray-200">
+                                    <span>Total Tax ${settings.taxInclusive && !saleData.excludeTax ? '(Included)' : ''}:</span><span class="font-semibold">+${cSym}${saleData.tax.toFixed(2)}</span>
+                                </div>` : ''}
+                                <div class="flex justify-between text-gray-900 text-2xl font-black py-3 border-t-2 border-gray-800 mt-2">
+                                    <span>Grand Total:</span><span class="text-blue-600">${cSym}${saleData.total.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-16 text-center text-xs text-gray-400 border-t border-gray-200 pt-4 uppercase tracking-widest font-bold">
+                            This is a computer-generated invoice.
+                        </div>
+                    </div>
+                `;
+            },
+            
+            checkout: async (generateBill) => {
+                if(window.POS.cart.length === 0) return showToast("Cart is empty", "error");
                 
                 const cId = document.getElementById('pos-customer').value;
                 const pType = document.getElementById('pos-payment-type').value;
                 const customer = cId ? appState.customers.find(x => x.id === cId) : null;
+                const { subtotal, totalDiscount, taxTotal, finalTotal } = window.POS.finalCalc;
                 
                 const saleData = {
                     date: new Date().toISOString(),
@@ -3075,15 +3514,16 @@
                     discount: totalDiscount,
                     tax: taxTotal,
                     total: finalTotal,
+                    excludeTax: window.POS.excludeTax,
                     type: generateBill ? 'Billed' : 'Quick Sell',
                     paymentStatus: pType,
                     customerId: cId || null,
                     customerName: customer ? (customer.company || customer.name) : 'Walk-in Customer'
                 };
 
-                const saleSuccess = await DB.save('sales', saleData);
+                const savedId = await DB.save('sales', saleData, window.POS.editingSaleId);
                 
-                if(saleSuccess) {
+                if(savedId) {
                     for (const item of window.POS.cart) {
                         const product = appState.products.find(p => p.id === item.id);
                         if(product) {
@@ -3106,7 +3546,7 @@
                                 }
                             }
                             
-                            product.stock -= item.qty; // total fallback sync
+                            product.stock -= item.qty; 
                             const { id, ...cleanProduct } = product; 
                             await DB.save('products', cleanProduct, id);
                         }
@@ -3123,121 +3563,281 @@
                     showToast("Sale completed successfully!");
                     
                     if(generateBill) {
-                        const brand = settings.companyName || 'NEXUS INV';
-                        const address = (settings.address || '').replace(/\n/g, '<br>');
-                        const phone = settings.phone || '';
-                        const email = settings.email || '';
-                        const gst = settings.gst || '';
-                        
-                        const custName = customer ? (customer.company || customer.name) : 'Walk-in Customer';
-                        const custContact = customer ? `${customer.phone || ''} ${customer.email ? `| ${customer.email}` : ''}` : '';
-                        const custAddress = customer ? (customer.address || '').replace(/\n/g, '<br>') : '';
-                        
-                        const invoiceDateStr = document.getElementById('pos-date').value || new Date().toISOString().split('T')[0];
-                        const invoiceDate = new Date(invoiceDateStr).toLocaleDateString();
-                        const invoiceNumber = "INV-" + Math.floor(Math.random() * 1000000);
-
-                        const receiptWindow = window.open('', '_blank');
-                        receiptWindow.document.write(`
-                            <html><head><title>Tax Invoice</title>
-                            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-                            <style>
-                                body{font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 30px; max-width: 800px; margin: 0 auto; color: #333;}
-                                @media print { .no-print { display: none; } }
-                                .header { display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px; }
-                                .company-details { font-size: 14px; line-height: 1.4; }
-                                .invoice-details { text-align: right; }
-                                table { border-collapse: collapse; margin-top: 20px; margin-bottom: 20px; width: 100%;}
-                                th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 14px; }
-                                th { background-color: #f9fafb; font-weight: bold; }
-                                .totals { width: 50%; float: right; }
-                                .totals-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee; }
-                                .totals-row.bold { font-weight: bold; font-size: 18px; border-top: 2px solid #333; border-bottom: none; padding-top: 10px; }
-                                .btn { background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px; font-weight: bold; }
-                                .btn-gray { background: #6b7280; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-                                .customer-box { background: #f9fafb; padding: 15px; border-radius: 5px; margin-bottom: 20px; width: 50%;}
-                            </style>
-                            </head>
-                            <body>
-                                <div class="no-print" style="margin-bottom: 20px; text-align: right; padding: 10px; background: #f3f4f6; border-radius: 8px;">
-                                    <button class="btn" onclick="window.print()"><i class="fas fa-print"></i> Print Invoice</button>
-                                    <button class="btn-gray" onclick="window.close()">Go Back (Close)</button>
-                                </div>
-                                
-                                <div class="header">
-                                    <div class="company-details">
-                                        <h1 style="margin:0 0 10px 0; color: #111;">${brand}</h1>
-                                        ${address ? `<div>${address}</div>` : ''}
-                                        ${phone ? `<div style="margin-top: 5px;"><strong>Phone:</strong> ${phone}</div>` : ''}
-                                        ${email ? `<div><strong>Email:</strong> ${email}</div>` : ''}
-                                        ${gst ? `<div style="margin-top: 5px;"><strong>GSTIN:</strong> ${gst}</div>` : ''}
-                                    </div>
-                                    <div class="invoice-details">
-                                        <h2 style="margin:0 0 10px 0; color: #111;">TAX INVOICE</h2>
-                                        <div><strong>Invoice No:</strong> ${invoiceNumber}</div>
-                                        <div><strong>Date:</strong> ${invoiceDate}</div>
-                                        <div><strong>Payment Mode:</strong> ${pType}</div>
-                                    </div>
-                                </div>
-
-                                <div class="customer-box">
-                                    <h3 style="margin:0 0 5px 0;">Bill To:</h3>
-                                    <div style="font-weight: bold; font-size: 16px;">${custName}</div>
-                                    ${custContact ? `<div style="font-size: 14px; margin-top: 4px;">${custContact}</div>` : ''}
-                                    ${custAddress ? `<div style="font-size: 14px; margin-top: 4px;">${custAddress}</div>` : ''}
-                                </div>
-
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>Item Description</th>
-                                            <th style="text-align: right;">Qty</th>
-                                            <th style="text-align: right;">Rate (${cSym})</th>
-                                            ${window.POS.discountMode === 'item' ? `<th style="text-align: right;">Discount</th>` : ''}
-                                            ${settings.enableGst ? `<th style="text-align: right;">Tax</th>` : ''}
-                                            <th style="text-align: right;">Amount (${cSym})</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${window.POS.cart.map(i => {
-                                            let lineTotal = i.price * i.qty;
-                                            let amount = lineTotal - (i.calculatedDiscount||0) + (i.calculatedTax||0);
-                                            return `
-                                            <tr>
-                                                <td>
-                                                    <strong>${i.name}</strong><br>
-                                                    <span style="font-size: 12px; color: #666;">SKU: ${i.sku} ${i.taxRate && !window.POS.excludeTax && settings.enableGst ? `| Tax: ${i.taxRate}%` : ''}</span>
-                                                </td>
-                                                <td style="text-align: right;">${i.qty}</td>
-                                                <td style="text-align: right;">${i.price.toFixed(2)}</td>
-                                                ${window.POS.discountMode === 'item' ? `<td style="text-align: right;">${(i.calculatedDiscount||0).toFixed(2)}</td>` : ''}
-                                                ${settings.enableGst ? `<td style="text-align: right;">${(i.calculatedTax||0).toFixed(2)}</td>` : ''}
-                                                <td style="text-align: right;">${amount.toFixed(2)}</td>
-                                            </tr>
-                                            `;
-                                        }).join('')}
-                                    </tbody>
-                                </table>
-
-                                <div class="totals">
-                                    <div class="totals-row"><span>Subtotal:</span><span>${cSym}${subtotal.toFixed(2)}</span></div>
-                                    ${totalDiscount > 0 ? `<div class="totals-row"><span>Total Discount:</span><span>-${cSym}${totalDiscount.toFixed(2)}</span></div>` : ''}
-                                    ${taxTotal > 0 && settings.enableGst ? `<div class="totals-row"><span>Total Tax:</span><span>+${cSym}${taxTotal.toFixed(2)}</span></div>` : ''}
-                                    <div class="totals-row bold"><span>Grand Total:</span><span>${cSym}${finalTotal.toFixed(2)}</span></div>
-                                </div>
-                                
-                                <div style="clear: both; margin-top: 60px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #ddd; padding-top: 20px;">
-                                    This is a computer-generated invoice.
-                                </div>
-                            </body></html>
-                        `);
-                        receiptWindow.document.close();
+                        saleData.id = savedId;
+                        showModal(window.POS.generateBillHTML(saleData));
                     }
 
                     window.POS.clear();
                     window.POS.renderProducts(); 
-                    window.POS.onCustomerChange(); // Update info card dynamically
+                    window.POS.onCustomerChange(); 
                 }
+            }
+        };
+
+        // Sales Manager
+        window.SalesManager = {
+            viewBill: (id) => {
+                const sale = appState.sales.find(s => s.id === id);
+                if (sale) {
+                    showModal(window.POS.generateBillHTML(sale));
+                }
+            },
+            editBillModal: (id) => {
+                const sale = appState.sales.find(s => s.id === id);
+                if (!sale) return;
+                
+                window.SalesManager.editingSale = JSON.parse(JSON.stringify(sale));
+                window.SalesManager.originalSale = JSON.parse(JSON.stringify(sale));
+                window.SalesManager.renderEditModal();
+            },
+            renderEditModal: () => {
+                const sale = window.SalesManager.editingSale;
+                const cSym = appState.settings[0]?.currency || '₹';
+                const settings = getGlobalSettings();
+                
+                // Recalculate totals for edit modal
+                let subtotal = 0;
+                let taxTotal = 0;
+                let finalTotal = 0;
+
+                sale.items.forEach(i => {
+                    const lineTotal = i.price * i.qty;
+                    const itemDisc = i.discountAmt || 0;
+                    const netLine = lineTotal - itemDisc;
+                    subtotal += lineTotal;
+                    
+                    let itemTax = 0;
+                    if (settings.enableGst && i.taxRate && !sale.excludeTax) {
+                        if (settings.taxInclusive) {
+                            itemTax = netLine - (netLine / (1 + (i.taxRate/100)));
+                        } else {
+                            itemTax = netLine * (i.taxRate/100);
+                        }
+                    }
+                    i.taxAmt = itemTax;
+                    taxTotal += itemTax;
+                    finalTotal += (settings.taxInclusive && !sale.excludeTax) ? netLine : (netLine + itemTax);
+                });
+                
+                let globalDisc = sale.discount || 0; 
+                finalTotal -= globalDisc;
+                
+                sale.subtotal = subtotal;
+                sale.tax = taxTotal;
+                sale.total = finalTotal;
+
+                const itemsHtml = sale.items.map((i, idx) => `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="p-3 font-semibold text-gray-800">${i.name} <div class="text-xs text-gray-500 font-normal">${i.sku}</div></td>
+                        <td class="p-3">
+                            <div class="flex items-center">
+                                <span class="text-gray-500 mr-1">${cSym}</span>
+                                <input type="number" step="0.01" value="${i.price}" onchange="window.SalesManager.updateEditSaleItem(${idx}, 'price', this.value)" class="w-20 border border-gray-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500">
+                            </div>
+                        </td>
+                        <td class="p-3">
+                            <input type="number" value="${i.qty}" min="1" onchange="window.SalesManager.updateEditSaleItem(${idx}, 'qty', this.value)" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500 text-center">
+                        </td>
+                        <td class="p-3">
+                            <div class="flex items-center">
+                                <span class="text-gray-500 mr-1">${cSym}</span>
+                                <input type="number" step="0.01" value="${i.discountAmt||0}" onchange="window.SalesManager.updateEditSaleItem(${idx}, 'discountAmt', this.value)" class="w-20 border border-gray-300 rounded px-2 py-1 text-sm outline-none focus:border-blue-500 text-red-500">
+                            </div>
+                        </td>
+                        <td class="p-3 font-bold text-gray-800">${cSym}${(i.price * i.qty - (i.discountAmt||0)).toFixed(2)}</td>
+                        <td class="p-3 text-center"><button onclick="window.SalesManager.removeEditSaleItem(${idx})" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-1 rounded"><i class="fas fa-trash"></i></button></td>
+                    </tr>
+                `).join('');
+
+                showModal(`
+                    <div class="p-0 sm:p-6 w-full max-w-4xl mx-auto h-full sm:h-auto max-h-[90vh] flex flex-col bg-white rounded-xl overflow-hidden">
+                        <div class="p-6 sm:p-0 border-b border-gray-100 flex justify-between items-center mb-0 sm:mb-4 bg-gray-50 sm:bg-transparent rounded-t-xl shrink-0">
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-800"><i class="fas fa-edit text-blue-500 mr-2"></i>Edit Bill</h2>
+                                <p class="text-sm text-gray-500 mt-1">Invoice ID: <span class="font-mono text-gray-800 font-bold">${sale.id.substring(0,8).toUpperCase()}</span></p>
+                            </div>
+                            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-800 bg-white sm:bg-gray-100 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center transition shadow-sm sm:shadow-none border border-gray-200 sm:border-none"><i class="fas fa-times"></i></button>
+                        </div>
+                        
+                        <div class="flex-1 overflow-y-auto sm:overflow-visible p-6 sm:p-0 hide-scroll">
+                            <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Date</label>
+                                    <input type="date" value="${new Date(sale.date).toISOString().split('T')[0]}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white" disabled>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Customer</label>
+                                    <input type="text" value="${sale.customerName}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-500" disabled>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Payment Status</label>
+                                    <select onchange="window.SalesManager.editingSale.paymentStatus = this.value" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
+                                        <option value="Paid" ${sale.paymentStatus==='Paid'?'selected':''}>Paid</option>
+                                        <option value="Credit" ${sale.paymentStatus==='Credit'?'selected':''}>Credit</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="max-h-60 sm:max-h-80 overflow-y-auto mb-6 border border-gray-200 rounded-lg shadow-inner bg-gray-50/50">
+                                <table class="w-full text-left text-sm">
+                                    <thead class="bg-gray-100 text-gray-600 border-b border-gray-200 sticky top-0 shadow-sm">
+                                        <tr>
+                                            <th class="p-3 font-semibold">Item</th>
+                                            <th class="p-3 font-semibold">Unit Price</th>
+                                            <th class="p-3 font-semibold">Qty</th>
+                                            <th class="p-3 font-semibold">Item Disc</th>
+                                            <th class="p-3 font-semibold">Net Line Total</th>
+                                            <th class="p-3 font-semibold text-center">Remove</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white">${itemsHtml || '<tr><td colspan="6" class="text-center p-8 text-gray-500">No items left in the bill.</td></tr>'}</tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-4 sm:pb-0">
+                                <div class="text-sm text-gray-500 bg-blue-50 p-4 rounded-lg border border-blue-100 max-w-sm w-full md:w-auto">
+                                    <p class="font-bold text-blue-700 mb-1"><i class="fas fa-info-circle mr-1"></i> Stock & Balance Logic</p>
+                                    <p>Saving changes will automatically restock removed quantities and update the customer's financial balance according to the difference.</p>
+                                </div>
+                                
+                                <div class="w-full md:w-72 space-y-3 bg-gray-50 p-5 rounded-lg border border-gray-200 shadow-sm text-sm">
+                                    <div class="flex justify-between text-gray-600 font-medium"><span>Subtotal:</span><span>${cSym}${sale.subtotal.toFixed(2)}</span></div>
+                                    <div class="flex justify-between items-center text-red-500 font-medium border-b border-gray-200 pb-2">
+                                        <span>Global Discount:</span>
+                                        <div class="flex items-center">
+                                            <span class="mr-1">${cSym}</span>
+                                            <input type="number" step="0.01" value="${globalDisc}" onchange="window.SalesManager.editingSale.discount = parseFloat(this.value)||0; window.SalesManager.renderEditModal()" class="w-20 border border-gray-300 rounded px-2 py-1 text-right text-sm outline-none focus:border-red-500 bg-white">
+                                        </div>
+                                    </div>
+                                    <div class="flex justify-between text-gray-600 font-medium pt-1"><span>Tax Total:</span><span>+${cSym}${sale.tax.toFixed(2)}</span></div>
+                                    <div class="flex justify-between font-black text-xl border-t border-gray-300 pt-3 text-gray-900 mt-2"><span>Total:</span><span>${cSym}${sale.total.toFixed(2)}</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    <div class="flex justify-end gap-3 p-4 sm:p-0 mt-0 sm:mt-6 sm:pt-4 border-t border-gray-100 bg-white shrink-0">
+                            <button onclick="closeModal()" class="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 font-bold transition shadow-sm w-full sm:w-auto">Cancel Editing</button>
+                            <button onclick="window.SalesManager.saveEditBill()" class="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold transition shadow-md flex items-center justify-center gap-2 w-full sm:w-auto"><i class="fas fa-save"></i> Save Changes</button>
+                        </div>
+                    </div>
+                `);
+            },
+            updateEditSaleItem: (idx, field, val) => {
+                const v = parseFloat(val) || 0;
+                if(field === 'qty' && v <= 0) return;
+                window.SalesManager.editingSale.items[idx][field] = v;
+                window.SalesManager.renderEditModal();
+            },
+            removeEditSaleItem: (idx) => {
+                window.SalesManager.editingSale.items.splice(idx, 1);
+                window.SalesManager.renderEditModal();
+            },
+            saveEditBill: async () => {
+                const orig = window.SalesManager.originalSale;
+                const edited = window.SalesManager.editingSale;
+                
+                if (edited.items.length === 0) {
+                    return showToast("Bill must have at least 1 item to save. Use the Delete Bill option instead.", "error");
+                }
+
+                // First, Revert original stock completely
+                for (let i of orig.items) {
+                    const p = appState.products.find(x => x.id === i.id);
+                    if (p) {
+                        p.stock += i.qty;
+                        const mainWh = appState.warehouses.find(w => w.isMain);
+                        const destWh = mainWh ? mainWh.id : 'unassigned';
+                        p.allocations = p.allocations || {};
+                        p.allocations[destWh] = (p.allocations[destWh] || 0) + i.qty;
+                        const {id: pid, ...cleanP} = p;
+                        await DB.save('products', cleanP, pid);
+                    }
+                }
+                
+                // Second, Revert original balance completely
+                if (orig.paymentStatus === 'Credit' && orig.customerId) {
+                    const c = appState.customers.find(x => x.id === orig.customerId);
+                    if (c) {
+                        c.balance = (Number(c.balance) || 0) - orig.total;
+                        const {id: cid, ...cleanC} = c;
+                        await DB.save('customers', cleanC, cid);
+                    }
+                }
+
+                // Third, Apply new stock (deduct quantities of edited bill)
+                for (let i of edited.items) {
+                    const p = appState.products.find(x => x.id === i.id);
+                    if (p) {
+                        p.stock -= i.qty;
+                        let qtyToDeduct = i.qty;
+                        const mainWh = appState.warehouses.find(w => w.isMain);
+                        if(mainWh && p.allocations && p.allocations[mainWh.id] >= qtyToDeduct) {
+                            p.allocations[mainWh.id] -= qtyToDeduct;
+                        } else {
+                            if(p.allocations) {
+                                for(let whId in p.allocations) {
+                                    if(p.allocations[whId] > 0 && qtyToDeduct > 0) {
+                                        let deduct = Math.min(p.allocations[whId], qtyToDeduct);
+                                        p.allocations[whId] -= deduct;
+                                        qtyToDeduct -= deduct;
+                                    }
+                                }
+                            }
+                        }
+                        const {id: pid, ...cleanP} = p;
+                        await DB.save('products', cleanP, pid);
+                    }
+                }
+
+                // Fourth, Apply new balance
+                if (edited.paymentStatus === 'Credit' && edited.customerId) {
+                    const c = appState.customers.find(x => x.id === edited.customerId);
+                    if (c) {
+                        c.balance = (Number(c.balance) || 0) + edited.total;
+                        c.lastTransactionDate = new Date().toISOString();
+                        const {id: cid, ...cleanC} = c;
+                        await DB.save('customers', cleanC, cid);
+                    }
+                }
+
+                // Finally, Save updated sale
+                const {id, ...cleanSale} = edited;
+                await DB.save('sales', cleanSale, id);
+                showToast("Bill successfully updated!");
+                closeModal();
+            },
+            deleteBill: (id) => {
+                showConfirm("Are you sure you want to completely delete this bill? All inventory items will be restocked and the customer balance will be adjusted accordingly.", async () => {
+                    const orig = appState.sales.find(s => s.id === id);
+                    if(!orig) return;
+                    
+                    // Revert stock
+                    for (let i of orig.items) {
+                        const p = appState.products.find(x => x.id === i.id);
+                        if (p) {
+                            p.stock += i.qty;
+                            const mainWh = appState.warehouses.find(w => w.isMain);
+                            const destWh = mainWh ? mainWh.id : 'unassigned';
+                            p.allocations = p.allocations || {};
+                            p.allocations[destWh] = (p.allocations[destWh] || 0) + i.qty;
+                            const {id: pid, ...cleanP} = p;
+                            await DB.save('products', cleanP, pid);
+                        }
+                    }
+                    
+                    // Revert balance
+                    if (orig.paymentStatus === 'Credit' && orig.customerId) {
+                        const c = appState.customers.find(x => x.id === orig.customerId);
+                        if (c) {
+                            c.balance = (Number(c.balance) || 0) - orig.total;
+                            const {id: cid, ...cleanC} = c;
+                            await DB.save('customers', cleanC, cid);
+                        }
+                    }
+
+                    if(await DB.delete('sales', id)) {
+                        showToast("Bill deleted successfully!");
+                    }
+                });
             }
         };
 
@@ -3275,7 +3875,6 @@
                 const select = document.getElementById('po-product');
                 const selectedOption = select.options[select.selectedIndex];
                 const costInput = document.getElementById('po-cost');
-                // The cost here is just a default recommendation (last baseCost)
                 if(selectedOption && selectedOption.value) {
                     costInput.value = selectedOption.getAttribute('data-cost') > 0 ? selectedOption.getAttribute('data-cost') : '';
                 } else costInput.value = '';
@@ -3294,8 +3893,6 @@
 
                 const product = appState.products.find(x => x.id === pId);
                 
-                // We don't merge identical products if they have different warehouses or different costs
-                // For simplicity, we just add a new line item.
                 window.POManager.cart.push({ 
                     id: product.id, 
                     name: product.name, 
@@ -3342,7 +3939,6 @@
                     `;
                 }).join('');
                 
-                // Add Transport to total display if available
                 const transCostEl = document.getElementById('po-transport-cost');
                 const transTotal = transCostEl ? (parseFloat(transCostEl.value) || 0) : 0;
                 
@@ -3362,7 +3958,6 @@
                 
                 const totalQty = window.POManager.cart.reduce((sum, item) => sum + item.qty, 0);
 
-                // Add statuses and distribute transport cost
                 window.POManager.cart.forEach(item => {
                     item.status = 'Pending';
                     item.unitTransportCost = totalQty > 0 ? (transportTotal / totalQty) : 0;
@@ -3393,7 +3988,7 @@
                 const po = appState.purchase_orders.find(x => x.id === poId);
                 if(!po) return;
 
-                const itemsToReceive = po.items.filter(i => (i.warehouseId || 'unassigned') === whId && i.status !== 'Received');
+                const itemsToReceive = po.items.filter(i => (i.warehouseId || 'unassigned') === whId && i.status !== 'Received' && i.status !== 'Cancelled');
                 if(itemsToReceive.length === 0) return;
 
                 showConfirm(`Receive these items into ${itemsToReceive[0].warehouseName}? Inventory averages will update instantly.`, async () => {
@@ -3427,15 +4022,19 @@
                         }
                     }
 
-                    // Check if whole PO is received
-                    const allReceived = po.items.every(i => i.status === 'Received');
-                    if(allReceived) po.status = 'Received';
+                    // Check if whole PO is resolved
+                    const allArchived = po.items.every(i => i.status === 'Received' || i.status === 'Cancelled');
+                    if(allArchived) {
+                        const anyReceived = po.items.some(i => i.status === 'Received');
+                        po.status = anyReceived ? (po.items.every(i => i.status === 'Received') ? 'Received' : 'Partially Received') : 'Cancelled';
+                    } else {
+                        po.status = 'Partially Received';
+                    }
 
                     const { id: poid, ...cleanPO } = po;
                     await DB.save('purchase_orders', cleanPO, poid);
 
-                    // Add to supplier balance (Total PO cost was just an estimate, but we add what's received)
-                    // Note: Transport cost might belong to supplier or 3rd party. Assuming supplier here.
+                    // Add to supplier balance
                     const supplier = appState.suppliers.find(s => s.id === po.supplierId);
                     if(supplier) {
                         supplier.balance = (Number(supplier.balance) || 0) + supplierValueAdded;
@@ -3446,102 +4045,126 @@
                     showToast("Shipment group received! Inventory successfully updated.");
                 });
             },
+            cancelGroup: async (poId, whId) => {
+                const po = appState.purchase_orders.find(x => x.id === poId);
+                if(!po) return;
+
+                showConfirm("Are you sure you want to cancel this delivery group?", async () => {
+                    po.items.forEach(i => {
+                        if((i.warehouseId || 'unassigned') === whId && i.status !== 'Received') {
+                            i.status = 'Cancelled';
+                        }
+                    });
+
+                    const allArchived = po.items.every(i => i.status === 'Received' || i.status === 'Cancelled');
+                    if(allArchived) {
+                        const anyReceived = po.items.some(i => i.status === 'Received');
+                        po.status = anyReceived ? (po.items.every(i => i.status === 'Received') ? 'Received' : 'Partially Received') : 'Cancelled';
+                    } else {
+                        po.status = 'Partially Received';
+                    }
+                    
+                    const { id: poid, ...cleanPO } = po;
+                    await DB.save('purchase_orders', cleanPO, poid);
+                    showToast("Delivery group cancelled.");
+                });
+            },
+            cancelPO: async (id) => {
+                showConfirm("Cancel entire remaining purchase order?", async () => {
+                    const po = appState.purchase_orders.find(x => x.id === id);
+                    if(!po) return;
+                    
+                    po.items.forEach(i => {
+                        if(i.status !== 'Received') i.status = 'Cancelled';
+                    });
+                    
+                    const anyReceived = po.items.some(i => i.status === 'Received');
+                    po.status = anyReceived ? 'Partially Received' : 'Cancelled';
+                    
+                    const { id: poid, ...cleanPO } = po;
+                    if(await DB.save('purchase_orders', cleanPO, poid)) showToast("Purchase Order Cancelled");
+                });
+            },
             delete: async (id) => {
-                showConfirm("Are you sure you want to delete this Purchase Order? Any already-received items will NOT be reverted.", async () => {
+                showConfirm("Are you sure you want to delete this Purchase Order entirely? Any already-received items will NOT be reverted.", async () => {
                     if(await DB.delete('purchase_orders', id)) showToast("Purchase Order Deleted");
                 });
             }
         };
 
-        // Settings Logic
-        window.SettingsForm = {
-            save: async (e, id) => {
-                e.preventDefault();
-                const data = {
-                    companyName: document.getElementById('set-company').value,
-                    currency: document.getElementById('set-currency').value,
-                    gst: document.getElementById('set-gst').value,
-                    phone: document.getElementById('set-phone').value,
-                    email: document.getElementById('set-email').value,
-                    address: document.getElementById('set-address').value,
-                    enableTransport: document.getElementById('set-transport').checked,
-                    enableStorage: document.getElementById('set-storage').checked,
-                    enableGst: document.getElementById('set-toggle-gst').checked
-                };
-                if (await DB.save('settings', data, id ? id : null)) {
-                    localStorage.setItem('companyName', data.companyName); // Update local cache
-                    showToast("System settings updated successfully!");
-                }
-            },
-            applySettings: () => {
-                const s = appState.settings[0];
-                if(s && s.companyName) {
-                    const brandEl = document.getElementById('brand-name');
-                    if(brandEl) brandEl.innerText = s.companyName;
-                }
-            },
-            exportData: () => {
-                showConfirm("This will download a completely decrypted backup of your database. Keep it secure.", () => {
-                    const dataStr = JSON.stringify(appState, null, 2);
-                    const blob = new Blob([dataStr], { type: "application/json" });
-                    const url = URL.createObjectURL(blob);
-                    
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `inventory_backup_${new Date().toISOString().split('T')[0]}.json`;
-                    
-                    document.body.appendChild(a);
-                    a.click();
-                    
-                    setTimeout(() => {
-                        document.body.removeChild(a);
-                        window.URL.revokeObjectURL(url);
-                        showToast("Data exported successfully!");
-                    }, 0);
-                });
-            },
-            importData: (e) => {
-                const file = e.target.files[0];
-                if(!file) return;
+        // Custom Keyboard Shortcuts Setup
+        document.addEventListener('keydown', (e) => {
+            const settings = getGlobalSettings();
+            const shortcutKey = settings.searchShortcut || 'm';
+            
+            // Allow Ctrl + Key (or Cmd + Key on Mac) to open global search
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === shortcutKey) {
+                e.preventDefault(); // Prevent default browser behavior if needed
                 
-                showConfirm("WARNING: Restoring data will overwrite corresponding data in the current account. Proceed?", () => {
-                    const reader = new FileReader();
-                    reader.onload = async (event) => {
-                        try {
-                            const data = JSON.parse(event.target.result);
-                            showToast("Importing data... Please wait.", "info");
-                            
-                            const collections = ['settings', 'warehouses', 'products', 'customers', 'suppliers', 'purchase_orders', 'sales', 'transfers'];
-                            
-                            for(let col of collections) {
-                                if(data[col] && Array.isArray(data[col])) {
-                                    for(let item of data[col]) {
-                                        const { id, ...cleanItem } = item;
-                                        await DB.save(col, cleanItem, id);
-                                    }
-                                }
-                            }
-                            showToast("Data restored successfully! Reloading...", "success");
-                            setTimeout(() => window.location.reload(), 1500);
-                        } catch(err) {
-                            showToast("Invalid backup file.", "error");
-                        }
-                    };
-                    reader.readAsText(file);
-                });
+                const searchInput = document.getElementById('global-search');
+                const overlay = document.getElementById('search-overlay');
                 
-                // clear file input
-                e.target.value = '';
-            },
-            deleteEverything: () => {
-                showConfirm("Are you absolutely sure? This will permanently wipe your account and all data across the cloud.", async () => {
-                    showToast("Deleting all data... Please wait.", "info");
-                    await wipeAccountAndData(currentUser);
-                    showToast("Account deleted successfully.");
-                    setTimeout(() => window.location.reload(), 1500);
-                });
+                // If it's closed, open it and focus
+                if (overlay.classList.contains('hidden')) {
+                    document.getElementById('page-content').classList.add('hidden');
+                    overlay.classList.remove('hidden');
+                    
+                    const sidebar = document.getElementById('sidebar');
+                    sidebar.classList.remove('w-64');
+                    sidebar.classList.add('w-0', 'overflow-hidden');
+                    
+                    searchInput.focus();
+                    if(searchInput.value) {
+                        window.SearchUI.renderResults(searchInput.value.toLowerCase());
+                        document.getElementById('global-search-clear').classList.remove('hidden');
+                    } else {
+                        document.getElementById('search-results-content').innerHTML = `
+                            <div class="text-center text-gray-400 py-20">
+                                <i class="fas fa-search text-5xl mb-4 opacity-30 block"></i>
+                                <span class="text-lg">Start typing to search across the entire system...</span>
+                            </div>
+                        `;
+                    }
+                } else {
+                    // If already open, close it
+                    window.SearchUI.closeSearch();
+                }
             }
-        };
+            
+            if (e.key === 'Escape') {
+                const overlay = document.getElementById('search-overlay');
+                if (!overlay.classList.contains('hidden')) {
+                    window.SearchUI.closeSearch();
+                } else if(document.getElementById('modal-container').innerHTML !== '') {
+                    closeModal();
+                }
+            }
+        });
+
+        document.getElementById('global-search')?.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const clearBtn = document.getElementById('global-search-clear');
+            
+            if(query) {
+                clearBtn.classList.remove('hidden');
+                document.getElementById('page-content').classList.add('hidden');
+                document.getElementById('search-overlay').classList.remove('hidden');
+                
+                const sidebar = document.getElementById('sidebar');
+                sidebar.classList.remove('w-64');
+                sidebar.classList.add('w-0', 'overflow-hidden');
+                
+                window.SearchUI.renderResults(query);
+            } else {
+                clearBtn.classList.add('hidden');
+                document.getElementById('search-results-content').innerHTML = `
+                    <div class="text-center text-gray-400 py-20">
+                        <i class="fas fa-search text-5xl mb-4 opacity-30 block"></i>
+                        <span class="text-lg">Start typing to search across the entire system...</span>
+                    </div>
+                `;
+            }
+        });
 
         // Initialize Call
         initAuth();
