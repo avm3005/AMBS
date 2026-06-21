@@ -44,14 +44,14 @@
 <body class="text-gray-800 overflow-hidden h-screen flex">
 
     <!-- Toast Notifications -->
-    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
     <!-- Modals Container -->
     <div id="modal-container"></div>
 
     <!-- AUTH & PIN SCREEN -->
     <div id="auth-screen" class="fixed inset-0 bg-gray-900 flex flex-col items-center justify-center z-40">
-        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md text-center">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md text-center relative overflow-hidden">
             
             <div id="auth-branding">
                 <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
@@ -63,7 +63,6 @@
             
             <!-- Login & Signup Architecture -->
             <div id="login-section" class="flex flex-col w-full">
-                
                 <!-- LOGIN MODE -->
                 <div id="login-mode" class="flex flex-col w-full">
                     <div class="flex flex-col gap-3 mb-2">
@@ -111,7 +110,6 @@
                         Already have an account? Log in
                     </button>
                 </div>
-
                 <p class="text-xs text-gray-400 mt-6 leading-relaxed">Local accounts save directly to this device's storage. Google accounts back up to the cloud securely.</p>
             </div>
 
@@ -123,7 +121,7 @@
                 <input type="text" id="setup-company" placeholder="Company Name" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 mb-4">
                 <input type="password" id="setup-pin" placeholder="Create PIN (Min 4 digits)" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 mb-6" autocomplete="new-password">
                 
-                <button id="btn-setup" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 transition flex justify-center items-center mb-3">
+                <button id="btn-setup" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 transition flex justify-center items-center mb-3 shadow-md">
                     Complete Setup
                 </button>
                 <p class="text-xs text-red-500 text-left font-semibold mt-2 mb-4">Warning: There is NO password or PIN reset option. Keep your PIN safe.</p>
@@ -141,7 +139,7 @@
                 
                 <input type="password" id="e2e-pin" placeholder="••••••••" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-2xl tracking-[0.5em] focus:ring-2 focus:ring-blue-500 outline-none mb-4" autocomplete="new-password">
                 
-                <button id="btn-unlock" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 transition flex justify-center items-center mb-4">
+                <button id="btn-unlock" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 transition flex justify-center items-center mb-4 shadow-md">
                     <span id="btn-unlock-text">Unlock Vault</span>
                     <div id="btn-unlock-spinner" class="spinner-white hidden"></div>
                 </button>
@@ -164,8 +162,8 @@
                 <!-- Navigation inserted by JS -->
             </div>
 
-            <div class="p-4 border-t border-gray-800 text-xs text-gray-500 text-center">
-                E2EE Active <i class="fas fa-lock text-green-500 ml-1"></i>
+            <div class="p-4 border-t border-gray-800 text-xs text-gray-500 text-center flex flex-col gap-1 items-center">
+                <div>E2EE Active <i class="fas fa-lock text-green-500 ml-1"></i></div>
             </div>
         </aside>
 
@@ -173,10 +171,17 @@
         <main class="flex-1 flex flex-col h-full bg-gray-50 overflow-hidden relative">
             <!-- Header -->
             <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0 z-10 shadow-sm">
-                <h2 id="page-title" class="text-xl font-semibold text-gray-800">Dashboard</h2>
+                <div class="flex items-center gap-4">
+                    <h2 id="page-title" class="text-xl font-semibold text-gray-800">Dashboard</h2>
+                    <!-- Cloud Sync Indicator -->
+                    <div id="sync-status-container" class="hidden items-center gap-1.5 bg-gray-50 px-3 py-1 rounded-full border border-gray-200 transition-all duration-300 shadow-sm">
+                        <i id="sync-status-icon" class="fas fa-cloud text-gray-400 text-xs"></i>
+                        <span id="sync-status-text" class="text-xs text-gray-500 font-medium">Synced</span>
+                    </div>
+                </div>
                 <div class="flex items-center gap-4">
                     <button class="text-gray-400 hover:text-gray-600"><i class="fas fa-bell"></i></button>
-                    <div class="h-8 w-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm" id="user-avatar">
+                    <div class="h-8 w-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm" id="user-avatar">
                         U
                     </div>
                     <button id="btn-logout" class="text-sm text-gray-500 hover:text-gray-800 font-medium"><i class="fas fa-lock mr-1"></i> Lock Vault</button>
@@ -229,7 +234,8 @@
             suppliers: [],
             warehouses: [],
             purchase_orders: [],
-            settings: []
+            settings: [],
+            transfers: [] // Track stock transfer history
         };
 
         let currentChart = null;
@@ -249,9 +255,8 @@
             };
         };
 
-        // Helper to grab alloc fallback correctly safely
         const getProductAllocations = (p) => {
-            return p.allocations ? p.allocations : { 'unassigned': (p.stock || 0) };
+            return p.allocations ? p.allocations : { 'unassigned': (Number(p.stock) || 0) };
         };
 
         // ==========================================
@@ -281,7 +286,7 @@
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             const color = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : type === 'info' ? 'bg-blue-500' : 'bg-gray-800';
-            toast.className = `${color} text-white px-4 py-3 rounded shadow-lg transform transition-all duration-300 translate-x-full flex items-center gap-2 z-50`;
+            toast.className = `${color} text-white px-4 py-3 rounded shadow-lg transform transition-all duration-300 translate-x-full flex items-center gap-2 z-50 pointer-events-auto`;
             toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i> ${msg}`;
             container.appendChild(toast);
             
@@ -321,7 +326,7 @@
                         <p class="text-gray-600 text-sm mb-6">${msg}</p>
                         <div class="flex justify-center gap-3">
                             <button onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium w-full">Cancel</button>
-                            <button id="confirm-action-btn" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium w-full">Confirm</button>
+                            <button id="confirm-action-btn" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium w-full shadow-md">Confirm</button>
                         </div>
                     </div>
                 </div>
@@ -333,10 +338,37 @@
         };
         window.showConfirm = showConfirm;
 
+        const setSyncStatus = (status) => {
+            const el = document.getElementById('sync-status-text');
+            const icon = document.getElementById('sync-status-icon');
+            if(!el || !icon) return;
+            
+            if(status === 'saving') {
+                el.innerText = 'Saving...';
+                el.className = 'text-xs text-blue-500 font-bold tracking-wide';
+                icon.className = 'fas fa-sync fa-spin text-blue-500 text-xs';
+            } else if (status === 'saved') {
+                el.innerText = 'Saved to Cloud';
+                el.className = 'text-xs text-green-600 font-bold tracking-wide';
+                icon.className = 'fas fa-check-circle text-green-600 text-xs';
+                setTimeout(() => {
+                    if(el.innerText === 'Saved to Cloud') {
+                        el.innerText = 'Synced';
+                        el.className = 'text-xs text-gray-500 font-medium';
+                        icon.className = 'fas fa-cloud text-gray-400 text-xs';
+                    }
+                }, 2500);
+            } else if (status === 'error') {
+                el.innerText = 'Sync Error';
+                el.className = 'text-xs text-red-500 font-bold tracking-wide';
+                icon.className = 'fas fa-exclamation-triangle text-red-500 text-xs';
+            }
+        };
+
         const wipeAccountAndData = async (userObj) => {
             if (!userObj) return;
             try {
-                const collections = ['products', 'sales', 'customers', 'suppliers', 'warehouses', 'purchase_orders', 'settings', '_security'];
+                const collections = ['products', 'sales', 'customers', 'suppliers', 'warehouses', 'purchase_orders', 'settings', 'transfers', '_security'];
                 for (const col of collections) {
                     const colRef = collection(db, 'artifacts', appId, 'users', userObj.uid, col);
                     const snap = await getDocs(colRef);
@@ -395,22 +427,26 @@
             
             save: async (colName, data, id = null) => {
                 if(!e2eKey) return false;
+                setSyncStatus('saving');
                 const payload = CryptoService.encrypt(data, e2eKey);
                 try {
                     if (id) {
-                        await updateDoc(doc(DB.getRef(colName), id), { payload, updatedAt: new Date().toISOString() });
+                        await setDoc(doc(DB.getRef(colName), id), { payload, updatedAt: new Date().toISOString() }, { merge: true });
                     } else {
                         await addDoc(DB.getRef(colName), { payload, createdAt: new Date().toISOString() });
                     }
+                    setSyncStatus('saved');
                     return true;
-                } catch(e) { console.error("DB Save Error:", e); showToast("Failed to save data", "error"); return false; }
+                } catch(e) { console.error("DB Save Error:", e); showToast("Failed to sync to cloud", "error"); setSyncStatus('error'); return false; }
             },
 
             delete: async (colName, id) => {
+                setSyncStatus('saving');
                 try {
                     await deleteDoc(doc(DB.getRef(colName), id));
+                    setSyncStatus('saved');
                     return true;
-                } catch(e) { showToast("Failed to delete", "error"); return false; }
+                } catch(e) { showToast("Failed to delete", "error"); setSyncStatus('error'); return false; }
             },
 
             listen: (colName, stateKey, callback) => {
@@ -481,6 +517,7 @@
             
             document.getElementById('app-screen').classList.add('hidden');
             document.getElementById('auth-screen').classList.remove('hidden');
+            document.getElementById('sync-status-container').classList.add('hidden');
             
             document.getElementById('login-section').classList.add('hidden');
             document.getElementById('setup-section').classList.add('hidden');
@@ -554,6 +591,7 @@
                 document.getElementById('setup-section').classList.add('hidden');
                 document.getElementById('auth-screen').classList.remove('hidden');
                 document.getElementById('app-screen').classList.add('hidden');
+                document.getElementById('sync-status-container').classList.add('hidden');
                 window.AuthUI.updateButtonStates();
             }
         });
@@ -625,6 +663,7 @@
         const startApp = () => {
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('app-screen').classList.remove('hidden');
+            document.getElementById('sync-status-container').classList.remove('hidden');
             
             DB.listen('products', 'products', () => { 
                 if(currentView === 'products') Views.products(); 
@@ -654,6 +693,9 @@
             DB.listen('purchase_orders', 'purchase_orders', () => { 
                 if(currentView === 'purchase_orders') Views.purchase_orders(); 
                 if(currentView === 'shipments') Views.shipments(); 
+            });
+            DB.listen('transfers', 'transfers', () => { 
+                if(currentView === 'stock_transfer') Views.stock_transfer(); 
             });
             DB.listen('settings', 'settings', () => { 
                 const s = appState.settings[0];
@@ -756,7 +798,7 @@
                 
                 let stockValue = 0;
                 appState.products.forEach(p => {
-                    const totalCost = (p.baseCost || 0) + (settings.enableTransport ? (p.transportCost || 0) : 0) + (settings.enableStorage ? (p.storageCost || 0) : 0);
+                    const totalCost = (Number(p.baseCost) || 0) + (settings.enableTransport ? (Number(p.transportCost) || 0) : 0) + (settings.enableStorage ? (Number(p.storageCost) || 0) : 0);
                     stockValue += totalCost * Number(p.stock || 0);
                 });
                 
@@ -897,7 +939,7 @@
                         return `${whName}: ${qty}`;
                     }).filter(x=>x).join(' | ');
                     
-                    const totalCost = (p.baseCost || 0) + (settings.enableTransport ? (p.transportCost || 0) : 0) + (settings.enableStorage ? (p.storageCost || 0) : 0);
+                    const totalCost = (Number(p.baseCost) || 0) + (settings.enableTransport ? (Number(p.transportCost) || 0) : 0) + (settings.enableStorage ? (Number(p.storageCost) || 0) : 0);
 
                     return `
                     <tr class="hover:bg-gray-50 transition">
@@ -1763,56 +1805,98 @@
             stock_transfer: () => {
                 const container = document.getElementById('page-content');
                 
+                const historyHTML = appState.transfers.sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 10).map(t => {
+                    let sName = 'Unassigned';
+                    if(t.source !== 'unassigned') { const w = appState.warehouses.find(w=>w.id===t.source); if(w) sName = w.name; }
+                    let dName = 'Unassigned';
+                    if(t.dest !== 'unassigned') { const w = appState.warehouses.find(w=>w.id===t.dest); if(w) dName = w.name; }
+                    
+                    return `
+                        <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                            <td class="py-3 px-4 text-gray-500 text-xs">${new Date(t.date).toLocaleString()}</td>
+                            <td class="py-3 px-4 font-medium text-gray-800">${t.productName}</td>
+                            <td class="py-3 px-4 text-red-600 font-medium">${sName}</td>
+                            <td class="py-3 px-4 text-green-600 font-medium">${dName}</td>
+                            <td class="py-3 px-4 font-bold text-center">${t.qty}</td>
+                        </tr>
+                    `;
+                }).join('');
+
                 container.innerHTML = `
-                    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col mt-4 pb-4">
-                        <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl shrink-0">
-                            <div>
-                                <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-exchange-alt text-blue-500 mr-2"></i>Stock Transfer</h2>
-                                <p class="text-sm text-gray-500 mt-1">Move inventory physically between warehouses or transit locations.</p>
-                            </div>
-                        </div>
-                        <div class="p-8 space-y-6">
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Select Product *</label>
-                                <select id="pg-tr-product" class="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-lg" onchange="window.StockTransfer.onPageProductChange()">
-                                    <option value="">-- Choose Product to Transfer --</option>
-                                    ${appState.products.map(p => `<option value="${p.id}">${p.name} (SKU: ${p.sku})</option>`).join('')}
-                                </select>
-                            </div>
-                            
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
-                                <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-3 border border-gray-200 z-10 hidden md:flex items-center justify-center shadow-sm">
-                                    <i class="fas fa-arrow-right text-blue-500 text-xl"></i>
+                    <div class="max-w-4xl mx-auto flex flex-col gap-6 h-full pb-10">
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col shrink-0">
+                            <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
+                                <div>
+                                    <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-exchange-alt text-blue-500 mr-2"></i>Stock Transfer</h2>
+                                    <p class="text-sm text-gray-500 mt-1">Move inventory physically between warehouses or transit locations.</p>
                                 </div>
-                                <div class="bg-red-50 p-5 rounded-xl border border-red-100 shadow-inner">
-                                    <label class="block text-sm font-bold text-gray-700 mb-2 text-red-700"><i class="fas fa-sign-out-alt mr-1"></i> From Location *</label>
-                                    <select id="pg-tr-source" class="w-full border border-red-200 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-red-500 bg-white shadow-sm text-md" onchange="window.StockTransfer.onPageSourceChange()">
-                                        <option value="">-- Select Source --</option>
+                            </div>
+                            <div class="p-8 space-y-6">
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Select Product *</label>
+                                    <select id="pg-tr-product" class="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-lg" onchange="window.StockTransfer.onPageProductChange()">
+                                        <option value="">-- Choose Product to Transfer --</option>
+                                        ${appState.products.map(p => `<option value="${p.id}">${p.name} (SKU: ${p.sku})</option>`).join('')}
                                     </select>
-                                    <div class="mt-3 bg-white p-3 rounded border border-red-100 flex justify-between items-center shadow-sm">
-                                        <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Available to Move</span>
-                                        <span class="text-lg font-black text-red-600" id="pg-tr-source-avail">0</span>
+                                </div>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
+                                    <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-3 border border-gray-200 z-10 hidden md:flex items-center justify-center shadow-sm">
+                                        <i class="fas fa-arrow-right text-blue-500 text-xl"></i>
+                                    </div>
+                                    <div class="bg-red-50 p-5 rounded-xl border border-red-100 shadow-inner">
+                                        <label class="block text-sm font-bold text-gray-700 mb-2 text-red-700"><i class="fas fa-sign-out-alt mr-1"></i> From Location *</label>
+                                        <select id="pg-tr-source" class="w-full border border-red-200 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-red-500 bg-white shadow-sm text-md" onchange="window.StockTransfer.onPageSourceChange()">
+                                            <option value="">-- Select Source --</option>
+                                        </select>
+                                        <div class="mt-3 bg-white p-3 rounded border border-red-100 flex justify-between items-center shadow-sm">
+                                            <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Available to Move</span>
+                                            <span class="text-lg font-black text-red-600" id="pg-tr-source-avail">0</span>
+                                        </div>
+                                    </div>
+                                    <div class="bg-green-50 p-5 rounded-xl border border-green-100 shadow-inner">
+                                        <label class="block text-sm font-bold text-gray-700 mb-2 text-green-700"><i class="fas fa-sign-in-alt mr-1"></i> To Location *</label>
+                                        <select id="pg-tr-dest" class="w-full border border-green-200 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-green-500 bg-white shadow-sm text-md">
+                                            <option value="">-- Select Destination --</option>
+                                            <option value="unassigned">Unassigned / Transit</option>
+                                            ${appState.warehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('')}
+                                        </select>
                                     </div>
                                 </div>
-                                <div class="bg-green-50 p-5 rounded-xl border border-green-100 shadow-inner">
-                                    <label class="block text-sm font-bold text-gray-700 mb-2 text-green-700"><i class="fas fa-sign-in-alt mr-1"></i> To Location *</label>
-                                    <select id="pg-tr-dest" class="w-full border border-green-200 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-green-500 bg-white shadow-sm text-md">
-                                        <option value="">-- Select Destination --</option>
-                                        <option value="unassigned">Unassigned / Transit</option>
-                                        ${appState.warehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('')}
-                                    </select>
+
+                                <div class="border-t border-gray-200 pt-6 mt-2 flex flex-col items-center">
+                                    <label class="block text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider text-center">Quantity to Transfer</label>
+                                    <input type="number" id="pg-tr-qty" value="1" min="1" class="w-48 border border-gray-300 rounded-xl px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 text-3xl font-black text-center text-blue-600 shadow-inner">
+                                </div>
+
+                                <div class="mt-8 flex justify-center pt-2">
+                                    <button onclick="window.StockTransfer.executePage()" class="px-8 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold shadow-lg transition flex items-center gap-3 text-lg hover:-translate-y-1 transform">
+                                        <i class="fas fa-exchange-alt"></i> Confirm Transfer
+                                    </button>
                                 </div>
                             </div>
+                        </div>
 
-                            <div class="border-t border-gray-200 pt-6 mt-2 flex flex-col items-center">
-                                <label class="block text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider text-center">Quantity to Transfer</label>
-                                <input type="number" id="pg-tr-qty" value="1" min="1" class="w-48 border border-gray-300 rounded-xl px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 text-3xl font-black text-center text-blue-600 shadow-inner">
+                        <!-- History Section -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex-1 flex flex-col overflow-hidden">
+                            <div class="p-5 border-b border-gray-100 bg-gray-50 flex justify-between items-center shrink-0">
+                                <h3 class="font-bold text-gray-800"><i class="fas fa-history text-gray-500 mr-2"></i>Recent Transfers History</h3>
                             </div>
-
-                            <div class="mt-8 flex justify-center pt-2">
-                                <button onclick="window.StockTransfer.executePage()" class="px-8 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold shadow-lg transition flex items-center gap-3 text-lg hover:-translate-y-1 transform">
-                                    <i class="fas fa-exchange-alt"></i> Confirm Transfer
-                                </button>
+                            <div class="flex-1 overflow-auto bg-white">
+                                <table class="w-full text-left border-collapse">
+                                    <thead class="bg-white text-gray-500 text-xs uppercase sticky top-0 shadow-[0_2px_4px_rgba(0,0,0,0.02)] z-10">
+                                        <tr>
+                                            <th class="px-4 py-3 font-medium">Date & Time</th>
+                                            <th class="px-4 py-3 font-medium">Product</th>
+                                            <th class="px-4 py-3 font-medium">From Source</th>
+                                            <th class="px-4 py-3 font-medium">To Destination</th>
+                                            <th class="px-4 py-3 font-medium text-center">Qty</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="text-sm divide-y divide-gray-100">
+                                        ${historyHTML || '<tr><td colspan="5" class="py-8 text-center text-gray-400 italic">No recent transfer history.</td></tr>'}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -1883,10 +1967,17 @@
 
                         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 border-l-4 border-yellow-500">
                             <h2 class="text-xl font-bold text-gray-800 mb-2"><i class="fas fa-database mr-2 text-yellow-500"></i>Data Management & Backup</h2>
-                            <p class="text-sm text-gray-500 mb-4">Your data is End-to-End Encrypted in the cloud. Use this tool to export a fully decrypted JSON backup of your current database state directly to your local machine.</p>
-                            <button onclick="window.SettingsForm.exportData()" class="bg-gray-800 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-gray-900 transition flex items-center gap-2">
-                                <i class="fas fa-file-export"></i> Export Decrypted Data (.json)
-                            </button>
+                            <p class="text-sm text-gray-500 mb-4">Your data is End-to-End Encrypted securely in real-time. Use these tools to manually export or restore a fully decrypted JSON backup of your current database state directly to/from your local machine.</p>
+                            
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <button onclick="window.SettingsForm.exportData()" class="bg-gray-800 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-gray-900 transition flex items-center justify-center gap-2 shadow-sm">
+                                    <i class="fas fa-file-export"></i> Export Data (.json)
+                                </button>
+                                <button onclick="document.getElementById('import-file').click()" class="bg-blue-50 border border-blue-200 text-blue-700 px-6 py-2.5 rounded-lg font-semibold hover:bg-blue-100 transition flex items-center justify-center gap-2 shadow-sm">
+                                    <i class="fas fa-file-import"></i> Restore / Import Data
+                                </button>
+                                <input type="file" id="import-file" accept=".json" class="hidden" onchange="window.SettingsForm.importData(event)">
+                            </div>
                         </div>
 
                         <div class="bg-red-50 rounded-xl shadow-sm border border-red-200 p-6 mt-6">
@@ -1987,7 +2078,7 @@
                                             <span>Base Purchase Avg:</span>
                                             <div class="relative w-24">
                                                 <span class="absolute left-2 top-1 text-gray-400">${cSym}</span>
-                                                <input type="number" step="0.01" id="pf-base-cost" value="${bCost}" class="w-full pl-6 pr-2 py-1 text-right border border-blue-300 rounded outline-none focus:ring-1 focus:ring-blue-500 font-mono shadow-inner">
+                                                <input type="number" step="0.01" id="pf-base-cost" value="${bCost}" class="w-full pl-6 pr-2 py-1 text-right border border-blue-300 rounded outline-none focus:ring-1 focus:ring-blue-500 font-mono shadow-inner bg-white">
                                             </div>
                                         </div>
                                         ${settings.enableTransport ? `
@@ -2000,7 +2091,7 @@
                                             <span>Storage/Cooling:</span>
                                             <div class="relative w-24">
                                                 <span class="absolute left-2 top-1 text-gray-400">${cSym}</span>
-                                                <input type="number" step="0.01" id="pf-storage-cost" value="${sCost}" class="w-full pl-6 pr-2 py-1 text-right border border-blue-300 rounded outline-none focus:ring-1 focus:ring-blue-500 font-mono shadow-inner">
+                                                <input type="number" step="0.01" id="pf-storage-cost" value="${sCost}" class="w-full pl-6 pr-2 py-1 text-right border border-blue-300 rounded outline-none focus:ring-1 focus:ring-blue-500 font-mono shadow-inner bg-white">
                                             </div>
                                         </div>` : ''}
                                         <div class="border-t border-blue-200 mt-2 pt-2 flex justify-between items-center font-bold text-gray-800">
@@ -2008,7 +2099,7 @@
                                             <span class="font-mono text-lg">${cSym}${totalCost.toFixed(2)}</span>
                                         </div>
                                     </div>
-                                    <p class="text-[10px] text-blue-500 mt-3 italic leading-tight">Transport cost updates automatically using weighted moving average upon receiving Shipments.</p>
+                                    <p class="text-[10px] text-blue-500 mt-3 italic leading-tight">Transport cost updates automatically using weighted moving average upon receiving Shipments. You can manually tweak Initial Price/Base Cost here.</p>
                                 </div>
                                 
                                 <!-- Pricing & Tax -->
@@ -2067,7 +2158,7 @@
                         totalStock += val;
                     }
                     if(capEl) {
-                        capacities[w.id] = parseInt(capEl.value) || 0; // 0 implies unlimited technically visually, but let's store 0
+                        capacities[w.id] = parseInt(capEl.value) || 0; 
                     }
                 });
                 let unVal = parseInt(document.getElementById(`pf-wh-unassigned`).value) || 0;
@@ -2113,7 +2204,7 @@
             }
         };
 
-        // Stock Transfer Logic (Full Page Embedded & Modal versions)
+        // Stock Transfer Logic
         window.StockTransfer = {
             open: (prefillProduct = null, prefillDest = null) => {
                 showModal(`
@@ -2124,7 +2215,7 @@
                         </div>
                         <div class="space-y-5 bg-gray-50 border border-gray-100 p-5 rounded-xl">
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-1">Select Product *</label>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Select Product *</label>
                                 <select id="tr-product" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" onchange="window.StockTransfer.onProductChange()">
                                     <option value="">-- Choose Product --</option>
                                     ${appState.products.map(p => `<option value="${p.id}" ${prefillProduct === p.id ? 'selected' : ''}>${p.name} (SKU: ${p.sku})</option>`).join('')}
@@ -2217,11 +2308,18 @@
 
                 const { id, ...cleanP } = p;
                 if(await DB.save('products', cleanP, id)) {
+                    await DB.save('transfers', {
+                        date: new Date().toISOString(),
+                        productId: id,
+                        productName: p.name,
+                        source,
+                        dest,
+                        qty
+                    });
                     showToast("Stock transferred successfully!");
                     closeModal();
                 }
             },
-            // Handlers for the embedded page version
             onPageProductChange: () => {
                 const pId = document.getElementById('pg-tr-product').value;
                 const sourceSel = document.getElementById('pg-tr-source');
@@ -2276,6 +2374,14 @@
 
                 const { id, ...cleanP } = p;
                 if(await DB.save('products', cleanP, id)) {
+                    await DB.save('transfers', {
+                        date: new Date().toISOString(),
+                        productId: id,
+                        productName: p.name,
+                        source,
+                        dest,
+                        qty
+                    });
                     showToast("Stock transferred successfully!");
                     document.getElementById('pg-tr-product').value = '';
                     document.getElementById('pg-tr-source').innerHTML = '<option value="">-- Select Source --</option>';
@@ -2578,13 +2684,13 @@
                     const qty = p.allocations ? (p.allocations[whId] || 0) : 0;
                     return `
                         <tr class="border-b border-gray-100 last:border-0 hover:bg-blue-50 transition">
-                            <td class="py-3 px-4">
+                            <td class="py-2 px-1">
                                 <div class="font-semibold text-sm text-gray-800">${p.name}</div>
                                 <div class="text-[10px] text-gray-500 font-mono">${p.sku}</div>
                             </td>
-                            <td class="py-3 px-4 text-center font-bold text-gray-700 w-32">${qty}</td>
-                            <td class="py-3 px-4 text-right w-40">
-                                <input type="number" id="ms-qty-${p.id}" value="${qty}" min="0" class="w-full max-w-[100px] border border-blue-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-center font-bold text-blue-700 shadow-inner bg-white inline-block">
+                            <td class="py-2 px-1 text-center font-bold text-gray-700 w-20">${qty}</td>
+                            <td class="py-2 px-1 text-right w-24">
+                                <input type="number" id="ms-qty-${p.id}" value="${qty}" min="0" class="w-20 border border-blue-300 rounded px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-center font-bold text-blue-700 shadow-inner bg-white">
                             </td>
                         </tr>
                     `;
@@ -2600,20 +2706,18 @@
                             <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 bg-white border border-gray-200 rounded-full w-8 h-8 flex items-center justify-center shadow-sm"><i class="fas fa-times"></i></button>
                         </div>
                         <div class="flex-1 overflow-y-auto p-6 bg-gray-50/30">
-                            <div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                                <table class="w-full text-left border-collapse">
-                                    <thead class="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 z-10 shadow-sm border-b border-gray-200">
-                                        <tr>
-                                            <th class="py-3 px-4 font-semibold">Product Details</th>
-                                            <th class="w-32 py-3 px-4 text-center font-semibold">Current</th>
-                                            <th class="w-40 py-3 px-4 text-right font-semibold">New Qty</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-100">
-                                        ${productsList || '<tr><td colspan="3" class="text-center py-8 text-gray-500">No products to manage</td></tr>'}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <table class="w-full text-left">
+                                <thead class="text-xs text-gray-400 uppercase border-b border-gray-200 pb-2 mb-2 block w-full table-fixed">
+                                    <tr class="w-full flex">
+                                        <th class="w-full font-semibold px-1">Product Details</th>
+                                        <th class="w-20 text-center font-semibold px-1">Current</th>
+                                        <th class="w-24 text-right font-semibold px-1">New Qty</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="block w-full table-fixed">
+                                    ${productsList.replace(/<tr/g, '<tr class="w-full flex items-center"').replace(/<td/g, '<td class="w-full"').replace(/<td class="[^"]* w-20"/g, '<td class="w-20"').replace(/<td class="[^"]* w-24"/g, '<td class="w-24"')}
+                                </tbody>
+                            </table>
                         </div>
                         <div class="p-4 border-t border-gray-100 flex justify-end gap-3 bg-white shrink-0 rounded-b-xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                             <button onclick="closeModal()" class="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-bold transition shadow-sm">Cancel</button>
@@ -3395,6 +3499,39 @@
                         showToast("Data exported successfully!");
                     }, 0);
                 });
+            },
+            importData: (e) => {
+                const file = e.target.files[0];
+                if(!file) return;
+                
+                showConfirm("WARNING: Restoring data will overwrite corresponding data in the current account. Proceed?", () => {
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                        try {
+                            const data = JSON.parse(event.target.result);
+                            showToast("Importing data... Please wait.", "info");
+                            
+                            const collections = ['settings', 'warehouses', 'products', 'customers', 'suppliers', 'purchase_orders', 'sales', 'transfers'];
+                            
+                            for(let col of collections) {
+                                if(data[col] && Array.isArray(data[col])) {
+                                    for(let item of data[col]) {
+                                        const { id, ...cleanItem } = item;
+                                        await DB.save(col, cleanItem, id);
+                                    }
+                                }
+                            }
+                            showToast("Data restored successfully! Reloading...", "success");
+                            setTimeout(() => window.location.reload(), 1500);
+                        } catch(err) {
+                            showToast("Invalid backup file.", "error");
+                        }
+                    };
+                    reader.readAsText(file);
+                });
+                
+                // clear file input
+                e.target.value = '';
             },
             deleteEverything: () => {
                 showConfirm("Are you absolutely sure? This will permanently wipe your account and all data across the cloud.", async () => {
