@@ -1838,11 +1838,12 @@
                 `;
             },
 
-            // --- GENERAL SETTINGS ---
+            // --- SETTINGS (REDESIGNED) ---
             general_settings: () => {
                 const container = document.getElementById('page-content');
                 const s = getGlobalSettings();
                 window.SettingsForm.activeTheme = s.theme || 'system';
+                const activeTab = window.SettingsForm.activeTab || 'profile';
 
                 const themeBtn = (type, icon, label) => {
                     const isActive = window.SettingsForm.activeTheme === type;
@@ -1869,66 +1870,162 @@
                         </div>
                     </label>
                     `;
-                }
+                };
+
+                const tabBtn = (id, icon, label) => {
+                    const isActive = activeTab === id;
+                    const activeClasses = isActive ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 font-bold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-neutral-800 font-medium';
+                    return `<button id="tab-btn-${id}" onclick="window.SettingsForm.switchTab('${id}')" class="settings-tab-btn w-full text-left px-4 py-3 rounded-xl transition-colors flex items-center gap-3 ${activeClasses}"><i class="fas ${icon} w-5 text-center"></i> ${label}</button>`;
+                };
 
                 container.innerHTML = `
-                    <div class="max-w-4xl mx-auto pb-12">
-                        <div class="flex items-center gap-4 mb-8">
-                            <button onclick="navigateTo('dashboard')" class="w-10 h-10 bg-white dark:bg-[#111] border border-slate-200 dark:border-neutral-700 rounded-full flex items-center justify-center text-slate-500 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-neutral-800 transition-colors shadow-sm"><i class="fas fa-arrow-left"></i></button>
+                    <div class="max-w-[1400px] mx-auto h-[calc(100vh-130px)] flex flex-col pb-6">
+                        <div class="flex items-center gap-4 mb-6 shrink-0">
                             <h2 class="text-3xl font-extrabold text-slate-800 dark:text-white tracking-tight">Settings</h2>
-                            <div id="save-indicator" class="ml-auto flex items-center gap-2 text-sm font-bold text-emerald-500 opacity-0 transition-opacity">
+                            <div id="save-indicator" class="ml-4 flex items-center gap-2 text-sm font-bold text-emerald-500 opacity-0 transition-opacity">
                                 <i class="fas fa-check-circle"></i> Synced
                             </div>
                         </div>
                         
-                        <div class="space-y-6">
-                            <div class="bg-white dark:bg-[#111] p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800">
-                                <h3 class="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-5 flex items-center gap-2"><i class="fas fa-building text-brand-500"></i> Business Profile</h3>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Company Name *</label><input type="text" id="set-company" value="${s.companyName}" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200"></div>
-                                    <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Phone Number</label><input type="text" id="set-phone" value="${s.phone}" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200"></div>
-                                    <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Email Address</label><input type="email" id="set-email" value="${s.email}" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200"></div>
-                                    <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">GSTIN / Tax ID</label><input type="text" id="set-gst" value="${s.gst}" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-mono text-sm font-medium text-slate-800 dark:text-neutral-200"></div>
-                                    <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Company Address</label><textarea id="set-address" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200" rows="3">${s.address}</textarea></div>
-                                </div>
+                        <div class="flex flex-col md:flex-row gap-8 flex-1 min-h-0">
+                            <div class="w-full md:w-72 bg-white dark:bg-[#111] p-4 rounded-3xl border border-slate-100 dark:border-neutral-800 shadow-sm flex flex-col gap-1 shrink-0 h-fit">
+                                ${tabBtn('profile', 'fa-building', 'Business Profile')}
+                                ${tabBtn('interface', 'fa-desktop', 'Interface Options')}
+                                ${tabBtn('system', 'fa-sliders-h', 'System & Data')}
+                                ${tabBtn('about', 'fa-info-circle', 'About AMBS')}
                             </div>
 
-                            <div class="bg-white dark:bg-[#111] p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800">
-                                <h3 class="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-5 flex items-center gap-2"><i class="fas fa-desktop text-indigo-500"></i> Interface Options</h3>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
-                                    <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Currency Symbol *</label><input type="text" id="set-currency" value="${s.currency}" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200"></div>
-                                    <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Search Shortcut</label><input type="text" id="set-search-shortcut" value="${s.searchShortcut}" maxlength="1" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-mono uppercase text-center font-bold text-slate-800 dark:text-neutral-200"></div>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-3">Theme Mode</label>
-                                    <div class="flex gap-4" id="theme-buttons-container">
-                                        ${themeBtn('system', 'fa-laptop', 'System')}
-                                        ${themeBtn('light', 'fa-sun', 'Light')}
-                                        ${themeBtn('dark', 'fa-moon', 'Dark')}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="bg-white dark:bg-[#111] p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800">
-                                <h3 class="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-5 flex items-center gap-2"><i class="fas fa-sliders-h text-orange-500"></i> System Capabilities</h3>
-                                <div class="space-y-2">
-                                    ${generateCheckbox('set-transport', 'Transport Cost Calculation', s.enableTransport)}
-                                    ${generateCheckbox('set-storage', 'Storage/Cooling Cost Calculation', s.enableStorage)}
-                                    ${generateCheckbox('set-toggle-gst', 'GST / Tax Accounting', s.enableGst)}
-                                    ${generateCheckbox('set-tax-inclusive', 'Prices are Tax Inclusive <span class="text-[10px] font-medium text-slate-400 dark:text-neutral-500 block mt-0.5">Requires GST enabled.</span>', s.taxInclusive)}
+                            <div class="flex-1 bg-white dark:bg-[#111] rounded-3xl border border-slate-100 dark:border-neutral-800 shadow-sm overflow-hidden flex flex-col">
+                                <div class="flex-1 overflow-y-auto p-8 lg:p-10 hide-scroll">
                                     
-                                    <div class="bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl p-2 mt-4">
-                                        ${generateCheckbox('set-enhanced-mode', 'Enhanced Mode (Capital & Cash Management) <span class="text-xs text-indigo-700/70 dark:text-indigo-300/70 mt-1 font-medium leading-relaxed block">Activates the Capital ledger module, unlocks online/offline tender types in the POS, and maintains running balances for Bank Accounts and Cash drawers.</span>', s.enhancedMode, true)}
+                                    <div id="pane-profile" class="settings-pane ${activeTab === 'profile' ? 'block animate-modal-in' : 'hidden'} space-y-8">
+                                        <div>
+                                            <h3 class="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">Business Profile</h3>
+                                            <p class="text-sm text-slate-500 dark:text-neutral-400 font-medium">Update your company details and contact information.</p>
+                                        </div>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-2 uppercase tracking-widest">Company Name *</label><input type="text" id="set-company" value="${s.companyName}" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200"></div>
+                                            <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-2 uppercase tracking-widest">Phone Number</label><input type="text" id="set-phone" value="${s.phone}" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200"></div>
+                                            <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-2 uppercase tracking-widest">Email Address</label><input type="email" id="set-email" value="${s.email}" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200"></div>
+                                            <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-2 uppercase tracking-widest">GSTIN / Tax ID</label><input type="text" id="set-gst" value="${s.gst}" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-mono text-sm font-medium text-slate-800 dark:text-neutral-200"></div>
+                                            <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-2 uppercase tracking-widest">Company Address</label><textarea id="set-address" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200" rows="3">${s.address}</textarea></div>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
 
-                            <div class="bg-white dark:bg-[#111] p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
-                                <div>
-                                    <h3 class="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-1 flex items-center gap-2"><i class="fas fa-database text-emerald-500"></i> Export Backup</h3>
-                                    <p class="text-sm font-medium text-slate-500 dark:text-neutral-400">Download a decrypted JSON copy of all your inventory and financial data.</p>
+                                    <div id="pane-interface" class="settings-pane ${activeTab === 'interface' ? 'block animate-modal-in' : 'hidden'} space-y-8">
+                                        <div>
+                                            <h3 class="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">Interface Options</h3>
+                                            <p class="text-sm text-slate-500 dark:text-neutral-400 font-medium">Customize your workspace and application behavior.</p>
+                                        </div>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                            <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-2 uppercase tracking-widest">Currency Symbol *</label><input type="text" id="set-currency" value="${s.currency}" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200"></div>
+                                            <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-2 uppercase tracking-widest">Search Shortcut (Ctrl +)</label><input type="text" id="set-search-shortcut" value="${s.searchShortcut}" maxlength="1" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-mono uppercase text-center font-bold text-slate-800 dark:text-neutral-200"></div>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-3 uppercase tracking-widest">Theme Mode</label>
+                                            <div class="flex gap-4 max-w-lg" id="theme-buttons-container">
+                                                ${themeBtn('system', 'fa-laptop', 'System')}
+                                                ${themeBtn('light', 'fa-sun', 'Light')}
+                                                ${themeBtn('dark', 'fa-moon', 'Dark')}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="pane-system" class="settings-pane ${activeTab === 'system' ? 'block animate-modal-in' : 'hidden'} space-y-8">
+                                        <div>
+                                            <h3 class="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">System Capabilities</h3>
+                                            <p class="text-sm text-slate-500 dark:text-neutral-400 font-medium">Enable or disable advanced operational modules.</p>
+                                        </div>
+                                        <div class="space-y-3">
+                                            ${generateCheckbox('set-transport', 'Transport Cost Calculation', s.enableTransport)}
+                                            ${generateCheckbox('set-storage', 'Storage/Cooling Cost Calculation', s.enableStorage)}
+                                            ${generateCheckbox('set-toggle-gst', 'GST / Tax Accounting', s.enableGst)}
+                                            ${generateCheckbox('set-tax-inclusive', 'Prices are Tax Inclusive <span class="text-[10px] font-medium text-slate-400 dark:text-neutral-500 block mt-0.5">Requires GST enabled.</span>', s.taxInclusive)}
+                                            
+                                            <div class="bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl p-2 mt-6">
+                                                ${generateCheckbox('set-enhanced-mode', 'Enhanced Mode (Capital & Cash Management) <span class="text-xs text-indigo-700/70 dark:text-indigo-300/70 mt-1 font-medium leading-relaxed block">Activates the Capital ledger module, unlocks online/offline tender types in the POS, and maintains running balances for Bank Accounts and Cash drawers.</span>', s.enhancedMode, true)}
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="pt-8 border-t border-slate-100 dark:border-neutral-800 mt-8">
+                                            <h4 class="text-sm font-bold text-slate-800 dark:text-white mb-4"><i class="fas fa-database text-emerald-500 mr-2"></i> Data Management</h4>
+                                            <div class="bg-slate-50 dark:bg-[#0a0a0a] p-5 rounded-2xl border border-slate-200 dark:border-neutral-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
+                                                <div>
+                                                    <p class="font-bold text-slate-700 dark:text-neutral-200 text-sm">Export Local Backup</p>
+                                                    <p class="text-xs text-slate-500 dark:text-neutral-400 mt-1">Download a decrypted JSON copy of all data.</p>
+                                                </div>
+                                                <button type="button" onclick="window.SettingsForm.exportData()" class="px-5 py-2.5 bg-white dark:bg-[#111] border border-slate-200 dark:border-neutral-700 text-slate-700 dark:text-neutral-300 rounded-xl hover:bg-slate-50 dark:hover:bg-neutral-800 font-bold shadow-sm transition-all text-sm shrink-0 flex items-center gap-2 active:scale-95"><i class="fas fa-download"></i> Download Data</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="pane-about" class="settings-pane ${activeTab === 'about' ? 'block animate-modal-in' : 'hidden'} space-y-8">
+                                        <div>
+                                            <h3 class="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">About AMBS</h3>
+                                            <p class="text-sm text-slate-500 dark:text-neutral-400 font-medium">E2E Encrypted Inventory System</p>
+                                        </div>
+                                        
+                                        <div class="bg-slate-50 dark:bg-[#0a0a0a] p-6 rounded-2xl border border-slate-100 dark:border-neutral-800 flex items-center justify-between shadow-sm">
+                                            <div class="flex items-center gap-4">
+                                                <div class="w-12 h-12 bg-slate-200 dark:bg-neutral-800 rounded-xl flex items-center justify-center text-2xl text-slate-600 dark:text-neutral-400"><i class="fab fa-github"></i></div>
+                                                <div>
+                                                    <h4 class="font-bold text-slate-800 dark:text-white text-base">Source Code</h4>
+                                                    <p class="text-xs text-slate-500">View the repository on GitHub</p>
+                                                </div>
+                                            </div>
+                                            <a href="https://github.com/avm3005/AMBS" target="_blank" class="px-4 py-2 bg-white dark:bg-[#111] border border-slate-200 dark:border-neutral-700 rounded-lg text-sm font-bold text-slate-700 dark:text-neutral-300 hover:text-brand-500 transition-colors shadow-sm">Repository <i class="fas fa-external-link-alt ml-1 text-[10px]"></i></a>
+                                        </div>
+
+                                        <div>
+                                            <h4 class="text-xs font-bold text-slate-400 dark:text-neutral-500 uppercase tracking-widest mb-4">Core Developers</h4>
+                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                
+                                                <div class="bg-white dark:bg-[#111] border border-slate-200 dark:border-neutral-800 p-4 rounded-2xl flex items-center gap-4 shadow-sm hover:border-brand-300 dark:hover:border-brand-700 transition-colors">
+                                                    <img src="https://github.com/avm3005.png" class="w-12 h-12 rounded-full border border-slate-100 dark:border-neutral-800">
+                                                    <div class="flex-1 min-w-0">
+                                                        <h5 class="font-bold text-slate-800 dark:text-white truncate">Archit Mishra</h5>
+                                                        <div class="flex items-center gap-3 mt-1">
+                                                            <a href="https://github.com/avm3005" target="_blank" class="text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"><i class="fab fa-github"></i></a>
+                                                            <a href="https://avm3005.github.io/portfolio/" target="_blank" class="text-slate-400 hover:text-brand-500 transition-colors"><i class="fas fa-globe"></i></a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="bg-white dark:bg-[#111] border border-slate-200 dark:border-neutral-800 p-4 rounded-2xl flex items-center gap-4 shadow-sm hover:border-brand-300 dark:hover:border-brand-700 transition-colors">
+                                                    <img src="https://github.com/Anant247.png" class="w-12 h-12 rounded-full border border-slate-100 dark:border-neutral-800">
+                                                    <div class="flex-1 min-w-0">
+                                                        <h5 class="font-bold text-slate-800 dark:text-white truncate">Anant Koli</h5>
+                                                        <div class="flex items-center gap-3 mt-1">
+                                                            <a href="https://github.com/Anant247" target="_blank" class="text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"><i class="fab fa-github"></i></a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="bg-white dark:bg-[#111] border border-slate-200 dark:border-neutral-800 p-4 rounded-2xl flex items-center gap-4 shadow-sm hover:border-brand-300 dark:hover:border-brand-700 transition-colors">
+                                                    <img src="https://github.com/YJVariya.png" class="w-12 h-12 rounded-full border border-slate-100 dark:border-neutral-800">
+                                                    <div class="flex-1 min-w-0">
+                                                        <h5 class="font-bold text-slate-800 dark:text-white truncate">Yash Variya</h5>
+                                                        <div class="flex items-center gap-3 mt-1">
+                                                            <a href="https://github.com/YJVariya" target="_blank" class="text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"><i class="fab fa-github"></i></a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="bg-white dark:bg-[#111] border border-slate-200 dark:border-neutral-800 p-4 rounded-2xl flex items-center gap-4 shadow-sm hover:border-brand-300 dark:hover:border-brand-700 transition-colors">
+                                                    <img src="https://github.com/PreetGamit.png" class="w-12 h-12 rounded-full border border-slate-100 dark:border-neutral-800">
+                                                    <div class="flex-1 min-w-0">
+                                                        <h5 class="font-bold text-slate-800 dark:text-white truncate">Preet Gamit</h5>
+                                                        <div class="flex items-center gap-3 mt-1">
+                                                            <a href="https://github.com/PreetGamit" target="_blank" class="text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"><i class="fab fa-github"></i></a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                    </div>
+
                                 </div>
-                                <button type="button" onclick="window.SettingsForm.exportData()" class="px-6 py-3.5 bg-slate-100 dark:bg-[#0a0a0a] border border-slate-200 dark:border-neutral-700 text-slate-700 dark:text-neutral-300 rounded-xl hover:bg-slate-200 dark:hover:bg-neutral-800 font-bold shadow-sm transition-all flex items-center shrink-0 gap-2 active:scale-95"><i class="fas fa-download"></i> Download Local Backup</button>
                             </div>
                         </div>
                     </div>
@@ -3374,6 +3471,28 @@
         // Settings Logic
         window.SettingsForm = {
             activeTheme: 'system',
+            activeTab: 'profile',
+            switchTab: (tabId) => {
+                window.SettingsForm.activeTab = tabId;
+                
+                // Hide all panes
+                document.querySelectorAll('.settings-pane').forEach(p => p.classList.add('hidden'));
+                const target = document.getElementById('pane-' + tabId);
+                if(target) target.classList.remove('hidden');
+
+                // Reset all button styles
+                document.querySelectorAll('.settings-tab-btn').forEach(b => {
+                    b.classList.remove('bg-brand-50', 'dark:bg-brand-900/30', 'text-brand-600', 'dark:text-brand-400', 'font-bold');
+                    b.classList.add('text-slate-600', 'dark:text-slate-400', 'hover:bg-slate-50', 'dark:hover:bg-neutral-800', 'font-medium');
+                });
+
+                // Set active button style
+                const activeBtn = document.getElementById('tab-btn-' + tabId);
+                if(activeBtn) {
+                    activeBtn.classList.remove('text-slate-600', 'dark:text-slate-400', 'hover:bg-slate-50', 'dark:hover:bg-neutral-800', 'font-medium');
+                    activeBtn.classList.add('bg-brand-50', 'dark:bg-brand-900/30', 'text-brand-600', 'dark:text-brand-400', 'font-bold');
+                }
+            },
             setTheme: (theme) => {
                 window.SettingsForm.activeTheme = theme;
                 if (appState.settings[0]) {
