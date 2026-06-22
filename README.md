@@ -115,6 +115,8 @@ The Dashboard provides real-time business analytics and top-level metrics to gau
 
 ![Dashboard View](Resources/assets/dashboard_screenshot.png)
 
+![Dashboard View](Resources/assets/dashboard_screenshot1.png)
+
 ---
 
 ### Products Master
@@ -158,6 +160,8 @@ A high-speed Point of Sale terminal designed for rapid transaction processing wi
 * **How to use:** Use the top search bar to find products by name, SKU, or by scanning a barcode. Click a product to add it to the "Current Cart". Inside the cart, adjust quantities using the `+`/`-` buttons or direct input. Select a registered Customer to enable "Credit" payments and view their standing balance, or leave it as a Walk-in. Finalize the transaction by clicking **"Quick Save"** (logs data only) or **"Print Bill"** to generate a styled, printable HTML invoice.
 
 ![Billing POS View](Resources/assets/billing_screenshot.png)
+
+![Billing POS View](Resources/assets/billing_screenshot1.png)
 
 ---
 
