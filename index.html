@@ -39,11 +39,18 @@
                     },
                     animation: {
                         'modal-in': 'modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
                     },
                     keyframes: {
                         modalIn: {
                             '0%': { opacity: '0', transform: 'scale(0.95) translateY(10px)' },
                             '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+                        },
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
                         }
                     }
                 }
@@ -69,13 +76,24 @@
         .dark ::-webkit-scrollbar-thumb { background-color: #3f3f46; }
         .dark ::-webkit-scrollbar-thumb:hover { background-color: #52525b; }
         
-/* Hide scrollbars exclusively in modals for Chrome, Safari, Edge, and Firefox */
+        /* Hide scrollbars exclusively in modals for Chrome, Safari, Edge, and Firefox */
         #modal-container * {
             scrollbar-width: none !important; /* Firefox */
             -ms-overflow-style: none !important; /* IE/Edge */
         }
         #modal-container *::-webkit-scrollbar {
             display: none !important; /* Chrome/Safari */
+        }
+
+        /* Hide Default Browser Input Artifacts */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            display: none;
+            -webkit-appearance: none;
+        }
+        select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
         }
                 
         /* Smooth Loader */
@@ -130,7 +148,7 @@
 <body class="text-slate-800 dark:text-neutral-100 bg-[#fcfcfc] dark:bg-black overflow-hidden h-screen flex transition-colors duration-300">
 
     <!-- Toast Notifications -->
-    <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 pointer-events-none"></div>
+    <div id="toast-container" class="fixed bottom-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 
     <!-- Modals Container -->
     <div id="modal-container"></div>
@@ -143,9 +161,14 @@
             <div class="absolute top-[60%] -right-[10%] w-[40%] h-[40%] rounded-full bg-blue-500/10 dark:bg-blue-500/5 blur-[100px]"></div>
         </div>
 
-        <div class="bg-white/80 dark:bg-[#111]/80 backdrop-blur-xl p-10 rounded-[2rem] shadow-2xl shadow-slate-200/50 dark:shadow-black border border-white dark:border-neutral-800 w-full max-w-[440px] text-center relative z-10 overflow-hidden">
+        <div id="auth-main-card" class="bg-white/80 dark:bg-[#111]/80 backdrop-blur-xl p-8 md:p-10 rounded-[2rem] shadow-2xl shadow-slate-200/50 dark:shadow-black border border-white dark:border-neutral-800 w-full max-w-[440px] transition-all duration-500 text-center relative z-10 overflow-hidden">
             
-            <div id="auth-branding">
+            <div id="auth-loading" class="flex flex-col items-center justify-center py-10">
+                <div class="w-12 h-12 border-4 border-slate-200 dark:border-neutral-800 border-t-brand-500 dark:border-t-brand-500 rounded-full animate-spin mb-6"></div>
+                <p class="text-sm font-extrabold text-slate-500 dark:text-neutral-400 uppercase tracking-widest animate-pulse">Initializing Vault...</p>
+            </div>
+
+            <div id="auth-branding" class="hidden">
                 <div class="w-20 h-20 bg-gradient-to-br from-brand-100 to-brand-50 dark:from-brand-900/50 dark:to-brand-900/20 text-brand-600 dark:text-brand-400 rounded-2xl flex items-center justify-center mx-auto mb-6 text-3xl shadow-sm border border-brand-100 dark:border-brand-800">
                     <i class="fas fa-cube"></i>
                 </div>
@@ -153,9 +176,7 @@
                 <p class="text-slate-500 dark:text-neutral-400 mb-8 text-sm font-medium">Military-grade E2E encryption for your business.</p>
             </div>
             
-            <!-- Login & Signup Architecture -->
-            <div id="login-section" class="flex flex-col w-full">
-                <!-- LOGIN MODE -->
+            <div id="login-section" class="hidden flex-col w-full">
                 <div id="login-mode" class="flex flex-col w-full">
                     <div class="flex flex-col gap-3 mb-2">
                         <button id="btn-login-google" class="w-full bg-white dark:bg-[#0a0a0a] border border-slate-200 dark:border-neutral-800 hover:bg-slate-50 dark:hover:bg-neutral-900 text-slate-700 dark:text-neutral-200 font-semibold py-3.5 px-4 rounded-xl flex items-center justify-center gap-3 transition-all shadow-sm active:scale-[0.98]">
@@ -179,7 +200,6 @@
                     </button>
                 </div>
 
-                <!-- SIGNUP MODE -->
                 <div id="signup-mode" class="flex flex-col w-full hidden">
                     <div class="flex flex-col gap-3 mb-2">
                         <button id="btn-signup-google" class="w-full bg-white dark:bg-[#0a0a0a] border border-slate-200 dark:border-neutral-800 hover:bg-slate-50 dark:hover:bg-neutral-900 text-slate-700 dark:text-neutral-200 font-semibold py-3.5 px-4 rounded-xl flex items-center justify-center gap-3 transition-all shadow-sm active:scale-[0.98]">
@@ -205,7 +225,6 @@
                 <p class="text-[11px] text-slate-400 dark:text-neutral-500 mt-8 leading-relaxed font-medium">Local accounts save directly to this device's secure storage. Google accounts safely back up encrypted data to the cloud.</p>
             </div>
 
-            <!-- Initial Setup Wizard -->
             <div id="setup-section" class="hidden text-left">
                 <div class="mb-8">
                     <div class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-brand-100 dark:bg-brand-900/40 text-brand-600 dark:text-brand-400 mb-4">
@@ -215,7 +234,6 @@
                     <p class="text-sm font-medium text-brand-600 dark:text-brand-400" id="sw-subtitle">Step 1 of 6</p>
                 </div>
                 
-                <!-- Page 1: PIN -->
                 <div id="setup-step-1">
                     <label class="block text-sm font-bold text-slate-700 dark:text-neutral-200 mb-2">Create Encryption PIN</label>
                     <p class="text-xs text-slate-500 dark:text-neutral-400 mb-4">This acts as your master key. There is <span class="font-bold text-red-500">NO reset option</span>.</p>
@@ -223,7 +241,6 @@
                     <button onclick="window.SetupWizard.next(1)" class="w-full bg-brand-600 text-white font-semibold py-3.5 px-4 rounded-xl hover:bg-brand-700 transition shadow-md shadow-brand-500/30 active:scale-[0.98]">Next Step</button>
                 </div>
                 
-                <!-- Page 2: Import -->
                 <div id="setup-step-2" class="hidden">
                     <label class="block text-sm font-bold text-slate-700 dark:text-neutral-200 mb-2">Restore from Backup?</label>
                     <p class="text-xs text-slate-500 dark:text-neutral-400 mb-4">Upload a previously exported JSON backup to skip setup.</p>
@@ -236,7 +253,6 @@
                     </div>
                 </div>
 
-                <!-- Page 3: Toggles -->
                 <div id="setup-step-3" class="hidden">
                     <label class="block text-sm font-bold text-slate-700 dark:text-neutral-200 mb-4">Enable Features</label>
                     <div class="space-y-3 mb-6 bg-slate-50 dark:bg-[#0a0a0a] p-4 rounded-xl border border-slate-100 dark:border-neutral-800">
@@ -252,7 +268,6 @@
                     </div>
                 </div>
 
-                <!-- Page 4: Company -->
                 <div id="setup-step-4" class="hidden">
                     <label class="block text-sm font-bold text-slate-700 dark:text-neutral-200 mb-2">Company Details</label>
                     <input type="text" id="sw-company" placeholder="Company Name *" required class="w-full px-4 py-3 border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl mb-6 transition-all">
@@ -262,7 +277,6 @@
                     </div>
                 </div>
 
-                <!-- Page 5: Balances (Enhanced Only) -->
                 <div id="setup-step-5" class="hidden">
                     <label class="block text-sm font-bold text-slate-700 dark:text-neutral-200 mb-2">Initial Capital Balances</label>
                     <p class="text-xs text-slate-500 dark:text-neutral-400 mb-4">Set starting balances for Bank and Cash.</p>
@@ -282,7 +296,6 @@
                     </div>
                 </div>
 
-                <!-- Page 6: Localization -->
                 <div id="setup-step-6" class="hidden">
                     <label class="block text-sm font-bold text-slate-700 dark:text-neutral-200 mb-4">Localization & Shortcuts</label>
                     <div class="space-y-4 mb-8 bg-slate-50 dark:bg-[#0a0a0a] p-4 rounded-xl border border-slate-100 dark:border-neutral-800">
@@ -308,23 +321,36 @@
                 </div>
             </div>
 
-            <!-- PIN Verification -->
-            <div id="pin-section" class="hidden">
-                <div class="w-20 h-20 bg-slate-100 dark:bg-neutral-800 text-slate-600 dark:text-neutral-300 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl shadow-inner border border-white dark:border-neutral-700">
-                    <i class="fas fa-lock"></i>
+            <div id="pin-section" class="hidden flex-col md:flex-row gap-8 md:gap-12 text-left">
+                <div class="w-full md:w-1/2 flex flex-col md:border-r border-slate-200 dark:border-neutral-800 md:pr-8">
+                    <h3 class="text-xs font-extrabold text-slate-500 dark:text-neutral-500 uppercase tracking-widest mb-4">Saved Profiles</h3>
+                    <div id="saved-accounts-list" class="space-y-3 flex-1 overflow-y-auto max-h-[300px] hide-scroll pr-1"></div>
+                    
+                    <div class="mt-6 pt-4 border-t border-slate-100 dark:border-neutral-800">
+                        <button onclick="window.AuthUI.showLogin()" class="w-full px-4 py-3 bg-slate-50 dark:bg-[#0a0a0a] border border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-700 dark:text-neutral-300 rounded-xl font-bold transition-all flex items-center justify-center gap-2 text-sm shadow-sm active:scale-95">
+                            <i class="fas fa-plus"></i> Add New Profile
+                        </button>
+                    </div>
                 </div>
-                <h2 id="pin-company-heading" class="text-2xl font-bold mb-1 text-slate-900 dark:text-white tracking-tight">Welcome Back</h2>
-                <p class="text-sm font-medium mb-8 text-slate-500 dark:text-neutral-400">Vault locked. Enter your PIN.</p>
-                
-                <input type="password" id="e2e-pin" placeholder="••••••••" class="w-full px-4 py-3.5 border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl text-center text-3xl tracking-[0.5em] focus:bg-white dark:focus:bg-[#111] transition-all mb-6" autocomplete="new-password">
-                
-                <button id="btn-unlock" class="w-full bg-brand-600 text-white font-semibold py-3.5 px-4 rounded-xl hover:bg-brand-700 transition flex justify-center items-center mb-6 shadow-md shadow-brand-500/20 active:scale-[0.98]">
-                    <span id="btn-unlock-text">Unlock Vault</span>
-                    <div id="btn-unlock-spinner" class="spinner-white hidden"></div>
-                </button>
-                <button id="btn-switch-account" class="text-xs text-slate-400 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300 transition w-full text-center font-bold uppercase tracking-wider">Switch Account</button>
-                <div class="bg-red-50 dark:bg-red-950/30 p-3 rounded-lg mt-6 border border-red-100 dark:border-red-900/50">
-                    <p class="text-[10px] text-red-600 dark:text-red-400 text-left font-semibold leading-tight"><i class="fas fa-shield-alt mr-1"></i>Security: 5 incorrect attempts will permanently wipe your local encrypted data.</p>
+
+                <div class="w-full md:w-1/2 flex flex-col justify-center">
+                    <div class="w-16 h-16 bg-slate-100 dark:bg-neutral-800 text-slate-600 dark:text-neutral-300 rounded-full flex items-center justify-center mx-auto md:mx-0 mb-4 text-xl shadow-inner border border-white dark:border-neutral-700">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <h2 id="pin-company-heading" class="text-3xl font-extrabold mb-1 text-slate-900 dark:text-white tracking-tight text-center md:text-left">Welcome Back</h2>
+                    <p id="pin-active-email" class="text-sm font-bold text-brand-500 mb-8 text-center md:text-left truncate max-w-full"></p>
+                    
+                    <input type="password" id="e2e-pin" placeholder="••••••••" class="w-full px-4 py-3.5 border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl text-center md:text-left text-3xl tracking-[0.5em] focus:bg-white dark:focus:bg-[#111] transition-all mb-6 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500" autocomplete="new-password">
+                    
+                    <button id="btn-unlock" class="w-full bg-brand-600 text-white font-extrabold py-3.5 px-4 rounded-xl hover:bg-brand-700 transition flex justify-center items-center mb-6 shadow-md shadow-brand-500/20 active:scale-[0.98]">
+                        <span id="btn-unlock-text">Unlock Vault</span>
+                        <div id="btn-unlock-spinner" class="spinner-white hidden"></div>
+                    </button>
+                    
+                    <div class="bg-red-50 dark:bg-red-950/30 p-3 rounded-xl border border-red-100 dark:border-red-900/50 flex gap-3 items-start">
+                        <i class="fas fa-shield-alt text-red-500 mt-0.5 text-xs"></i>
+                        <p class="text-[10px] text-red-700 dark:text-red-400 font-bold leading-relaxed">Security Protocol: 5 incorrect attempts will permanently wipe your local encrypted data.</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -564,6 +590,14 @@
         const wipeAccountAndData = async (userObj) => {
             if (!userObj) return;
             try {
+                // Clear from Local Profile Cache
+                let accounts = JSON.parse(localStorage.getItem('ambs_accounts') || '[]');
+                accounts = accounts.filter(a => a.uid !== userObj.uid);
+                localStorage.setItem('ambs_accounts', JSON.stringify(accounts));
+                localStorage.removeItem('hasLocalAccount');
+                localStorage.removeItem('companyName');
+
+                // Erase Database
                 const collections = ['products', 'sales', 'customers', 'suppliers', 'warehouses', 'purchase_orders', 'settings', 'transfers', 'capital_history', '_security'];
                 for (const col of collections) {
                     const colRef = collection(db, 'artifacts', appId, 'users', userObj.uid, col);
@@ -572,10 +606,14 @@
                     snap.forEach(d => promises.push(deleteDoc(d.ref)));
                     await Promise.all(promises);
                 }
+                
+                // Erase Firebase Identity
                 await deleteUser(userObj);
-                localStorage.removeItem('hasLocalAccount');
-                localStorage.removeItem('companyName');
-            } catch(e) { console.error("Wipe incomplete.", e); }
+            } catch(e) { 
+                console.error("Wipe incomplete.", e); 
+                // Failsafe sign out if deleteUser is blocked by Firebase restrictions
+                await signOut(auth);
+            }
         };
 
         // Bell Icon Logic
@@ -688,6 +726,13 @@
             },
             showCompanyInfo: () => {
                 const s = getGlobalSettings();
+                
+                // Fetch Auth Info
+                const isLocal = currentUser && currentUser.isAnonymous;
+                const loginType = isLocal ? 'Local Storage' : 'Google Cloud';
+                const userEmail = (!isLocal && currentUser && currentUser.email) ? currentUser.email : 'No account email linked';
+                const authIcon = isLocal ? 'fa-hard-drive text-slate-500 dark:text-neutral-400' : 'fab fa-google text-brand-500 dark:text-brand-400';
+
                 showModal(`
                     <div class="p-8 md:p-12 text-center max-w-2xl mx-auto w-full relative flex flex-col items-center">
                         <button onclick="closeModal()" class="absolute top-6 right-6 w-8 h-8 bg-slate-100 dark:bg-neutral-800 text-slate-500 dark:text-neutral-400 rounded-full hover:bg-slate-200 dark:hover:bg-neutral-700 transition-colors flex items-center justify-center"><i class="fas fa-times text-sm"></i></button>
@@ -696,8 +741,21 @@
                             ${s.companyName ? s.companyName[0].toUpperCase() : 'C'}
                         </div>
                         <h2 class="text-3xl font-extrabold text-slate-800 dark:text-white mb-2 tracking-tight">${s.companyName || 'My Company'}</h2>
-                        <p class="text-base font-medium text-slate-500 dark:text-neutral-400 mb-8">${s.email || 'No email configured'}</p>
+                        <p class="text-base font-medium text-slate-500 dark:text-neutral-400 mb-8">${s.email || 'No company email configured'}</p>
                         
+                        <div class="bg-slate-50 dark:bg-neutral-900/50 p-4 rounded-xl border border-slate-200 dark:border-neutral-800 w-full mb-6 flex items-center justify-between text-left shadow-sm">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-white dark:bg-[#111] border border-slate-200 dark:border-neutral-700 flex items-center justify-center text-lg shadow-sm">
+                                    <i class="${authIcon}"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-neutral-500 mb-0.5">Active Session</p>
+                                    <p class="text-sm font-bold text-slate-800 dark:text-neutral-200">${loginType}</p>
+                                </div>
+                            </div>
+                            ${!isLocal ? `<div class="text-right"><p class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-neutral-500 mb-0.5">Account Email</p><p class="text-sm font-bold text-slate-800 dark:text-neutral-200">${userEmail}</p></div>` : ''}
+                        </div>
+
                         <div class="text-left bg-slate-50/80 dark:bg-[#111] p-6 w-full rounded-2xl border border-slate-100 dark:border-neutral-800 space-y-5 text-base shadow-sm mb-8">
                             <div class="flex items-center"><span class="text-slate-400 dark:text-neutral-500 font-semibold w-28 flex-shrink-0 flex items-center gap-2"><i class="fas fa-phone w-4 text-center"></i> Phone</span> <span class="text-slate-800 dark:text-neutral-200 font-medium flex-1">${s.phone || 'N/A'}</span></div>
                             <div class="flex items-center"><span class="text-slate-400 dark:text-neutral-500 font-semibold w-28 flex-shrink-0 flex items-center gap-2"><i class="fas fa-file-invoice w-4 text-center"></i> GSTIN</span> <span class="text-slate-800 dark:text-neutral-200 font-mono font-medium flex-1">${s.gst || 'N/A'}</span></div>
@@ -899,6 +957,13 @@
         };
 
         window.AuthUI = {
+            showLogin: () => {
+                document.getElementById('auth-main-card').classList.replace('max-w-4xl', 'max-w-[440px]');
+                document.getElementById('pin-section').classList.add('hidden');
+                document.getElementById('pin-section').classList.remove('flex');
+                document.getElementById('auth-branding').classList.remove('hidden');
+                document.getElementById('login-section').classList.remove('hidden');
+            },
             setMode: (mode) => {
                 const loginMode = document.getElementById('login-mode');
                 const signupMode = document.getElementById('signup-mode');
@@ -1000,14 +1065,7 @@
             showToast("Vault Locked", "info");
         };
 
-        document.getElementById('btn-switch-account').onclick = () => {
-            showConfirm("Are you sure? Switching accounts locks this vault.", async () => {
-                if (auth.currentUser && auth.currentUser.isAnonymous) {
-                    localStorage.removeItem('hasLocalAccount'); localStorage.removeItem('companyName');
-                }
-                await signOut(auth); window.location.reload();
-            });
-        };
+        // Switch account logic migrated to AccountManager
 
         document.getElementById('btn-cancel-setup').onclick = () => {
             showConfirm("Cancel setup and sign out?", async () => {
@@ -1018,36 +1076,117 @@
             });
         };
 
+        window.AccountManager = {
+            getAccounts: () => JSON.parse(localStorage.getItem('ambs_accounts') || '[]'),
+            saveAccount: (user, companyName) => {
+                let accounts = window.AccountManager.getAccounts();
+                const isLocal = user.isAnonymous;
+                const email = isLocal ? 'Local Storage Device' : user.email;
+                const name = isLocal ? 'Local Machine' : (user.displayName || 'Google Account');
+                const avatar = isLocal ? '<i class="fas fa-hard-drive"></i>' : (user.photoURL ? `<img src="${user.photoURL}" class="w-full h-full object-cover">` : '<i class="fab fa-google text-xs"></i>');
+                
+                accounts = accounts.filter(a => a.uid !== user.uid && (!isLocal || a.provider !== 'anonymous'));
+                
+                accounts.unshift({
+                    uid: user.uid, provider: isLocal ? 'anonymous' : 'google',
+                    email: email, name: name, avatar: avatar,
+                    companyName: companyName || localStorage.getItem('companyName') || 'My Company'
+                });
+                localStorage.setItem('ambs_accounts', JSON.stringify(accounts));
+            },
+            renderAccounts: () => {
+                const list = document.getElementById('saved-accounts-list');
+                const accounts = window.AccountManager.getAccounts();
+                if(accounts.length === 0) {
+                    list.innerHTML = `<p class="text-xs text-slate-500 font-medium">No other profiles detected.</p>`;
+                    return;
+                }
+                
+                list.innerHTML = accounts.map(a => {
+                    const isActive = currentUser && currentUser.uid === a.uid;
+                    return `
+                    <div onclick="window.AccountManager.switchAccount('${a.uid}', '${a.provider}')" class="flex items-center gap-3 p-3 rounded-xl border ${isActive ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20' : 'border-slate-200 dark:border-neutral-700 bg-white dark:bg-[#111] hover:border-brand-300 cursor-pointer'} transition-all group relative">
+                        <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-slate-600 dark:text-neutral-400 overflow-hidden shrink-0 border border-slate-200 dark:border-neutral-700">
+                            ${a.avatar}
+                        </div>
+                        <div class="flex flex-col flex-1 min-w-0 pr-6">
+                            <span class="font-extrabold text-sm text-slate-800 dark:text-neutral-200 truncate ${isActive?'text-brand-700 dark:text-brand-400':''}">${a.companyName}</span>
+                            <span class="text-[10px] font-bold text-slate-500 dark:text-neutral-400 truncate">${a.email}</span>
+                        </div>
+                        ${isActive ? '<i class="fas fa-check-circle text-brand-500 absolute right-4"></i>' : '<i class="fas fa-chevron-right text-slate-300 dark:text-neutral-600 text-xs opacity-0 group-hover:opacity-100 transition-opacity absolute right-4"></i>'}
+                    </div>
+                    `;
+                }).join('');
+            },
+            switchAccount: async (uid, provider) => {
+                if(currentUser && currentUser.uid === uid) return;
+                
+                document.getElementById('auth-loading').classList.remove('hidden');
+                document.getElementById('pin-section').classList.add('hidden');
+                document.getElementById('pin-section').classList.remove('flex');
+                document.getElementById('auth-main-card').classList.replace('max-w-4xl', 'max-w-[440px]');
+                
+                await signOut(auth);
+                
+                if (provider === 'anonymous') {
+                    try { await signInAnonymously(auth); } catch(e) { showToast("Local login failed", "error"); }
+                } else {
+                    try { await signInWithPopup(auth, provider); } catch(e) { showToast("Google login aborted", "error"); }
+                }
+            }
+        };
+
         const checkVaultSetupStatus = async (user) => {
             try {
                 const verifDoc = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, '_security', 'pin_verify'));
+                
+                // Ensure the login UI is hidden when transitioning to the PIN/Setup phase
                 document.getElementById('auth-branding').classList.add('hidden');
+                document.getElementById('login-section').classList.add('hidden'); 
+                
+                const cName = localStorage.getItem('companyName') || 'My Company';
+                window.AccountManager.saveAccount(user, cName);
+
                 if (verifDoc.exists()) {
+                    document.getElementById('auth-main-card').classList.replace('max-w-[440px]', 'max-w-4xl');
                     document.getElementById('pin-section').classList.remove('hidden');
+                    document.getElementById('pin-section').classList.add('flex');
                     document.getElementById('setup-section').classList.add('hidden');
-                    const cName = localStorage.getItem('companyName');
-                    document.getElementById('pin-company-heading').innerText = cName ? cName : "Welcome Back";
+                    
+                    document.getElementById('pin-company-heading').innerText = cName;
+                    document.getElementById('pin-active-email').innerText = user.isAnonymous ? 'Local Storage Device' : user.email;
+                    
+                    window.AccountManager.renderAccounts();
                 } else {
+                    document.getElementById('auth-main-card').classList.replace('max-w-4xl', 'max-w-[440px]');
                     document.getElementById('pin-section').classList.add('hidden');
+                    document.getElementById('pin-section').classList.remove('flex');
                     document.getElementById('setup-section').classList.remove('hidden');
                     window.SetupWizard.step = 1;
                     for(let i=1; i<=6; i++) document.getElementById(`setup-step-${i}`).classList.add('hidden');
                     document.getElementById(`setup-step-1`).classList.remove('hidden');
                     document.getElementById('sw-subtitle').innerText = `Step 1 of 6`;
                 }
-            } catch(e) { document.getElementById('pin-section').classList.remove('hidden'); }
+            } catch(e) { 
+                document.getElementById('auth-main-card').classList.replace('max-w-[440px]', 'max-w-4xl');
+                document.getElementById('pin-section').classList.remove('hidden'); 
+                document.getElementById('pin-section').classList.add('flex');
+            }
         };
 
         onAuthStateChanged(auth, (user) => {
+            document.getElementById('auth-loading').classList.add('hidden');
             if (user) {
                 currentUser = user;
                 document.getElementById('login-section').classList.add('hidden');
                 checkVaultSetupStatus(user);
             } else {
                 currentUser = null;
+                document.getElementById('auth-main-card').classList.replace('max-w-4xl', 'max-w-[440px]');
                 document.getElementById('auth-branding').classList.remove('hidden'); 
                 document.getElementById('login-section').classList.remove('hidden');
                 document.getElementById('pin-section').classList.add('hidden');
+                document.getElementById('pin-section').classList.remove('flex');
                 document.getElementById('setup-section').classList.add('hidden');
                 document.getElementById('auth-screen').classList.remove('hidden');
                 document.getElementById('app-screen').classList.add('hidden');
@@ -1055,9 +1194,23 @@
             }
         });
 
+        // Allow pressing Enter to submit the PIN
+        document.getElementById('e2e-pin').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('btn-unlock').click();
+            }
+        });
+
         document.getElementById('btn-unlock').onclick = async () => {
-            const pin = document.getElementById('e2e-pin').value;
-            if(!pin || pin.length < 4) return showToast("PIN must be at least 4 chars", "error");
+            const pinInput = document.getElementById('e2e-pin');
+            const pin = pinInput.value;
+            
+            if(!pin || pin.length < 4) {
+                pinInput.classList.add('animate-shake', 'border-red-500', 'text-red-500', 'focus:border-red-500', 'focus:ring-red-500/20');
+                setTimeout(() => pinInput.classList.remove('animate-shake', 'border-red-500', 'text-red-500', 'focus:border-red-500', 'focus:ring-red-500/20'), 500);
+                return showToast("PIN must be at least 4 chars", "error");
+            }
             
             const btnText = document.getElementById('btn-unlock-text');
             const spinner = document.getElementById('btn-unlock-spinner');
@@ -1070,9 +1223,10 @@
                     if (!isValid || isValid.check !== 'valid') {
                         failedPinAttempts++;
                         if (failedPinAttempts >= 5) {
-                            showToast("Self-destruct initiated.", "error");
+                            showToast("Security breach. Self-destruct initiated.", "error");
                             await wipeAccountAndData(currentUser);
-                            window.location.reload(); return;
+                            setTimeout(() => { window.location.reload(); }, 1500);
+                            return;
                         }
                         throw new Error(`Incorrect PIN. ${5 - failedPinAttempts} attempts remaining.`);
                     }
@@ -1081,9 +1235,16 @@
                 startApp();
             } catch (e) {
                 showToast(e.message, "error");
-                document.getElementById('e2e-pin').value = '';
+                pinInput.value = '';
+                // Trigger shake and red border flash
+                pinInput.classList.add('animate-shake', 'border-red-500', 'text-red-500', 'focus:border-red-500', 'focus:ring-red-500/20');
+                setTimeout(() => {
+                    pinInput.classList.remove('animate-shake', 'border-red-500', 'text-red-500', 'focus:border-red-500', 'focus:ring-red-500/20');
+                }, 500);
             } finally {
-                btnText.classList.remove('hidden'); spinner.classList.add('hidden');
+                if (failedPinAttempts < 5) {
+                    btnText.classList.remove('hidden'); spinner.classList.add('hidden');
+                }
             }
         };
 
@@ -1242,13 +1403,13 @@
                 }
             });
 
-            if (viewId === 'general_settings') document.getElementById('page-title').innerText = 'System Settings';
+            if (viewId === 'general_settings') document.getElementById('page-title').innerText = 'Settings';
 
             if (Views[viewId]) Views[viewId](); else Views.placeholder(viewId);
         };
         window.navigateTo = navigateTo; 
 
-const buildSidebar = () => {
+        const buildSidebar = () => {
             const enhanced = getGlobalSettings().enhancedMode;
             const menu = [
                 { group: 'Overview', items: [
@@ -1631,99 +1792,94 @@ const buildSidebar = () => {
             general_settings: () => {
                 const container = document.getElementById('page-content');
                 const s = getGlobalSettings();
+                window.SettingsForm.activeTheme = s.theme || 'system';
+
+                const themeBtn = (type, icon, label) => {
+                    const isActive = window.SettingsForm.activeTheme === type;
+                    const activeClasses = isActive ? 'bg-brand-50 border-brand-500 text-brand-700 dark:bg-brand-900/30 dark:border-brand-500 dark:text-brand-400' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-[#0a0a0a] dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800';
+                    return `<button type="button" onclick="window.SettingsForm.setTheme('${type}')" class="flex-1 flex flex-col items-center justify-center gap-2 py-4 rounded-xl border-2 transition-all ${activeClasses}">
+                        <i class="fas ${icon} text-lg mb-1"></i>
+                        <span class="text-xs font-bold uppercase tracking-wider">${label}</span>
+                    </button>`;
+                };
+
+                const generateCheckbox = (id, labelHtml, checked, isEnhanced = false) => {
+                    const borderColor = isEnhanced ? 'border-indigo-300 dark:border-indigo-700' : 'border-slate-300 dark:border-neutral-600';
+                    const checkedBg = isEnhanced ? 'checked:bg-indigo-600 checked:border-indigo-600' : 'checked:bg-brand-500 checked:border-brand-500';
+                    const textClasses = isEnhanced ? 'text-indigo-900 dark:text-indigo-400 font-extrabold text-sm' : 'text-slate-700 dark:text-neutral-200 font-bold text-sm group-hover:text-slate-900 dark:group-hover:text-white transition-colors';
+                    
+                    return `
+                    <label class="flex items-start gap-4 p-4 hover:bg-slate-50 dark:hover:bg-neutral-900/50 rounded-2xl cursor-pointer transition-colors border border-transparent hover:border-slate-100 dark:hover:border-neutral-800 group">
+                        <div class="relative flex items-center justify-center mt-0.5 shrink-0">
+                            <input type="checkbox" id="${id}" ${checked ? 'checked' : ''} onchange="window.SettingsForm.autoSave()" class="peer appearance-none w-6 h-6 border-2 ${borderColor} rounded-lg ${checkedBg} transition-all cursor-pointer bg-white dark:bg-[#111]">
+                            <i class="fas fa-check absolute text-white text-xs opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity"></i>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="${textClasses}">${labelHtml}</span>
+                        </div>
+                    </label>
+                    `;
+                }
+
                 container.innerHTML = `
                     <div class="max-w-4xl mx-auto pb-12">
                         <div class="flex items-center gap-4 mb-8">
                             <button onclick="navigateTo('dashboard')" class="w-10 h-10 bg-white dark:bg-[#111] border border-slate-200 dark:border-neutral-700 rounded-full flex items-center justify-center text-slate-500 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-neutral-800 transition-colors shadow-sm"><i class="fas fa-arrow-left"></i></button>
-                            <h2 class="text-3xl font-extrabold text-slate-800 dark:text-white tracking-tight">System Settings</h2>
+                            <h2 class="text-3xl font-extrabold text-slate-800 dark:text-white tracking-tight">Settings</h2>
+                            <div id="save-indicator" class="ml-auto flex items-center gap-2 text-sm font-bold text-emerald-500 opacity-0 transition-opacity">
+                                <i class="fas fa-check-circle"></i> Synced
+                            </div>
                         </div>
                         
-                        <div class="bg-white dark:bg-[#111] p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800">
-                            <form id="settings-form" onsubmit="window.SettingsForm.save(event, '${appState.settings[0] ? appState.settings[0].id : ''}')" class="space-y-8">
-                                
-                                <!-- Core -->
-                                <div>
-                                    <h3 class="text-sm font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wider mb-5">Business Profile</h3>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                        <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Company Name *</label><input type="text" id="set-company" value="${s.companyName}" required class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200"></div>
-                                        <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Currency Symbol *</label><input type="text" id="set-currency" value="${s.currency}" required class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200"></div>
-                                        <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Phone Number</label><input type="text" id="set-phone" value="${s.phone}" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200"></div>
-                                        <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Email Address</label><input type="email" id="set-email" value="${s.email}" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200"></div>
-                                        <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">GSTIN / Tax ID</label><input type="text" id="set-gst" value="${s.gst}" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-mono text-sm font-medium text-slate-800 dark:text-neutral-200"></div>
-                                        <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Search Shortcut</label><input type="text" id="set-search-shortcut" value="${s.searchShortcut}" maxlength="1" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-mono uppercase text-center font-bold text-slate-800 dark:text-neutral-200"></div>
-                                    </div>
-                                    <div class="mt-5"><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Company Address</label><textarea id="set-address" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200" rows="3">${s.address}</textarea></div>
+                        <div class="space-y-6">
+                            <div class="bg-white dark:bg-[#111] p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800">
+                                <h3 class="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-5 flex items-center gap-2"><i class="fas fa-building text-brand-500"></i> Business Profile</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Company Name *</label><input type="text" id="set-company" value="${s.companyName}" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200"></div>
+                                    <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Phone Number</label><input type="text" id="set-phone" value="${s.phone}" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200"></div>
+                                    <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Email Address</label><input type="email" id="set-email" value="${s.email}" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200"></div>
+                                    <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">GSTIN / Tax ID</label><input type="text" id="set-gst" value="${s.gst}" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-mono text-sm font-medium text-slate-800 dark:text-neutral-200"></div>
+                                    <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Company Address</label><textarea id="set-address" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200" rows="3">${s.address}</textarea></div>
                                 </div>
-                                
-                                <div class="h-px bg-slate-100 dark:bg-neutral-800 w-full"></div>
+                            </div>
 
+                            <div class="bg-white dark:bg-[#111] p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800">
+                                <h3 class="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-5 flex items-center gap-2"><i class="fas fa-desktop text-indigo-500"></i> Interface Options</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+                                    <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Currency Symbol *</label><input type="text" id="set-currency" value="${s.currency}" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200"></div>
+                                    <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Search Shortcut</label><input type="text" id="set-search-shortcut" value="${s.searchShortcut}" maxlength="1" onchange="window.SettingsForm.autoSave()" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-mono uppercase text-center font-bold text-slate-800 dark:text-neutral-200"></div>
+                                </div>
                                 <div>
-                                    <h3 class="text-sm font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wider mb-5">Interface Options</h3>
-                                    <div>
-                                        <label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-1.5">Display Mode</label>
-                                        <select id="set-theme" class="w-full border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-[#0a0a0a] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800 dark:text-neutral-200">
-                                            <option value="system" ${s.theme === 'system' || !s.theme ? 'selected' : ''}>System Default</option>
-                                            <option value="light" ${s.theme === 'light' ? 'selected' : ''}>Light Mode</option>
-                                            <option value="dark" ${s.theme === 'dark' ? 'selected' : ''}>Dark Mode</option>
-                                        </select>
+                                    <label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 mb-3">Theme Mode</label>
+                                    <div class="flex gap-4" id="theme-buttons-container">
+                                        ${themeBtn('system', 'fa-laptop', 'System')}
+                                        ${themeBtn('light', 'fa-sun', 'Light')}
+                                        ${themeBtn('dark', 'fa-moon', 'Dark')}
                                     </div>
                                 </div>
+                            </div>
 
-                                <div class="h-px bg-slate-100 dark:bg-neutral-800 w-full"></div>
-
-                                <!-- Toggles -->
-                                <div>
-                                    <h3 class="text-sm font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wider mb-5">System Capabilities</h3>
-                                    <div class="space-y-1">
-                                        <label class="flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-neutral-900/50 rounded-2xl cursor-pointer transition-colors border border-transparent hover:border-slate-100 dark:hover:border-neutral-800 group">
-                                            <div class="relative flex items-center justify-center">
-                                                <input type="checkbox" id="set-transport" ${s.enableTransport ? 'checked' : ''} class="peer appearance-none w-6 h-6 border-2 border-slate-300 dark:border-neutral-600 rounded-lg checked:bg-brand-500 checked:border-brand-500 transition-all cursor-pointer">
-                                                <i class="fas fa-check absolute text-white text-xs opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity"></i>
-                                            </div>
-                                            <span class="text-sm font-bold text-slate-700 dark:text-neutral-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">Transport Cost Calculation</span>
-                                        </label>
-                                        <label class="flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-neutral-900/50 rounded-2xl cursor-pointer transition-colors border border-transparent hover:border-slate-100 dark:hover:border-neutral-800 group">
-                                            <div class="relative flex items-center justify-center">
-                                                <input type="checkbox" id="set-storage" ${s.enableStorage ? 'checked' : ''} class="peer appearance-none w-6 h-6 border-2 border-slate-300 dark:border-neutral-600 rounded-lg checked:bg-brand-500 checked:border-brand-500 transition-all cursor-pointer">
-                                                <i class="fas fa-check absolute text-white text-xs opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity"></i>
-                                            </div>
-                                            <span class="text-sm font-bold text-slate-700 dark:text-neutral-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">Storage/Cooling Cost Calculation</span>
-                                        </label>
-                                        <label class="flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-neutral-900/50 rounded-2xl cursor-pointer transition-colors border border-transparent hover:border-slate-100 dark:hover:border-neutral-800 group">
-                                            <div class="relative flex items-center justify-center">
-                                                <input type="checkbox" id="set-toggle-gst" ${s.enableGst ? 'checked' : ''} class="peer appearance-none w-6 h-6 border-2 border-slate-300 dark:border-neutral-600 rounded-lg checked:bg-brand-500 checked:border-brand-500 transition-all cursor-pointer">
-                                                <i class="fas fa-check absolute text-white text-xs opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity"></i>
-                                            </div>
-                                            <span class="text-sm font-bold text-slate-700 dark:text-neutral-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">GST / Tax Accounting</span>
-                                        </label>
-                                        <label class="flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-neutral-900/50 rounded-2xl cursor-pointer transition-colors border border-transparent hover:border-slate-100 dark:hover:border-neutral-800 group">
-                                            <div class="relative flex items-center justify-center">
-                                                <input type="checkbox" id="set-tax-inclusive" ${s.taxInclusive ? 'checked' : ''} class="peer appearance-none w-6 h-6 border-2 border-slate-300 dark:border-neutral-600 rounded-lg checked:bg-brand-500 checked:border-brand-500 transition-all cursor-pointer">
-                                                <i class="fas fa-check absolute text-white text-xs opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity"></i>
-                                            </div>
-                                            <span class="text-sm font-bold text-slate-700 dark:text-neutral-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">Prices are Tax Inclusive <span class="text-[10px] font-medium text-slate-400 dark:text-neutral-500 block mt-0.5">Requires GST enabled.</span></span>
-                                        </label>
-                                        
-                                        <div class="bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl p-2 mt-4">
-                                            <label class="flex items-start gap-4 p-4 cursor-pointer group">
-                                                <div class="relative flex items-center justify-center mt-0.5">
-                                                    <input type="checkbox" id="set-enhanced-mode" ${s.enhancedMode ? 'checked' : ''} class="peer appearance-none w-6 h-6 border-2 border-indigo-300 dark:border-indigo-700 rounded-lg checked:bg-indigo-600 checked:border-indigo-600 transition-all cursor-pointer bg-white dark:bg-[#111]">
-                                                    <i class="fas fa-check absolute text-white text-xs opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity"></i>
-                                                </div>
-                                                <div class="flex flex-col">
-                                                    <span class="text-sm font-extrabold text-indigo-900 dark:text-indigo-400">Enhanced Mode (Capital & Cash Management)</span>
-                                                    <span class="text-xs text-indigo-700/70 dark:text-indigo-300/70 mt-1 font-medium leading-relaxed">Activates the Capital ledger module, unlocks online/offline tender types in the POS, and maintains running balances for Bank Accounts and Cash drawers.</span>
-                                                </div>
-                                            </label>
-                                        </div>
+                            <div class="bg-white dark:bg-[#111] p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800">
+                                <h3 class="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-5 flex items-center gap-2"><i class="fas fa-sliders-h text-orange-500"></i> System Capabilities</h3>
+                                <div class="space-y-2">
+                                    ${generateCheckbox('set-transport', 'Transport Cost Calculation', s.enableTransport)}
+                                    ${generateCheckbox('set-storage', 'Storage/Cooling Cost Calculation', s.enableStorage)}
+                                    ${generateCheckbox('set-toggle-gst', 'GST / Tax Accounting', s.enableGst)}
+                                    ${generateCheckbox('set-tax-inclusive', 'Prices are Tax Inclusive <span class="text-[10px] font-medium text-slate-400 dark:text-neutral-500 block mt-0.5">Requires GST enabled.</span>', s.taxInclusive)}
+                                    
+                                    <div class="bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl p-2 mt-4">
+                                        ${generateCheckbox('set-enhanced-mode', 'Enhanced Mode (Capital & Cash Management) <span class="text-xs text-indigo-700/70 dark:text-indigo-300/70 mt-1 font-medium leading-relaxed block">Activates the Capital ledger module, unlocks online/offline tender types in the POS, and maintains running balances for Bank Accounts and Cash drawers.</span>', s.enhancedMode, true)}
                                     </div>
                                 </div>
+                            </div>
 
-                                <div class="flex flex-col sm:flex-row justify-between items-center pt-8 border-t border-slate-100 dark:border-neutral-800 gap-4">
-                                    <button type="button" onclick="window.SettingsForm.exportData()" class="w-full sm:w-auto px-6 py-3.5 bg-white dark:bg-[#0a0a0a] border border-slate-200 dark:border-neutral-700 text-slate-700 dark:text-neutral-300 rounded-xl hover:bg-slate-50 dark:hover:bg-[#111] font-bold shadow-sm transition-all flex items-center justify-center gap-2"><i class="fas fa-download"></i> Download Local Backup</button>
-                                    <button type="submit" class="w-full sm:w-auto px-8 py-3.5 bg-slate-900 dark:bg-white text-white dark:text-black rounded-xl hover:bg-slate-800 dark:hover:bg-neutral-200 font-bold shadow-md shadow-slate-900/10 dark:shadow-white/5 transition-all active:scale-[0.98] flex items-center justify-center gap-2">Save Configuration</button>
+                            <div class="bg-white dark:bg-[#111] p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
+                                <div>
+                                    <h3 class="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-1 flex items-center gap-2"><i class="fas fa-database text-emerald-500"></i> Export Backup</h3>
+                                    <p class="text-sm font-medium text-slate-500 dark:text-neutral-400">Download a decrypted JSON copy of all your inventory and financial data.</p>
                                 </div>
-                            </form>
+                                <button type="button" onclick="window.SettingsForm.exportData()" class="px-6 py-3.5 bg-slate-100 dark:bg-[#0a0a0a] border border-slate-200 dark:border-neutral-700 text-slate-700 dark:text-neutral-300 rounded-xl hover:bg-slate-200 dark:hover:bg-neutral-800 font-bold shadow-sm transition-all flex items-center shrink-0 gap-2 active:scale-95"><i class="fas fa-download"></i> Download Local Backup</button>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -2618,61 +2774,78 @@ const buildSidebar = () => {
             stock_transfer: () => {
                 const container = document.getElementById('page-content');
                 container.innerHTML = `
-                    <div class="bg-white dark:bg-[#111] rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800 p-8 max-w-2xl mx-auto mt-6 overflow-hidden relative">
-                        <div class="absolute top-0 right-0 w-64 h-64 bg-brand-50 dark:bg-brand-900/20 rounded-full blur-[80px] pointer-events-none"></div>
-                        
-                        <h2 class="text-3xl font-extrabold text-slate-800 dark:text-white mb-8 tracking-tight relative z-10"><i class="fas fa-exchange-alt text-brand-500 mr-3"></i>Relocate Stock</h2>
-                        
-                        <div class="space-y-6 relative z-10">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 dark:text-neutral-400 uppercase tracking-widest mb-2">Subject Product</label>
-                                <select id="pg-tr-product" class="w-full border border-slate-200 dark:border-neutral-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 shadow-sm bg-white dark:bg-[#0a0a0a] font-bold text-slate-700 dark:text-neutral-200 transition-all" onchange="window.StockTransfer.onPageProductChange()">
-                                    <option value="">-- Choose Product --</option>
-                                    ${appState.products.map(p => `<option value="${p.id}">${p.name} (SKU: ${p.sku})</option>`).join('')}
-                                </select>
+                    <div class="flex flex-col lg:flex-row gap-6 h-[calc(100vh-130px)] max-w-[1800px] mx-auto">
+                        <!-- Left Panel: Logistics Config -->
+                        <div class="flex-1 bg-white dark:bg-[#111] rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800 flex flex-col overflow-hidden">
+                            <div class="p-6 md:p-8 border-b border-slate-100 dark:border-neutral-800 bg-white dark:bg-[#111] shrink-0">
+                                <h2 class="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight"><i class="fas fa-exchange-alt text-brand-500 mr-3"></i>Stock Routing</h2>
+                                <p class="text-sm text-slate-500 dark:text-neutral-400 mt-1 font-medium">Select the item and define the physical movement path.</p>
                             </div>
                             
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 relative bg-slate-50 dark:bg-[#0a0a0a] p-6 rounded-2xl border border-slate-100 dark:border-neutral-800 shadow-inner mt-6">
-                                <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-brand-500 text-white rounded-full w-10 h-10 border-4 border-white dark:border-[#111] z-10 hidden md:flex items-center justify-center shadow-md">
-                                    <i class="fas fa-truck"></i>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-500 dark:text-neutral-400 uppercase tracking-widest mb-2">Origin</label>
-                                    <select id="pg-tr-source" class="w-full border border-slate-200 dark:border-neutral-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-white dark:bg-[#111] shadow-sm font-semibold transition-all dark:text-neutral-200" onchange="window.StockTransfer.onPageSourceChange()">
-                                        <option value="">-- Source --</option>
-                                    </select>
-                                    <p class="text-[10px] text-slate-400 dark:text-neutral-500 mt-2 font-bold uppercase tracking-widest">Available to move: <span id="pg-tr-source-avail" class="text-brand-600 dark:text-brand-400 font-black text-sm">0</span></p>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-500 dark:text-neutral-400 uppercase tracking-widest mb-2">Destination</label>
-                                    <select id="pg-tr-dest" class="w-full border border-slate-200 dark:border-neutral-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-white dark:bg-[#111] shadow-sm font-semibold transition-all dark:text-neutral-200">
-                                        <option value="">-- Destination --</option>
-                                        <option value="unassigned">Unassigned / Transit</option>
-                                        ${appState.warehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('')}
+                            <div class="flex-1 p-6 md:p-8 overflow-y-auto bg-slate-50/50 dark:bg-[#0a0a0a]/50 space-y-8 hide-scroll">
+                                <!-- Product Selection -->
+                                <div class="bg-white dark:bg-[#111] p-6 md:p-8 rounded-3xl border border-slate-200 dark:border-neutral-800 shadow-sm">
+                                    <label class="block text-xs font-bold text-slate-500 dark:text-neutral-400 uppercase tracking-widest mb-3">Subject Product *</label>
+                                    <select id="pg-tr-product" class="w-full border border-slate-200 dark:border-neutral-700 rounded-xl px-4 py-4 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 shadow-sm bg-slate-50 dark:bg-[#0a0a0a] font-bold text-slate-700 dark:text-neutral-200 transition-all text-base" onchange="window.StockTransfer.onPageProductChange()">
+                                        <option value="">-- Choose Product --</option>
+                                        ${appState.products.map(p => `<option value="${p.id}">${p.name} (SKU: ${p.sku})</option>`).join('')}
                                     </select>
                                 </div>
-                            </div>
-                            
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-500 dark:text-neutral-400 uppercase tracking-widest mb-2">Transfer Quantity</label>
-                                    <div class="relative">
-                                        <i class="fas fa-boxes absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                                        <input type="number" id="pg-tr-qty" value="1" min="1" class="w-full pl-10 border border-slate-200 dark:border-neutral-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-lg font-black text-slate-800 dark:text-white shadow-inner bg-slate-50 dark:bg-[#0a0a0a] transition-all">
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-500 dark:text-neutral-400 uppercase tracking-widest mb-2">Transport Cost (${appState.settings[0]?.currency || '₹'})</label>
-                                    <div class="relative">
-                                        <i class="fas fa-truck-loading absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                                        <input type="number" id="pg-tr-transport-cost" value="0" min="0" step="0.01" class="w-full pl-10 border border-slate-200 dark:border-neutral-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-lg font-black text-slate-800 dark:text-white shadow-inner bg-slate-50 dark:bg-[#0a0a0a] transition-all">
-                                    </div>
-                                </div>
-                            </div>
 
-                            <div class="mt-8 flex justify-end gap-3 pt-6 border-t border-slate-100 dark:border-neutral-800">
-                                <button onclick="window.StockTransfer.executePage()" class="w-full sm:w-auto px-8 py-3.5 bg-slate-900 dark:bg-white text-white dark:text-black rounded-xl hover:bg-slate-800 dark:hover:bg-neutral-200 font-bold shadow-md shadow-slate-900/10 dark:shadow-white/10 transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
-                                    <i class="fas fa-truck-moving"></i> Dispatch Transfer
+                                <!-- Routing -->
+                                <div class="relative bg-white dark:bg-[#111] p-6 md:p-8 rounded-3xl border border-slate-200 dark:border-neutral-800 shadow-sm flex flex-col md:flex-row gap-8 items-center justify-between">
+                                    
+                                    <div class="w-full md:w-1/2 relative z-0">
+                                        <label class="block text-xs font-bold text-amber-600 dark:text-amber-500 uppercase tracking-widest mb-3"><i class="fas fa-box-open mr-1"></i> Origin Warehouse</label>
+                                        <select id="pg-tr-source" class="w-full border border-amber-200 dark:border-amber-900/50 rounded-xl px-4 py-4 outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-amber-50/30 dark:bg-amber-900/10 shadow-sm font-bold transition-all dark:text-neutral-200 text-base" onchange="window.StockTransfer.onPageSourceChange()">
+                                            <option value="">-- Source --</option>
+                                        </select>
+                                        <div class="mt-4 bg-slate-50 dark:bg-[#0a0a0a] p-4 rounded-xl border border-slate-100 dark:border-neutral-800">
+                                            <p class="text-xs text-slate-500 dark:text-neutral-400 font-bold uppercase tracking-widest flex justify-between items-center">Available: <span id="pg-tr-source-avail" class="text-amber-600 dark:text-amber-400 font-black text-xl">0</span></p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="w-full md:w-1/2 relative z-0">
+                                        <label class="block text-xs font-bold text-emerald-600 dark:text-emerald-500 uppercase tracking-widest mb-3"><i class="fas fa-map-marker-alt mr-1"></i> Destination Hub</label>
+                                        <select id="pg-tr-dest" class="w-full border border-emerald-200 dark:border-emerald-900/50 rounded-xl px-4 py-4 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-emerald-50/30 dark:bg-emerald-900/10 shadow-sm font-bold transition-all dark:text-neutral-200 text-base">
+                                            <option value="">-- Destination --</option>
+                                            <option value="unassigned">Unassigned / Transit</option>
+                                            ${appState.warehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Panel: Transfer Values & Actions -->
+                        <div class="w-full lg:w-[420px] xl:w-[480px] bg-white dark:bg-[#111] rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800 flex flex-col flex-shrink-0 relative overflow-hidden">
+                            <div class="p-6 md:p-8 border-b border-slate-100 dark:border-neutral-800 bg-white dark:bg-[#111] shrink-0">
+                                <h3 class="font-extrabold text-xl text-slate-800 dark:text-white tracking-tight">Transfer Details</h3>
+                                <p class="text-sm text-slate-500 dark:text-neutral-400 mt-1 font-medium">Specify unit volume and transit costs.</p>
+                            </div>
+                            
+                            <div class="flex-1 p-6 md:p-8 space-y-8 bg-white dark:bg-[#111] overflow-y-auto">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 dark:text-neutral-400 uppercase tracking-widest mb-3">Transfer Quantity</label>
+                                    <div class="relative">
+                                        <i class="fas fa-boxes absolute left-5 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-neutral-500 text-xl"></i>
+                                        <input type="number" id="pg-tr-qty" value="1" min="1" class="w-full pl-14 border border-slate-200 dark:border-neutral-700 rounded-2xl px-4 py-4 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-3xl font-black text-slate-800 dark:text-white shadow-inner bg-slate-50 dark:bg-[#0a0a0a] transition-all">
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 dark:text-neutral-400 uppercase tracking-widest mb-3">Transport Cost (${appState.settings[0]?.currency || '₹'})</label>
+                                    <div class="relative">
+                                        <i class="fas fa-truck-loading absolute left-5 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-neutral-500 text-xl"></i>
+                                        <input type="number" id="pg-tr-transport-cost" value="0" min="0" step="0.01" class="w-full pl-14 border border-slate-200 dark:border-neutral-700 rounded-2xl px-4 py-4 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-3xl font-black text-slate-800 dark:text-white shadow-inner bg-slate-50 dark:bg-[#0a0a0a] transition-all">
+                                    </div>
+                                    <p class="text-[10px] text-slate-400 dark:text-neutral-500 mt-4 font-bold uppercase tracking-wider leading-relaxed">This cost will be logged and proportionately attached to the inventory ledger upon receipt.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="p-6 md:p-8 border-t border-slate-100 dark:border-neutral-800 bg-slate-50 dark:bg-[#0a0a0a] shrink-0">
+                                <button onclick="window.StockTransfer.executePage()" class="w-full px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-black rounded-xl hover:bg-slate-800 dark:hover:bg-neutral-200 font-extrabold text-lg shadow-md shadow-slate-900/20 dark:shadow-white/10 transition-all flex items-center justify-center gap-3 active:scale-[0.98]">
+                                    <i class="fas fa-paper-plane"></i> Dispatch Transfer
                                 </button>
                             </div>
                         </div>
@@ -3150,14 +3323,21 @@ const buildSidebar = () => {
 
         // Settings Logic
         window.SettingsForm = {
-            save: async (e, id) => {
-                e.preventDefault();
-                const settings = getGlobalSettings();
-                const themeVal = document.getElementById('set-theme').value;
+            activeTheme: 'system',
+            setTheme: (theme) => {
+                window.SettingsForm.activeTheme = theme;
+                if (appState.settings[0]) {
+                    appState.settings[0].theme = theme; // Protect theme state during sync cycle
+                }
+                window.SettingsForm.autoSave();
+                Views.general_settings(); // Refresh immediately to show active state
+            },
+            autoSave: async () => {
+                const s = appState.settings[0] || {};
                 
                 const data = {
-                    companyName: document.getElementById('set-company').value,
-                    currency: document.getElementById('set-currency').value,
+                    companyName: document.getElementById('set-company').value || 'My Company',
+                    currency: document.getElementById('set-currency').value || '₹',
                     gst: document.getElementById('set-gst').value,
                     phone: document.getElementById('set-phone').value,
                     email: document.getElementById('set-email').value,
@@ -3168,17 +3348,26 @@ const buildSidebar = () => {
                     taxInclusive: document.getElementById('set-tax-inclusive')?.checked || false,
                     enhancedMode: document.getElementById('set-enhanced-mode')?.checked || false,
                     searchShortcut: (document.getElementById('set-search-shortcut')?.value || 'm').toLowerCase(),
-                    bankBalance: appState.settings[0]?.bankBalance || 0,
-                    cashBalance: appState.settings[0]?.cashBalance || 0,
-                    theme: themeVal
+                    bankBalance: s.bankBalance || 0,
+                    cashBalance: s.cashBalance || 0,
+                    theme: window.SettingsForm.activeTheme
                 };
-                if (await DB.save('settings', data, id ? id : null)) {
+
+                if (await DB.save('settings', data, s.id || null)) {
                     localStorage.setItem('companyName', data.companyName);
                     localStorage.setItem('appTheme', data.theme);
                     initTheme(); // instantly apply theme
+                    
                     const btn = document.getElementById('user-avatar-btn');
                     if(btn) btn.innerHTML = `<div class="w-6 h-6 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center text-[10px]"><i class="fas fa-building"></i></div><span class="font-bold tracking-tight">${data.companyName}</span>`;
-                    showToast("System settings updated successfully!");
+                    
+                    // Briefly flash the "Synced" text indicator in the header
+                    const indicator = document.getElementById('save-indicator');
+                    if(indicator) {
+                        indicator.classList.remove('opacity-0');
+                        clearTimeout(window.SettingsForm.syncTimeout);
+                        window.SettingsForm.syncTimeout = setTimeout(() => { indicator.classList.add('opacity-0'); }, 2000);
+                    }
                 }
             },
             applySettings: () => {
