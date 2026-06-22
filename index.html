@@ -923,6 +923,7 @@
                         theme: 'system'
                     });
                     localStorage.setItem('companyName', comp); 
+                    if (currentUser) window.AccountManager.saveAccount(currentUser, comp);
                     startApp();
                 } catch (e) { showToast("Setup failed: " + e.message, "error"); }
             },
@@ -1073,7 +1074,11 @@
                 document.getElementById('login-section').classList.add('hidden');
                 document.getElementById('auth-loading').classList.remove('hidden');
                 
-                if (auth.currentUser) await signOut(auth);
+                if (auth.currentUser) {
+                    await signOut(auth);
+                    // Add a tiny delay to allow Firebase to purge the active token
+                    await new Promise(resolve => setTimeout(resolve, 500)); 
+                }
 
                 // Generate a pseudo-anonymous persistent account
                 const email = `local_${Date.now()}_${Math.floor(Math.random()*1000)}@local.ambs`;
@@ -1084,7 +1089,7 @@
                 localStorage.setItem('hasLocalAccount', 'true'); 
                 window.AuthUI.updateButtonStates(); 
             } catch(e) { 
-                showToast("Local Account creation failed.", "error");
+                showToast("Local Account creation failed: " + e.message, "error");
                 document.getElementById('auth-loading').classList.add('hidden');
                 document.getElementById('login-section').classList.remove('hidden');
             } finally {
@@ -1139,10 +1144,15 @@
                 
                 accounts = accounts.filter(a => a.uid !== user.uid && (!isLocal || a.provider !== 'local'));
                 
+                let resolvedName = companyName;
+                if (!resolvedName || resolvedName === 'My Company') {
+                    resolvedName = localStorage.getItem('companyName') || 'My Company';
+                }
+
                 accounts.unshift({
                     uid: user.uid, provider: provider,
                     email: email, name: name, avatar: avatar,
-                    companyName: companyName || localStorage.getItem('companyName') || 'My Company'
+                    companyName: resolvedName
                 });
                 localStorage.setItem('ambs_accounts', JSON.stringify(accounts));
             },
@@ -1208,7 +1218,11 @@
                 
                 let accounts = window.AccountManager.getAccounts();
                 let matchedAcc = accounts.find(a => a.uid === user.uid);
-                const cName = (matchedAcc && matchedAcc.companyName) ? matchedAcc.companyName : (localStorage.getItem('companyName') || 'My Company');
+                
+                // Smart fallback for company name
+                let cName = (matchedAcc && matchedAcc.companyName && matchedAcc.companyName !== 'My Company') 
+                            ? matchedAcc.companyName 
+                            : (localStorage.getItem('companyName') || 'My Company');
                 
                 window.AccountManager.saveAccount(user, cName);
 
@@ -1218,7 +1232,7 @@
                     document.getElementById('pin-section').classList.add('flex');
                     document.getElementById('setup-section').classList.add('hidden');
                     
-                    document.getElementById('pin-company-heading').innerText = cName;
+                    document.getElementById('pin-company-heading').innerText = (cName === 'My Company') ? 'Welcome Back' : cName;
                     const isLocal = user.isAnonymous || (user.email && user.email.endsWith('@local.ambs'));
                     document.getElementById('pin-active-email').innerText = isLocal ? 'Local Storage Device' : user.email;
                     
