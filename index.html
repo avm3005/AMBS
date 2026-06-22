@@ -1140,7 +1140,7 @@
                 const email = isLocal ? 'Local Storage Device' : user.email;
                 const name = isLocal ? 'Local Machine' : (user.displayName || 'Google Account');
                 const avatar = isLocal ? '<i class="fas fa-hard-drive"></i>' : (user.photoURL ? `<img src="${user.photoURL}" class="w-full h-full object-cover">` : '<i class="fab fa-google text-xs"></i>');
-                const provider = isLocal ? 'local' : 'google';
+                const providerType = isLocal ? 'local' : 'google';
                 
                 accounts = accounts.filter(a => a.uid !== user.uid && (!isLocal || a.provider !== 'local'));
                 
@@ -1150,7 +1150,7 @@
                 }
 
                 accounts.unshift({
-                    uid: user.uid, provider: provider,
+                    uid: user.uid, provider: providerType,
                     email: email, name: name, avatar: avatar,
                     companyName: resolvedName
                 });
@@ -1180,7 +1180,7 @@
                     `;
                 }).join('');
             },
-            switchAccount: async (uid, provider) => {
+            switchAccount: async (uid, authProviderType) => {
                 // If clicking an account profile that is not the active Firebase user instance, perform background handoff
                 if (!currentUser || currentUser.uid !== uid) {
                     document.getElementById('auth-loading').classList.remove('hidden');
@@ -1191,7 +1191,7 @@
                     window.isAuthenticating = true;
                     try {
                         await signOut(auth);
-                        if (provider === 'local') {
+                        if (authProviderType === 'local') {
                             const creds = JSON.parse(localStorage.getItem('ambs_local_creds'));
                             if (creds) {
                                 await signInWithEmailAndPassword(auth, creds.email, creds.pass);
@@ -1200,12 +1200,13 @@
                             }
                         } else {
                             // Request popup only if changing tokens completely
+                            // Utilizes the global 'provider' constant configured for Google Auth
                             await signInWithPopup(auth, provider);
                         }
                     } catch(e) {
                         showToast("Account switch failed: " + e.message, "error");
                         window.isAuthenticating = false;
-                        window.location.reload(); // Hard recovery to main profile pool
+                        setTimeout(() => window.location.reload(), 1500); // Allow toast to be read before refresh
                         return;
                     } finally {
                         window.isAuthenticating = false;
