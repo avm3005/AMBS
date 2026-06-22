@@ -436,7 +436,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, deleteUser } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, deleteUser, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
@@ -1027,18 +1027,54 @@
         // 5. AUTHENTICATION & PIN FLOW
         // ==========================================
         const handleGoogleAuth = async () => {
-            try { await signInWithPopup(auth, provider); } 
-            catch(e) { showToast("Login failed.", "error"); }
+            try {
+                document.getElementById('login-section').classList.add('hidden');
+                document.getElementById('auth-loading').classList.remove('hidden');
+                await signInWithPopup(auth, provider); 
+            } catch(e) { 
+                showToast("Login failed.", "error");
+                document.getElementById('auth-loading').classList.add('hidden');
+                document.getElementById('login-section').classList.remove('hidden');
+            }
         };
         
         const handleLocalLogin = async () => {
-            if (auth.currentUser && auth.currentUser.isAnonymous) checkVaultSetupStatus(auth.currentUser);
-            else { showToast("No active local account.", "error"); localStorage.removeItem('hasLocalAccount'); window.AuthUI.updateButtonStates(); }
+            const creds = JSON.parse(localStorage.getItem('ambs_local_creds'));
+            if (creds) {
+                try {
+                    document.getElementById('login-section').classList.add('hidden');
+                    document.getElementById('auth-loading').classList.remove('hidden');
+                    await signInWithEmailAndPassword(auth, creds.email, creds.pass);
+                } catch(e) {
+                    showToast("Failed to restore local account.", "error");
+                    document.getElementById('auth-loading').classList.add('hidden');
+                    document.getElementById('login-section').classList.remove('hidden');
+                }
+            } else { 
+                showToast("No active local account.", "error"); 
+                localStorage.removeItem('hasLocalAccount'); 
+                window.AuthUI.updateButtonStates(); 
+            }
         };
 
         const handleLocalSignup = async () => {
-            try { await signInAnonymously(auth); localStorage.setItem('hasLocalAccount', 'true'); window.AuthUI.updateButtonStates(); } 
-            catch(e) { showToast("Local Account creation failed.", "error"); }
+            try {
+                document.getElementById('login-section').classList.add('hidden');
+                document.getElementById('auth-loading').classList.remove('hidden');
+                
+                // Generate a pseudo-anonymous persistent account
+                const email = `local_${Date.now()}_${Math.floor(Math.random()*1000)}@local.ambs`;
+                const pass = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12);
+                await createUserWithEmailAndPassword(auth, email, pass);
+                
+                localStorage.setItem('ambs_local_creds', JSON.stringify({ email, pass }));
+                localStorage.setItem('hasLocalAccount', 'true'); 
+                window.AuthUI.updateButtonStates(); 
+            } catch(e) { 
+                showToast("Local Account creation failed.", "error");
+                document.getElementById('auth-loading').classList.add('hidden');
+                document.getElementById('login-section').classList.remove('hidden');
+            }
         };
 
         const initAuth = async () => {
@@ -1080,15 +1116,16 @@
             getAccounts: () => JSON.parse(localStorage.getItem('ambs_accounts') || '[]'),
             saveAccount: (user, companyName) => {
                 let accounts = window.AccountManager.getAccounts();
-                const isLocal = user.isAnonymous;
+                const isLocal = user.isAnonymous || (user.email && user.email.endsWith('@local.ambs'));
                 const email = isLocal ? 'Local Storage Device' : user.email;
                 const name = isLocal ? 'Local Machine' : (user.displayName || 'Google Account');
                 const avatar = isLocal ? '<i class="fas fa-hard-drive"></i>' : (user.photoURL ? `<img src="${user.photoURL}" class="w-full h-full object-cover">` : '<i class="fab fa-google text-xs"></i>');
+                const provider = isLocal ? 'local' : 'google';
                 
-                accounts = accounts.filter(a => a.uid !== user.uid && (!isLocal || a.provider !== 'anonymous'));
+                accounts = accounts.filter(a => a.uid !== user.uid && (!isLocal || a.provider !== 'local'));
                 
                 accounts.unshift({
-                    uid: user.uid, provider: isLocal ? 'anonymous' : 'google',
+                    uid: user.uid, provider: provider,
                     email: email, name: name, avatar: avatar,
                     companyName: companyName || localStorage.getItem('companyName') || 'My Company'
                 });
@@ -1128,10 +1165,19 @@
                 
                 await signOut(auth);
                 
-                if (provider === 'anonymous') {
-                    try { await signInAnonymously(auth); } catch(e) { showToast("Local login failed", "error"); }
+                if (provider === 'local' || provider === 'anonymous') {
+                    const creds = JSON.parse(localStorage.getItem('ambs_local_creds'));
+                    if (creds) {
+                        try { await signInWithEmailAndPassword(auth, creds.email, creds.pass); } 
+                        catch(e) { showToast("Local login failed", "error"); document.getElementById('auth-loading').classList.add('hidden'); }
+                    } else {
+                        showToast("Local credentials lost. Create a new local account.", "error");
+                        document.getElementById('auth-loading').classList.add('hidden');
+                        window.AuthUI.showLogin();
+                    }
                 } else {
-                    try { await signInWithPopup(auth, provider); } catch(e) { showToast("Google login aborted", "error"); }
+                    try { await signInWithPopup(auth, provider); } 
+                    catch(e) { showToast("Google login aborted", "error"); document.getElementById('auth-loading').classList.add('hidden'); }
                 }
             }
         };
@@ -1140,7 +1186,8 @@
             try {
                 const verifDoc = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, '_security', 'pin_verify'));
                 
-                // Ensure the login UI is hidden when transitioning to the PIN/Setup phase
+                // Hide loader only AFTER the Firestore check is complete to prevent flashing
+                document.getElementById('auth-loading').classList.add('hidden');
                 document.getElementById('auth-branding').classList.add('hidden');
                 document.getElementById('login-section').classList.add('hidden'); 
                 
@@ -1154,7 +1201,8 @@
                     document.getElementById('setup-section').classList.add('hidden');
                     
                     document.getElementById('pin-company-heading').innerText = cName;
-                    document.getElementById('pin-active-email').innerText = user.isAnonymous ? 'Local Storage Device' : user.email;
+                    const isLocal = user.isAnonymous || (user.email && user.email.endsWith('@local.ambs'));
+                    document.getElementById('pin-active-email').innerText = isLocal ? 'Local Storage Device' : user.email;
                     
                     window.AccountManager.renderAccounts();
                 } else {
@@ -1168,6 +1216,7 @@
                     document.getElementById('sw-subtitle').innerText = `Step 1 of 6`;
                 }
             } catch(e) { 
+                document.getElementById('auth-loading').classList.add('hidden');
                 document.getElementById('auth-main-card').classList.replace('max-w-[440px]', 'max-w-4xl');
                 document.getElementById('pin-section').classList.remove('hidden'); 
                 document.getElementById('pin-section').classList.add('flex');
@@ -1175,13 +1224,14 @@
         };
 
         onAuthStateChanged(auth, (user) => {
-            document.getElementById('auth-loading').classList.add('hidden');
             if (user) {
                 currentUser = user;
+                // Leave loader ON until checkVaultSetupStatus finishes
                 document.getElementById('login-section').classList.add('hidden');
                 checkVaultSetupStatus(user);
             } else {
                 currentUser = null;
+                document.getElementById('auth-loading').classList.add('hidden');
                 document.getElementById('auth-main-card').classList.replace('max-w-4xl', 'max-w-[440px]');
                 document.getElementById('auth-branding').classList.remove('hidden'); 
                 document.getElementById('login-section').classList.remove('hidden');
