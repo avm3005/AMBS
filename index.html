@@ -1026,15 +1026,21 @@
         // ==========================================
         // 5. AUTHENTICATION & PIN FLOW
         // ==========================================
+        window.isAuthenticating = false;
+
         const handleGoogleAuth = async () => {
             try {
+                window.isAuthenticating = true;
                 document.getElementById('login-section').classList.add('hidden');
                 document.getElementById('auth-loading').classList.remove('hidden');
+                if (auth.currentUser) await signOut(auth);
                 await signInWithPopup(auth, provider); 
             } catch(e) { 
                 showToast("Login failed.", "error");
                 document.getElementById('auth-loading').classList.add('hidden');
                 document.getElementById('login-section').classList.remove('hidden');
+            } finally {
+                window.isAuthenticating = false;
             }
         };
         
@@ -1042,13 +1048,17 @@
             const creds = JSON.parse(localStorage.getItem('ambs_local_creds'));
             if (creds) {
                 try {
+                    window.isAuthenticating = true;
                     document.getElementById('login-section').classList.add('hidden');
                     document.getElementById('auth-loading').classList.remove('hidden');
+                    if (auth.currentUser) await signOut(auth);
                     await signInWithEmailAndPassword(auth, creds.email, creds.pass);
                 } catch(e) {
                     showToast("Failed to restore local account.", "error");
                     document.getElementById('auth-loading').classList.add('hidden');
                     document.getElementById('login-section').classList.remove('hidden');
+                } finally {
+                    window.isAuthenticating = false;
                 }
             } else { 
                 showToast("No active local account.", "error"); 
@@ -1059,9 +1069,12 @@
 
         const handleLocalSignup = async () => {
             try {
+                window.isAuthenticating = true;
                 document.getElementById('login-section').classList.add('hidden');
                 document.getElementById('auth-loading').classList.remove('hidden');
                 
+                if (auth.currentUser) await signOut(auth);
+
                 // Generate a pseudo-anonymous persistent account
                 const email = `local_${Date.now()}_${Math.floor(Math.random()*1000)}@local.ambs`;
                 const pass = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12);
@@ -1074,6 +1087,8 @@
                 showToast("Local Account creation failed.", "error");
                 document.getElementById('auth-loading').classList.add('hidden');
                 document.getElementById('login-section').classList.remove('hidden');
+            } finally {
+                window.isAuthenticating = false;
             }
         };
 
@@ -1191,7 +1206,10 @@
                 document.getElementById('auth-branding').classList.add('hidden');
                 document.getElementById('login-section').classList.add('hidden'); 
                 
-                const cName = localStorage.getItem('companyName') || 'My Company';
+                let accounts = window.AccountManager.getAccounts();
+                let matchedAcc = accounts.find(a => a.uid === user.uid);
+                const cName = (matchedAcc && matchedAcc.companyName) ? matchedAcc.companyName : (localStorage.getItem('companyName') || 'My Company');
+                
                 window.AccountManager.saveAccount(user, cName);
 
                 if (verifDoc.exists()) {
@@ -1230,6 +1248,7 @@
                 document.getElementById('login-section').classList.add('hidden');
                 checkVaultSetupStatus(user);
             } else {
+                if (window.isAuthenticating) return; // Ignore signouts triggered during account creation/switching
                 currentUser = null;
                 document.getElementById('auth-loading').classList.add('hidden');
                 document.getElementById('auth-main-card').classList.replace('max-w-4xl', 'max-w-[440px]');
@@ -1418,6 +1437,16 @@
                     localStorage.setItem('companyName', s.companyName); 
                     const btn = document.getElementById('user-avatar-btn');
                     if(btn) btn.innerHTML = `<div class="w-6 h-6 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center text-[10px]"><i class="fas fa-building"></i></div><span class="font-bold tracking-tight">${s.companyName}</span>`;
+                    
+                    if (currentUser) {
+                        let accounts = window.AccountManager.getAccounts();
+                        let updated = false;
+                        accounts = accounts.map(a => {
+                            if (a.uid === currentUser.uid) { a.companyName = s.companyName; updated = true; }
+                            return a;
+                        });
+                        if (updated) localStorage.setItem('ambs_accounts', JSON.stringify(accounts));
+                    }
                 }
                 if(s && s.theme) {
                     localStorage.setItem('appTheme', s.theme);
@@ -1881,6 +1910,7 @@
                 container.innerHTML = `
                     <div class="max-w-[1400px] mx-auto h-[calc(100vh-130px)] flex flex-col pb-6">
                         <div class="flex items-center gap-4 mb-6 shrink-0">
+                            <button onclick="navigateTo('dashboard')" class="w-10 h-10 bg-white dark:bg-[#111] border border-slate-200 dark:border-neutral-700 rounded-full flex items-center justify-center text-slate-500 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-neutral-800 transition-colors shadow-sm shrink-0"><i class="fas fa-arrow-left"></i></button>
                             <h2 class="text-3xl font-extrabold text-slate-800 dark:text-white tracking-tight">Settings</h2>
                             <div id="save-indicator" class="ml-4 flex items-center gap-2 text-sm font-bold text-emerald-500 opacity-0 transition-opacity">
                                 <i class="fas fa-check-circle"></i> Synced
@@ -3530,6 +3560,16 @@
                     const btn = document.getElementById('user-avatar-btn');
                     if(btn) btn.innerHTML = `<div class="w-6 h-6 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center text-[10px]"><i class="fas fa-building"></i></div><span class="font-bold tracking-tight">${data.companyName}</span>`;
                     
+                    if (currentUser) {
+                        let accounts = window.AccountManager.getAccounts();
+                        let updated = false;
+                        accounts = accounts.map(a => {
+                            if (a.uid === currentUser.uid) { a.companyName = data.companyName; updated = true; }
+                            return a;
+                        });
+                        if (updated) localStorage.setItem('ambs_accounts', JSON.stringify(accounts));
+                    }
+
                     // Briefly flash the "Synced" text indicator in the header
                     const indicator = document.getElementById('save-indicator');
                     if(indicator) {
