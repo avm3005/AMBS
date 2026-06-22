@@ -1167,7 +1167,7 @@
                 list.innerHTML = accounts.map(a => {
                     const isActive = currentUser && currentUser.uid === a.uid;
                     return `
-                    <div onclick="window.AccountManager.switchAccount('${a.uid}', '${a.provider}')" class="flex items-center gap-3 p-3 rounded-xl border ${isActive ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20' : 'border-slate-200 dark:border-neutral-700 bg-white dark:bg-[#111] hover:border-brand-300 cursor-pointer'} transition-all group relative">
+                    <div onclick="window.AccountManager.switchAccount('${a.uid}', '${a.provider}')" class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer ${isActive ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 shadow-sm' : 'border-slate-200 dark:border-neutral-700 bg-white dark:bg-[#111] hover:border-brand-300'} transition-all group relative">
                         <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-slate-600 dark:text-neutral-400 overflow-hidden shrink-0 border border-slate-200 dark:border-neutral-700">
                             ${a.avatar}
                         </div>
@@ -1181,28 +1181,39 @@
                 }).join('');
             },
             switchAccount: async (uid, provider) => {
-                if(currentUser && currentUser.uid === uid) return;
-                
-                document.getElementById('auth-loading').classList.remove('hidden');
-                document.getElementById('pin-section').classList.add('hidden');
-                document.getElementById('pin-section').classList.remove('flex');
-                document.getElementById('auth-main-card').classList.replace('max-w-4xl', 'max-w-[440px]');
-                
-                await signOut(auth);
-                
-                if (provider === 'local' || provider === 'anonymous') {
-                    const creds = JSON.parse(localStorage.getItem('ambs_local_creds'));
-                    if (creds) {
-                        try { await signInWithEmailAndPassword(auth, creds.email, creds.pass); } 
-                        catch(e) { showToast("Local login failed", "error"); document.getElementById('auth-loading').classList.add('hidden'); }
-                    } else {
-                        showToast("Local credentials lost. Create a new local account.", "error");
-                        document.getElementById('auth-loading').classList.add('hidden');
-                        window.AuthUI.showLogin();
+                // If clicking an account profile that is not the active Firebase user instance, perform background handoff
+                if (!currentUser || currentUser.uid !== uid) {
+                    document.getElementById('auth-loading').classList.remove('hidden');
+                    document.getElementById('pin-section').classList.add('hidden');
+                    document.getElementById('pin-section').classList.remove('flex');
+                    document.getElementById('auth-main-card').classList.replace('max-w-4xl', 'max-w-[440px]');
+                    
+                    window.isAuthenticating = true;
+                    try {
+                        await signOut(auth);
+                        if (provider === 'local') {
+                            const creds = JSON.parse(localStorage.getItem('ambs_local_creds'));
+                            if (creds) {
+                                await signInWithEmailAndPassword(auth, creds.email, creds.pass);
+                            } else {
+                                throw new Error("Local credentials missing.");
+                            }
+                        } else {
+                            // Request popup only if changing tokens completely
+                            await signInWithPopup(auth, provider);
+                        }
+                    } catch(e) {
+                        showToast("Account switch failed: " + e.message, "error");
+                        window.isAuthenticating = false;
+                        window.location.reload(); // Hard recovery to main profile pool
+                        return;
+                    } finally {
+                        window.isAuthenticating = false;
                     }
                 } else {
-                    try { await signInWithPopup(auth, provider); } 
-                    catch(e) { showToast("Google login aborted", "error"); document.getElementById('auth-loading').classList.add('hidden'); }
+                    // If it is already the active user instance and they are typing the PIN, simply reset PIN view focus
+                    document.getElementById('e2e-pin').value = '';
+                    document.getElementById('e2e-pin').focus();
                 }
             }
         };
