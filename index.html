@@ -145,6 +145,7 @@
         initTheme();
     </script>
 </head>
+
 <body class="text-slate-800 dark:text-neutral-100 bg-[#fcfcfc] dark:bg-black overflow-hidden h-screen flex transition-colors duration-300">
 
     <!-- Toast Notifications -->
@@ -490,6 +491,37 @@
             };
         };
 
+        // ==========================================
+        // NUMBER FORMATTING SERVICE
+        // ==========================================
+
+        window.formatNumber = (num, showDecimals = true) => {
+            if (num === null || num === undefined || isNaN(num)) return "0";
+            
+            const settings = getGlobalSettings();
+            // Check if the currency is Indian Rupee (₹, Rs, INR)
+            const isINR = ['₹', 'Rs', 'INR'].includes(settings.currency);
+            
+            const absNum = Math.abs(Number(num));
+            const sign = num < 0 ? "-" : "";
+            const dec = showDecimals ? 2 : 0;
+
+            if (isINR) {
+                if (absNum >= 1.0e+14) return sign + parseFloat((absNum / 1.0e+14).toFixed(dec)) + " Cr-Cr";
+                if (absNum >= 1.0e+12) return sign + parseFloat((absNum / 1.0e+12).toFixed(dec)) + " L-Cr";
+                if (absNum >= 1.0e+7)  return sign + parseFloat((absNum / 1.0e+7).toFixed(dec)) + " Cr";
+                if (absNum >= 1.0e+5)  return sign + parseFloat((absNum / 1.0e+5).toFixed(dec)) + " L";
+                if (absNum >= 1.0e+3)  return sign + parseFloat((absNum / 1.0e+3).toFixed(dec)) + " K";
+                return sign + parseFloat(absNum.toFixed(dec));
+            } else {
+                if (absNum >= 1.0e+12) return sign + parseFloat((absNum / 1.0e+12).toFixed(dec)) + " T";
+                if (absNum >= 1.0e+9)  return sign + parseFloat((absNum / 1.0e+9).toFixed(dec)) + " B";
+                if (absNum >= 1.0e+6)  return sign + parseFloat((absNum / 1.0e+6).toFixed(dec)) + " M";
+                if (absNum >= 1.0e+3)  return sign + parseFloat((absNum / 1.0e+3).toFixed(dec)) + " K";
+                return sign + parseFloat(absNum.toFixed(dec));
+            }
+        };
+
         const getProductAllocations = (p) => p.allocations ? p.allocations : { 'unassigned': (Number(p.stock) || 0) };
         const getSaleProfit = (s) => {
             if(s.totalProfit !== undefined) return s.totalProfit;
@@ -499,6 +531,8 @@
                 return sum + ((i.price - cost) * i.qty) - (i.discountAmt||0);
             }, 0) - (s.discount||0); 
         };
+
+
 
         // ==========================================
         // 2. ENCRYPTION SERVICE
@@ -698,7 +732,7 @@
                                     </td>
                                     <td class="px-6 py-4 text-center">
                                         <div class="inline-flex items-center gap-1 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-2.5 py-1 rounded-md font-bold text-xs border border-red-100 dark:border-red-900/50">
-                                            <span>${p.relevantStock}</span> <span class="text-red-400 dark:text-red-500 opacity-60">/ ${p.minStock || 5}</span>
+                                            <span>${window.formatNumber(p.relevantStock)}</span> <span class="text-red-400 dark:text-red-500 opacity-60">/ ${window.formatNumber(p.minStock || 5)}</span>
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 text-right">
@@ -889,7 +923,7 @@
                                 </div>
                             </div>
                             <div class="flex items-center gap-4">
-                                <div class="font-bold text-lg text-slate-800 dark:text-white">${cSym}${Number(s.total).toFixed(2)}</div>
+                                <div class="font-bold text-lg text-slate-800 dark:text-white">${cSym}${window.formatNumber(Number(s.total))}</div>
                                 <div class="w-8 h-8 rounded-full bg-slate-50 dark:bg-neutral-900 flex items-center justify-center text-slate-400 group-hover:bg-brand-100 dark:group-hover:bg-brand-900/50 group-hover:text-brand-600 transition-colors"><i class="fas fa-chevron-right text-sm"></i></div>
                             </div>
                         </div>`;
@@ -1660,19 +1694,19 @@
                             </div>
                             <div class="bg-white dark:bg-[#111] p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-800 flex flex-col justify-center cursor-pointer hover:shadow-md hover:border-emerald-200 dark:hover:border-emerald-800 transition-all group" onclick="navigateTo('capital')">
                                 <div class="flex items-center gap-3 mb-3"><div class="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform"><i class="fas fa-cash-register text-sm"></i></div><span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-neutral-500">Shop Cash</span></div>
-                                <div class="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">${cSym}${settings.cashBalance.toFixed(2)}</div>
+                                <div class="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">${cSym}${window.formatNumber(settings.cashBalance)}</div>
                             </div>
                             <div class="bg-white dark:bg-[#111] p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-800 flex flex-col justify-center cursor-pointer hover:shadow-md hover:border-blue-200 dark:hover:border-blue-800 transition-all group" onclick="navigateTo('capital')">
                                 <div class="flex items-center gap-3 mb-3"><div class="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform"><i class="fas fa-university text-sm"></i></div><span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-neutral-500">Bank Bal</span></div>
-                                <div class="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">${cSym}${settings.bankBalance.toFixed(2)}</div>
+                                <div class="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">${cSym}${window.formatNumber(settings.bankBalance)}</div>
                             </div>
                             <div class="bg-white dark:bg-[#111] p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-800 flex flex-col justify-center cursor-pointer hover:shadow-md hover:border-purple-200 dark:hover:border-purple-800 transition-all group" onclick="navigateTo('history')">
                                 <div class="flex items-center gap-3 mb-3"><div class="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform"><i class="fas fa-chart-line text-sm"></i></div><span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-neutral-500">Profit</span></div>
-                                <div class="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">${cSym}${totalProfit.toFixed(2)}</div>
+                                <div class="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">${cSym}${window.formatNumber(totalProfit)}</div>
                             </div>
                             <div class="bg-white dark:bg-[#111] p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-800 flex flex-col justify-center cursor-pointer hover:shadow-md hover:border-sky-200 dark:hover:border-sky-800 transition-all group" onclick="navigateTo('inventory')">
                                 <div class="flex items-center gap-3 mb-3"><div class="w-8 h-8 rounded-lg bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400 flex items-center justify-center group-hover:scale-110 transition-transform"><i class="fas fa-cubes text-sm"></i></div><span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-neutral-500">Est Value</span></div>
-                                <div class="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">${cSym}${stockValue.toFixed(2)}</div>
+                                <div class="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">${cSym}${window.formatNumber(stockValue)}</div>
                             </div>
                         </div>
 
@@ -1711,7 +1745,7 @@
                                                         <div class="text-[10px] font-bold uppercase tracking-wider text-${i.color}-500 dark:text-${i.color}-400 mt-0.5">${i.type}</div>
                                                     </div>
                                                 </div>
-                                                <div class="font-extrabold text-slate-800 dark:text-white">${cSym}${i.amount.toFixed(2)}</div>
+                                                <div class="font-extrabold text-slate-800 dark:text-white">${cSym}${window.formatNumber(i.amount)}</div>
                                             </div>
                                         `).join('')
                                     }
@@ -1730,7 +1764,7 @@
                                                     <div class="font-bold text-sm text-slate-800 dark:text-neutral-200 truncate max-w-[120px]">${s.customerName || 'Walk-in'}</div>
                                                     <div class="text-[10px] font-medium text-slate-400 dark:text-neutral-500 mt-0.5">${new Date(s.date).toLocaleDateString()}</div>
                                                 </div>
-                                                <div class="font-extrabold text-brand-600 dark:text-brand-400 text-sm">${cSym}${Number(s.total).toFixed(2)}</div>
+                                                <div class="font-extrabold text-brand-600 dark:text-brand-400 text-sm">${cSym}${window.formatNumber(Number(s.total))}</div>
                                             </div>
                                         `).join('')
                                     }
@@ -1806,7 +1840,6 @@
 
                 ['profit', 'revenue', 'bills', 'topProd'].forEach(k => { if(window.DashCharts[k]) window.DashCharts[k].destroy(); });
 
-                // Premium sleek chart aesthetics matching Dark/Light modes
                 const isDark = document.documentElement.classList.contains('dark');
                 Chart.defaults.font.family = "'Inter', sans-serif";
                 Chart.defaults.color = isDark ? '#9ca3af' : '#64748b'; 
@@ -1814,6 +1847,28 @@
                 const gridColor = isDark ? '#262626' : '#f1f5f9';
                 const textColor = isDark ? '#f5f5f5' : '#1e293b';
 
+                // Setup universal formatters
+                const tooltipCallback = {
+                    label: function(context) {
+                        let label = context.dataset.label || '';
+                        if (label) label += ': ';
+                        
+                        // Handle both vertical (y) and horizontal (x) bar values seamlessly
+                        const isHorizontal = context.chart.options.indexAxis === 'y';
+                        const val = isHorizontal ? context.parsed.x : context.parsed.y;
+                        
+                        // Add currency symbol only if it's a monetary chart
+                        const isMonetary = label.includes('Profit') || label.includes('Revenue');
+                        const cSym = isMonetary ? (getGlobalSettings().currency || '') : '';
+                        
+                        label += cSym + window.formatNumber(val); 
+                        return label;
+                    }
+                };
+
+                const tickCallback = function(value) { return window.formatNumber(value, false); };
+
+                // Standard options for Vertical Charts (Profit, Revenue, Bills)
                 const commonOptions = { 
                     responsive: true, 
                     maintainAspectRatio: false,
@@ -1823,12 +1878,18 @@
                             backgroundColor: isDark ? 'rgba(0, 0, 0, 0.9)' : 'rgba(15, 23, 42, 0.9)', 
                             titleFont: { size: 13 }, 
                             bodyFont: { size: 14, weight: 'bold' },
-                            padding: 12, cornerRadius: 8, displayColors: false 
+                            padding: 12, cornerRadius: 8, displayColors: false,
+                            callbacks: tooltipCallback
                         }
                     }, 
                     scales: { 
                         x: { grid: { display: false }, border: { display: false } }, 
-                        y: { border: { display: false }, grid: { color: gridColor, drawBorder: false }, beginAtZero: true } 
+                        y: { 
+                            border: { display: false }, 
+                            grid: { color: gridColor, drawBorder: false }, 
+                            beginAtZero: true,
+                            ticks: { callback: tickCallback }
+                        } 
                     } 
                 };
 
@@ -1845,13 +1906,36 @@
                 });
 
                 window.DashCharts.bills = new Chart(document.getElementById('chart-bills'), {
-                    type: 'bar', data: { labels, datasets: [{ label: 'No. of Bills', data: billsData, backgroundColor: '#f59e0b', borderRadius: 6, barPercentage: 0.6 }] },
+                    type: 'bar', data: { labels, datasets: [{ label: 'Bills', data: billsData, backgroundColor: '#f59e0b', borderRadius: 6, barPercentage: 0.6 }] },
                     options: { ...commonOptions, plugins: { ...commonOptions.plugins, title: titleOptions('Transaction Volume') } }
                 });
 
+                // Explicit options for Horizontal Chart to prevent axis overwriting crashes
                 window.DashCharts.topProd = new Chart(document.getElementById('chart-top-products'), {
                     type: 'bar', data: { labels: prodLabels, datasets: [{ label: 'Qty Sold', data: prodData, backgroundColor: '#8b5cf6', borderRadius: 6, barPercentage: 0.6 }] },
-                    options: { ...commonOptions, indexAxis: 'y', plugins: { ...commonOptions.plugins, title: titleOptions('Top 5 Products') }, scales: { x: { border: { display: false }, grid: { color: gridColor }, beginAtZero: true }, y: { grid: { display: false }, border: { display: false } } } }
+                    options: { 
+                        responsive: true, maintainAspectRatio: false,
+                        indexAxis: 'y', 
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: { 
+                                backgroundColor: isDark ? 'rgba(0, 0, 0, 0.9)' : 'rgba(15, 23, 42, 0.9)', 
+                                titleFont: { size: 13 }, bodyFont: { size: 14, weight: 'bold' },
+                                padding: 12, cornerRadius: 8, displayColors: false,
+                                callbacks: tooltipCallback
+                            },
+                            title: titleOptions('Top 5 Products') 
+                        }, 
+                        scales: { 
+                            x: { 
+                                border: { display: false }, 
+                                grid: { color: gridColor }, 
+                                beginAtZero: true, 
+                                ticks: { callback: tickCallback } 
+                            }, 
+                            y: { grid: { display: false }, border: { display: false } } 
+                        } 
+                    }
                 });
             },
 
@@ -1871,7 +1955,7 @@
                             </span>
                         </td>
                         <td class="p-4 text-sm text-slate-600 dark:text-neutral-300">${tx.description}</td>
-                        <td class="p-4 text-sm font-extrabold ${tx.action === 'withdraw' ? 'text-red-500 dark:text-red-400' : (tx.action === 'add' ? 'text-emerald-500 dark:text-emerald-400' : 'text-brand-500 dark:text-brand-400')} text-right">${cSym}${tx.amount.toFixed(2)}</td>
+                        <td class="p-4 text-sm font-extrabold ${tx.action === 'withdraw' ? 'text-red-500 dark:text-red-400' : (tx.action === 'add' ? 'text-emerald-500 dark:text-emerald-400' : 'text-brand-500 dark:text-brand-400')} text-right">${cSym}${window.formatNumber(tx.amount)}</td>
                         <td class="p-4 text-center"><button onclick="window.CapitalManager.delete('${tx.id}')" class="w-8 h-8 rounded-full text-slate-400 dark:text-neutral-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 dark:hover:text-red-400 transition-colors"><i class="fas fa-trash text-xs"></i></button></td>
                     </tr>
                 `).join('') || `<tr><td colspan="5" class="text-center py-12 text-slate-500 dark:text-neutral-500 font-medium bg-white dark:bg-[#111]">No transactions recorded yet.</td></tr>`;
@@ -1882,14 +1966,14 @@
                             <div class="bg-slate-900 dark:bg-neutral-900 rounded-3xl p-8 shadow-xl text-white flex justify-between items-center relative overflow-hidden border border-slate-800 dark:border-neutral-800">
                                 <div class="z-10">
                                     <p class="text-slate-400 text-sm font-bold uppercase tracking-wider mb-2 flex items-center gap-2"><i class="fas fa-university"></i> Bank Balance</p>
-                                    <h2 class="text-5xl font-extrabold tracking-tight">${cSym}${(s.bankBalance || 0).toFixed(2)}</h2>
+                                    <h2 class="text-5xl font-extrabold tracking-tight">${cSym}${window.formatNumber(s.bankBalance || 0)}</h2>
                                 </div>
                                 <div class="absolute -right-8 -bottom-8 w-40 h-40 bg-brand-500/20 rounded-full blur-[40px]"></div>
                             </div>
                             <div class="bg-emerald-900 dark:bg-emerald-950 rounded-3xl p-8 shadow-xl text-white flex justify-between items-center relative overflow-hidden border border-emerald-800 dark:border-emerald-900">
                                 <div class="z-10">
                                     <p class="text-emerald-400 text-sm font-bold uppercase tracking-wider mb-2 flex items-center gap-2"><i class="fas fa-cash-register"></i> Cash in Shop</p>
-                                    <h2 class="text-5xl font-extrabold tracking-tight">${cSym}${(s.cashBalance || 0).toFixed(2)}</h2>
+                                    <h2 class="text-5xl font-extrabold tracking-tight">${cSym}${window.formatNumber(s.cashBalance || 0)}</h2>
                                 </div>
                                 <div class="absolute -right-8 -bottom-8 w-40 h-40 bg-emerald-500/30 rounded-full blur-[40px]"></div>
                             </div>
@@ -2185,7 +2269,7 @@
                         return `${whName}: ${qty}`;
                     }).filter(x=>x).join('\n');
                     
-                    const costVal = (Number(p.baseCost||0) + (settings.enableTransport?Number(p.transportCost||0):0) + (settings.enableStorage?Number(p.storageCost||0):0)).toFixed(2);
+                    const costVal = window.formatNumber(Number(p.baseCost||0) + (settings.enableTransport?Number(p.transportCost||0):0) + (settings.enableStorage?Number(p.storageCost||0):0));
                     const isLow = p.stock <= (p.minStock || 5);
 
                     return `
@@ -2197,11 +2281,11 @@
                         <td class="px-8 py-4">
                             <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-slate-100 dark:bg-neutral-800 text-slate-600 dark:text-neutral-400 border border-slate-200 dark:border-neutral-700">${p.category || 'Uncategorized'}</span>
                         </td>
-                        <td class="px-8 py-4 text-slate-500 dark:text-neutral-400 font-semibold">${cSym}${costVal}</td>
-                        <td class="px-8 py-4 text-brand-600 dark:text-brand-400 font-extrabold">${cSym}${Number(p.price).toFixed(2)}</td>
+                        <td class="px-8 py-4 text-slate-500 dark:text-neutral-400 font-semibold">${cSym}${window.formatNumber(costVal)}</td>
+                        <td class="px-8 py-4 text-brand-600 dark:text-brand-400 font-extrabold">${cSym}${window.formatNumber(Number(p.price))}</td>
                         <td class="px-8 py-4 text-center">
                             <div class="inline-flex items-center justify-center px-3 py-1 rounded-lg text-xs font-extrabold cursor-help border ${isLow ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-100 dark:border-red-900/50' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/50'}" title="${breakdown || 'No stock available'}">
-                                ${p.stock}
+                                ${window.formatNumber(p.stock)}
                             </div>
                         </td>
                         <td class="px-8 py-4 text-right">
@@ -2235,7 +2319,7 @@
                                     <span class="font-bold text-sm text-slate-800 dark:text-neutral-200">${p.name}</span>
                                     <span class="text-slate-400 dark:text-neutral-500 font-mono text-[9px] ml-2 tracking-wide">${p.sku}</span>
                                 </div>
-                                <span class="font-extrabold text-sm ${isLow ? 'text-red-500' : 'text-slate-700 dark:text-neutral-300'}">${qty} <span class="text-[10px] text-slate-400 dark:text-neutral-500 font-medium">/ ${caps[w.id] ? caps[w.id] : '∞'}</span></span>
+                                <span class="font-extrabold text-sm ${isLow ? 'text-red-500' : 'text-slate-700 dark:text-neutral-300'}">${window.formatNumber(qty)} <span class="text-[10px] text-slate-400 dark:text-neutral-500 font-medium">/ ${caps[w.id] ? caps[w.id] : '∞'}</span></span>
                             </div>
                             <div class="w-full bg-slate-100 dark:bg-neutral-800 rounded-full h-1.5 overflow-hidden">
                                 <div class="${isLow ? 'bg-red-500' : 'bg-brand-500'} h-full rounded-full transition-all duration-500 ease-out" style="width: ${pct}%"></div>
@@ -2277,7 +2361,7 @@
                     <div class="group">
                         <div class="flex justify-between items-end mb-1.5">
                             <div><span class="font-bold text-sm text-slate-800 dark:text-neutral-200">${p.name}</span><span class="text-slate-400 dark:text-neutral-500 font-mono text-[9px] ml-2">${p.sku}</span></div>
-                            <span class="font-extrabold text-sm text-slate-700 dark:text-neutral-300">${qty}</span>
+                            <span class="font-extrabold text-sm text-slate-700 dark:text-neutral-300">${window.formatNumber(qty)}</span>
                         </div>
                         <div class="w-full bg-slate-100 dark:bg-neutral-800 rounded-full h-1.5 overflow-hidden">
                             <div class="bg-slate-400 dark:bg-neutral-500 h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
@@ -2307,11 +2391,11 @@
                     <div class="max-w-[1600px] mx-auto flex flex-col gap-8 h-full pb-8">
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
                             <div class="bg-white dark:bg-[#111] p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800 flex items-center justify-between">
-                                <div><h3 class="text-slate-500 dark:text-neutral-400 text-xs font-bold uppercase tracking-wider mb-1">Total Stock Units</h3><p class="text-4xl font-extrabold text-slate-800 dark:text-white tracking-tight">${appState.products.reduce((a, b) => a + Number(b.stock), 0)}</p></div>
+                                <div><h3 class="text-slate-500 dark:text-neutral-400 text-xs font-bold uppercase tracking-wider mb-1">Total Stock Units</h3><p class="text-4xl font-extrabold text-slate-800 dark:text-white tracking-tight">${window.formatNumber(appState.products.reduce((a, b) => a + Number(b.stock), 0))}</p></div>
                                 <div class="w-16 h-16 rounded-full bg-brand-50 dark:bg-brand-900/20 text-brand-500 dark:text-brand-400 flex items-center justify-center text-2xl"><i class="fas fa-layer-group"></i></div>
                             </div>
                             <div class="bg-white dark:bg-[#111] p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800 flex items-center justify-between">
-                                <div><h3 class="text-slate-500 dark:text-neutral-400 text-xs font-bold uppercase tracking-wider mb-1">Items Out of Stock</h3><p class="text-4xl font-extrabold text-red-500 tracking-tight">${appState.products.filter(p => p.stock == 0).length}</p></div>
+                                <div><h3 class="text-slate-500 dark:text-neutral-400 text-xs font-bold uppercase tracking-wider mb-1">Items Out of Stock</h3><p class="text-4xl font-extrabold text-red-500 tracking-tight">${window.formatNumber(appState.products.filter(p => p.stock == 0).length)}</p></div>
                                 <div class="w-16 h-16 rounded-full bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 flex items-center justify-center text-2xl"><i class="fas fa-exclamation-circle"></i></div>
                             </div>
                             <button onclick="navigateTo('stock_transfer')" class="bg-slate-900 dark:bg-neutral-900 p-6 rounded-3xl shadow-lg shadow-slate-900/10 dark:shadow-black text-left flex justify-between items-center hover:bg-slate-800 dark:hover:bg-neutral-800 transition-all active:scale-[0.98] group border border-slate-800 dark:border-neutral-800">
@@ -2465,72 +2549,73 @@
                             <div class="bg-emerald-50 dark:bg-emerald-950 p-6 md:p-8 rounded-3xl shadow-sm border border-emerald-100 dark:border-emerald-900 relative overflow-hidden">
                                 <div class="relative z-10">
                                     <h3 class="text-emerald-600/80 dark:text-emerald-400/80 text-sm font-bold uppercase tracking-widest mb-2 flex items-center gap-2"><i class="fas fa-arrow-down"></i> Total Receivables</h3>
-                                    <p class="text-4xl md:text-5xl font-extrabold text-emerald-700 dark:text-emerald-500 tracking-tight">${cSym}${totRec.toFixed(2)}</p>
+                                    <p class="text-4xl md:text-5xl font-extrabold text-emerald-700 dark:text-emerald-500 tracking-tight">${cSym}${window.formatNumber(totRec)}</p>
                                 </div>
                                 <i class="fas fa-hand-holding-usd absolute -right-4 -bottom-4 text-8xl text-emerald-500/10 dark:text-emerald-500/5 transform -rotate-12"></i>
                             </div>
                             <div class="bg-red-50 dark:bg-red-950 p-6 md:p-8 rounded-3xl shadow-sm border border-red-100 dark:border-red-900 relative overflow-hidden">
                                 <div class="relative z-10">
                                     <h3 class="text-red-600/80 dark:text-red-400/80 text-sm font-bold uppercase tracking-widest mb-2 flex items-center gap-2"><i class="fas fa-arrow-up"></i> Total Payables</h3>
-                                    <p class="text-4xl md:text-5xl font-extrabold text-red-700 dark:text-red-500 tracking-tight">${cSym}${totPay.toFixed(2)}</p>
+                                    <p class="text-4xl md:text-5xl font-extrabold text-red-700 dark:text-red-500 tracking-tight">${cSym}${window.formatNumber(totPay)}</p>
                                 </div>
                                 <i class="fas fa-file-invoice-dollar absolute -right-4 -bottom-4 text-8xl text-red-500/10 dark:text-red-500/5 transform -rotate-12"></i>
                             </div>
                         </div>
                         
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
-                            <!-- RECEIVABLES -->
-                            <div class="bg-white dark:bg-[#111] rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800 flex flex-col h-full overflow-hidden">
-                                <div class="p-6 border-b border-slate-100 dark:border-neutral-800 bg-white dark:bg-[#111] shrink-0">
-                                    <h3 class="font-extrabold text-lg text-slate-800 dark:text-white tracking-tight">To Collect (Customers)</h3>
-                                </div>
-                                <div class="flex-1 overflow-auto p-4 md:p-6 space-y-3 hide-scroll bg-slate-50/50 dark:bg-[#0a0a0a]/50">
-                                    ${customersWithBal.length === 0 ? '<div class="h-full flex items-center justify-center text-slate-400 dark:text-neutral-600 font-medium">No pending collections.</div>' : 
-                                      customersWithBal.map(c => `
-                                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-[#111] border border-slate-200 dark:border-neutral-700 p-4 rounded-2xl shadow-sm hover:border-emerald-200 dark:hover:border-emerald-800 transition-colors group">
-                                            <div class="mb-3 sm:mb-0">
-                                                <p class="font-extrabold text-slate-800 dark:text-neutral-200">${c.name}</p>
-                                                ${c.company ? `<p class="text-xs text-slate-500 dark:text-neutral-400 font-medium mt-0.5">${c.company}</p>` : ''}
-                                            </div>
-                                            <div class="flex items-center gap-4 sm:gap-6 w-full sm:w-auto justify-between sm:justify-end">
-                                                <div class="text-left sm:text-right">
-                                                    <p class="text-xs text-slate-400 dark:text-neutral-500 font-bold uppercase tracking-wider mb-0.5">Owes</p>
-                                                    <p class="font-extrabold text-lg text-emerald-600 dark:text-emerald-400">${cSym}${Number(c.balance).toFixed(2)}</p>
-                                                </div>
-                                                <button onclick="window.CustomerForm.receivePayment('${c.id}')" class="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors border border-emerald-100 dark:border-emerald-900/50 active:scale-95">Collect</button>
-                                            </div>
-                                        </div>
-                                      `).join('')
-                                    }
-                                </div>
-                            </div>
-
-                            <!-- PAYABLES -->
-                            <div class="bg-white dark:bg-[#111] rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800 flex flex-col h-full overflow-hidden">
-                                <div class="p-6 border-b border-slate-100 dark:border-neutral-800 bg-white dark:bg-[#111] shrink-0">
-                                    <h3 class="font-extrabold text-lg text-slate-800 dark:text-white tracking-tight">To Pay (Suppliers)</h3>
-                                </div>
-                                <div class="flex-1 overflow-auto p-4 md:p-6 space-y-3 hide-scroll bg-slate-50/50 dark:bg-[#0a0a0a]/50">
-                                    ${suppliersWithBal.length === 0 ? '<div class="h-full flex items-center justify-center text-slate-400 dark:text-neutral-600 font-medium">No pending payments.</div>' : 
-                                      suppliersWithBal.map(s => `
-                                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-[#111] border border-slate-200 dark:border-neutral-700 p-4 rounded-2xl shadow-sm hover:border-red-200 dark:hover:border-red-800 transition-colors group">
-                                            <div class="mb-3 sm:mb-0">
-                                                <p class="font-extrabold text-slate-800 dark:text-neutral-200">${s.name}</p>
-                                                ${s.contact ? `<p class="text-xs text-slate-500 dark:text-neutral-400 font-medium mt-0.5">${s.contact}</p>` : ''}
-                                            </div>
-                                            <div class="flex items-center gap-4 sm:gap-6 w-full sm:w-auto justify-between sm:justify-end">
-                                                <div class="text-left sm:text-right">
-                                                    <p class="text-xs text-slate-400 dark:text-neutral-500 font-bold uppercase tracking-wider mb-0.5">Owed</p>
-                                                    <p class="font-extrabold text-lg text-red-600 dark:text-red-400">${cSym}${Number(s.balance).toFixed(2)}</p>
-                                                </div>
-                                                <button onclick="window.FinanceManager.paySupplier('${s.id}')" class="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 px-5 py-2.5 rounded-xl font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors border border-red-100 dark:border-red-900/50 active:scale-95">Pay</button>
-                                            </div>
-                                        </div>
-                                      `).join('')
-                                    }
-                                </div>
-                            </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 flex-1 min-h-0 w-full">
+    <!-- RECEIVABLES -->
+    <div class="bg-white dark:bg-[#111] rounded-2xl sm:rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800 flex flex-col h-full overflow-hidden">
+        <div class="p-2 sm:p-6 border-b border-slate-100 dark:border-neutral-800 bg-white dark:bg-[#111] shrink-0">
+            <h3 class="font-extrabold text-base sm:text-lg text-slate-800 dark:text-white tracking-tight">To Collect (Customers)</h3>
+        </div>
+        <div class="flex-1 overflow-auto p-3 sm:p-4 md:p-6 space-y-2 sm:space-y-3 hide-scroll bg-slate-50/50 dark:bg-[#0a0a0a]/50">
+            ${customersWithBal.length === 0 ? '<div class="h-full py-8 flex items-center justify-center text-slate-400 dark:text-neutral-600 font-medium text-sm">No pending collections.</div>' : 
+              customersWithBal.map(c => `
+                <div class="flex items-center justify-between bg-white dark:bg-[#111] border border-slate-200 dark:border-neutral-700 p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm hover:border-emerald-200 dark:hover:border-emerald-800 transition-colors group gap-3">
+                    <div class="min-w-0 flex-1">
+                        <p class="font-extrabold text-sm sm:text-base text-slate-800 dark:text-neutral-200 truncate">${c.name}</p>
+                        ${c.company ? `<p class="text-[11px] sm:text-xs text-slate-500 dark:text-neutral-400 font-medium mt-0.5 truncate">${c.company}</p>` : ''}
+                    </div>
+                    <div class="flex items-center gap-3 sm:gap-5 shrink-0">
+                        <div class="text-right">
+                            <p class="text-[9px] sm:text-xs text-slate-400 dark:text-neutral-500 font-bold uppercase tracking-wider">Owes</p>
+                            <p class="font-extrabold text-sm sm:text-lg text-emerald-600 dark:text-emerald-400">${cSym}${Number(c.balance).toFixed(2)}</p>
                         </div>
+                        <button onclick="window.CustomerForm.receivePayment('${c.id}')" class="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors border border-emerald-100 dark:border-emerald-900/50 active:scale-95">Collect</button>
+                    </div>
+                </div>
+              `).join('')
+            }
+        </div>
+    </div>
+
+    <!-- PAYABLES -->
+    <div class="bg-white dark:bg-[#111] rounded-2xl sm:rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800 flex flex-col h-full overflow-hidden">
+        <div class="p-2 sm:p-6 border-b border-slate-100 dark:border-neutral-800 bg-white dark:bg-[#111] shrink-0">
+            <h3 class="font-extrabold text-base sm:text-lg text-slate-800 dark:text-white tracking-tight">To Pay (Suppliers)</h3>
+        </div>
+        <div class="flex-1 overflow-auto p-3 sm:p-4 md:p-6 space-y-2 sm:space-y-3 hide-scroll bg-slate-50/50 dark:bg-[#0a0a0a]/50">
+            ${suppliersWithBal.length === 0 ? '<div class="h-full py-8 flex items-center justify-center text-slate-400 dark:text-neutral-600 font-medium text-sm">No pending payments.</div>' : 
+              suppliersWithBal.map(s => `
+                <div class="flex items-center justify-between bg-white dark:bg-[#111] border border-slate-200 dark:border-neutral-700 p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm hover:border-red-200 dark:hover:border-red-800 transition-colors group gap-3">
+                    <div class="min-w-0 flex-1">
+                        <p class="font-extrabold text-sm sm:text-base text-slate-800 dark:text-neutral-200 truncate">${s.name}</p>
+                        ${s.contact ? `<p class="text-[11px] sm:text-xs text-slate-500 dark:text-neutral-400 font-medium mt-0.5 truncate">${s.contact}</p>` : ''}
+                    </div>
+                    <div class="flex items-center gap-3 sm:gap-5 shrink-0">
+                        <div class="text-right">
+                            <p class="text-[9px] sm:text-xs text-slate-400 dark:text-neutral-500 font-bold uppercase tracking-wider">Owed</p>
+                            <p class="font-extrabold text-sm sm:text-lg text-red-600 dark:text-red-400">${cSym}${Number(s.balance).toFixed(2)}</p>
+                        </div>
+                        <button onclick="window.FinanceManager.paySupplier('${s.id}')" class="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors border border-red-100 dark:border-red-900/50 active:scale-95">Pay</button>
+                    </div>
+                </div>
+              `).join('')
+            }
+        </div>
+    </div>
+</div>
+
                     </div>
                 `;
             },
@@ -2601,7 +2686,7 @@
                         </td>
                         <td class="px-8 py-4 text-center text-amber-400">${stars}</td>
                         <td class="px-8 py-4 text-right">
-                            <div class="font-extrabold text-base ${bal > 0 ? 'text-red-500' : 'text-emerald-500'}">${cSym}${bal.toFixed(2)}</div>
+                            <div class="font-extrabold text-base ${bal > 0 ? 'text-red-500' : 'text-emerald-500'}">${cSym}${window.formatNumber(bal)}</div>
                             ${c.lastTransactionDate ? `<div class="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-neutral-500 mt-1">Last: ${new Date(c.lastTransactionDate).toLocaleDateString()}</div>` : ''}
                         </td>
                         <td class="px-8 py-4 text-right">
@@ -2685,7 +2770,7 @@
                             <span class="bg-slate-100 dark:bg-neutral-800 px-3 py-1 rounded-lg">${catalogSize} Items</span>
                         </td>
                         <td class="px-8 py-4 text-right">
-                            <div class="font-extrabold text-base ${bal > 0 ? 'text-red-500' : 'text-slate-500'}">${cSym}${bal.toFixed(2)}</div>
+                            <div class="font-extrabold text-base ${bal > 0 ? 'text-red-500' : 'text-slate-500'}">${cSym}${window.formatNumber(bal)}</div>
                         </td>
                         <td class="px-8 py-4 text-right">
                             <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -2884,7 +2969,7 @@
                                     <p class="text-xs font-bold text-slate-400 dark:text-neutral-500 uppercase tracking-widest"><i class="far fa-clock mr-1"></i> ${new Date(po.date).toLocaleString()}</p>
                                 </div>
                                 <div class="text-right">
-                                    <p class="font-black text-slate-900 dark:text-white text-2xl tracking-tight">${cSym}${Number(po.total).toFixed(2)}</p>
+                                    <p class="font-black text-slate-900 dark:text-white text-2xl tracking-tight">${cSym}${window.formatNumber(Number(po.total))}</p>
                                     ${!isArchived ? `<button class="text-[10px] text-red-500 font-bold uppercase tracking-wider cursor-pointer hover:underline mt-2 opacity-0 group-hover:opacity-100 transition-opacity" onclick="window.ShipmentManager.cancelPO('${po.id}')">Void Entire Order</button>` : ''}
                                     ${isArchived ? `<button class="text-[10px] text-slate-400 dark:text-neutral-500 font-bold uppercase tracking-wider cursor-pointer hover:underline hover:text-red-500 mt-2 opacity-0 group-hover:opacity-100 transition-opacity" onclick="window.ShipmentManager.delete('${po.id}')">Delete Record</button>` : ''}
                                 </div>
@@ -2971,7 +3056,7 @@
                 const cSym = appState.settings[0]?.currency || '₹';
                 const sortedSales = [...salesData].sort((a, b) => new Date(b.date) - new Date(a.date));
                 const totalRevenue = sortedSales.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
-                revenueEl.innerText = `${cSym}${totalRevenue.toFixed(2)}`;
+                revenueEl.innerText = `${cSym}${window.formatNumber(totalRevenue)}`;
 
                 if(sortedSales.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="6" class="px-8 py-16 text-center text-slate-400 dark:text-neutral-500 font-medium">No records match the active filters.</td></tr>';
@@ -2991,7 +3076,7 @@
                                 <div class="text-[10px] font-bold uppercase tracking-wider mt-0.5 ${s.paymentStatus === 'Credit' ? 'text-orange-500' : 'text-emerald-500'}">${s.paymentStatus || 'Paid'} <span class="text-slate-300 dark:text-neutral-600 mx-1">•</span> ${s.type || 'Standard'}</div>
                             </td>
                             <td class="px-8 py-4 text-slate-500 dark:text-neutral-400 font-medium text-xs truncate max-w-[250px]" title="${itemsSummary}">${itemsSummary}</td>
-                            <td class="px-8 py-4 text-right font-black text-slate-900 dark:text-white text-base">${cSym}${(Number(s.total) || 0).toFixed(2)}</td>
+                            <td class="px-8 py-4 text-right font-black text-slate-900 dark:text-white text-base">${cSym}${window.formatNumber(Number(s.total) || 0)}</td>
                             <td class="px-8 py-4 text-right whitespace-nowrap">
                                 <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button onclick="window.SalesManager.viewBill('${s.id}')" class="w-8 h-8 rounded-lg text-slate-400 dark:text-neutral-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-neutral-800 transition-colors" title="View"><i class="fas fa-eye text-sm"></i></button>
@@ -3143,7 +3228,7 @@
                             </div>
                         </td>
                         <td class="px-8 py-4 text-slate-500 dark:text-neutral-400 font-medium text-xs">${w.location || '-'}</td>
-                        <td class="px-8 py-4 text-center font-bold text-slate-700 dark:text-neutral-300"><span class="bg-slate-100 dark:bg-neutral-800 px-3 py-1 rounded-lg">${itemsCount} Distinct SKUs</span></td>
+                        <td class="px-8 py-4 text-center font-bold text-slate-700 dark:text-neutral-300"><span class="bg-slate-100 dark:bg-neutral-800 px-3 py-1 rounded-lg">${window.formatNumber(itemsCount)} Distinct SKUs</span></td>
                         <td class="px-8 py-4 text-right">
                             <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button onclick="window.WarehouseForm.manageStock('${w.id}')" class="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border border-indigo-100 dark:border-indigo-900/50"><i class="fas fa-sliders-h mr-1.5"></i> Adjust</button>
@@ -3178,11 +3263,11 @@
                             <div class="grid grid-cols-2 gap-3">
                                 <div>
                                     <label class="block text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold mb-1.5 tracking-wider">In Stock</label>
-                                    <input type="number" id="pf-wh-${w.id}" value="${alloc}" min="0" class="w-full border border-slate-200 dark:border-neutral-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 bg-white dark:bg-[#111] dark:text-white shadow-sm transition-all">
+                                    <input type="number" id="pf-wh-${w.id}" value="${window.formatNumber(alloc)}" min="0" class="w-full border border-slate-200 dark:border-neutral-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 bg-white dark:bg-[#111] dark:text-white shadow-sm transition-all">
                                 </div>
                                 <div>
                                     <label class="block text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold mb-1.5 tracking-wider">Max Cap.</label>
-                                    <input type="number" id="pf-cap-${w.id}" value="${cap}" min="0" class="w-full border border-slate-200 dark:border-neutral-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 bg-white dark:bg-[#111] dark:text-white shadow-sm transition-all" placeholder="∞">
+                                    <input type="number" id="pf-cap-${w.id}" value="${window.formatNumber(cap)}" min="0" class="w-full border border-slate-200 dark:border-neutral-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 bg-white dark:bg-[#111] dark:text-white shadow-sm transition-all" placeholder="∞">
                                 </div>
                             </div>
                         </div>
@@ -3195,7 +3280,7 @@
                         <label class="block text-xs font-bold text-slate-600 dark:text-neutral-300 mb-3"><i class="fas fa-truck-loading mr-1.5"></i> Unassigned</label>
                         <div>
                             <label class="block text-[10px] text-slate-500 dark:text-neutral-500 uppercase font-bold mb-1.5 tracking-wider">In Transit / Raw</label>
-                            <input type="number" id="pf-wh-unassigned" value="${unassignedStock}" min="0" class="w-full border border-slate-200 dark:border-neutral-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 bg-slate-50 dark:bg-[#0a0a0a] dark:text-white shadow-sm transition-all">
+                            <input type="number" id="pf-wh-unassigned" value="${window.formatNumber(unassignedStock)}" min="0" class="w-full border border-slate-200 dark:border-neutral-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 bg-slate-50 dark:bg-[#0a0a0a] dark:text-white shadow-sm transition-all">
                         </div>
                     </div>
                 `;
@@ -3239,25 +3324,25 @@
                                             <span>Base Purchase Avg:</span>
                                             <div class="relative w-28">
                                                 <span class="absolute left-3 top-2.5 text-slate-400 dark:text-neutral-500 font-bold">${cSym}</span>
-                                                <input type="number" step="0.01" id="pf-base-cost" value="${bCost}" class="w-full pl-8 pr-3 py-2 text-right border border-indigo-200 dark:border-indigo-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono shadow-sm bg-white dark:bg-[#111] dark:text-white transition-all">
+                                                <input type="number" step="0.01" id="pf-base-cost" value="${window.formatNumber(bCost)}" class="w-full pl-8 pr-3 py-2 text-right border border-indigo-200 dark:border-indigo-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono shadow-sm bg-white dark:bg-[#111] dark:text-white transition-all">
                                             </div>
                                         </div>
                                         ${settings.enableTransport ? `
                                         <div class="flex justify-between items-center text-slate-600 dark:text-neutral-400 py-1">
                                             <span>Transport Avg:</span>
-                                            <span class="font-mono bg-white dark:bg-[#111] px-3 py-1.5 rounded-xl border border-slate-200 dark:border-neutral-700 font-bold text-slate-700 dark:text-neutral-300">${cSym}${tCost.toFixed(2)}</span>
+                                            <span class="font-mono bg-white dark:bg-[#111] px-3 py-1.5 rounded-xl border border-slate-200 dark:border-neutral-700 font-bold text-slate-700 dark:text-neutral-300">${cSym}${window.formatNumber(tCost)}</span>
                                         </div>` : ''}
                                         ${settings.enableStorage ? `
                                         <div class="flex justify-between items-center text-slate-600 dark:text-neutral-400">
                                             <span>Storage/Cooling:</span>
                                             <div class="relative w-28">
                                                 <span class="absolute left-3 top-2.5 text-slate-400 dark:text-neutral-500 font-bold">${cSym}</span>
-                                                <input type="number" step="0.01" id="pf-storage-cost" value="${sCost}" class="w-full pl-8 pr-3 py-2 text-right border border-indigo-200 dark:border-indigo-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono shadow-sm bg-white dark:bg-[#111] dark:text-white transition-all">
+                                                <input type="number" step="0.01" id="pf-storage-cost" value="${window.formatNumber(sCost)}" class="w-full pl-8 pr-3 py-2 text-right border border-indigo-200 dark:border-indigo-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono shadow-sm bg-white dark:bg-[#111] dark:text-white transition-all">
                                             </div>
                                         </div>` : ''}
                                         <div class="border-t border-indigo-200 dark:border-indigo-800 mt-4 pt-4 flex justify-between items-center font-extrabold text-slate-800 dark:text-white">
                                             <span>Total Unit Cost:</span>
-                                            <span class="font-mono text-xl text-indigo-700 dark:text-indigo-400">${cSym}${totalCost.toFixed(2)}</span>
+                                            <span class="font-mono text-xl text-indigo-700 dark:text-indigo-400">${cSym}${window.formatNumber(totalCost)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -3268,7 +3353,7 @@
                                         <label class="block text-xs font-bold text-emerald-700 dark:text-emerald-500 uppercase tracking-widest mb-2"><i class="fas fa-tag mr-1"></i> Selling Price *</label>
                                         <div class="relative">
                                             <span class="absolute left-4 top-3.5 text-emerald-600 dark:text-emerald-500 font-black">${cSym}</span>
-                                            <input type="number" step="0.01" id="pf-price" value="${p.price}" required class="w-full pl-10 border border-emerald-300 dark:border-emerald-700 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none font-black text-slate-800 dark:text-white shadow-sm bg-white dark:bg-[#111] transition-all text-xl">
+                                            <input type="number" step="0.01" id="pf-price" value="${window.formatNumber(p.price)}" required class="w-full pl-10 border border-emerald-300 dark:border-emerald-700 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none font-black text-slate-800 dark:text-white shadow-sm bg-white dark:bg-[#111] transition-all text-xl">
                                         </div>
                                     </div>
                                     <div class="grid grid-cols-2 gap-5">
@@ -3279,7 +3364,7 @@
                                         </div>` : ''}
                                         <div>
                                             <label class="block text-xs font-bold text-red-500 dark:text-red-400 uppercase tracking-widest mb-2" title="Low Stock Warning Threshold"><i class="fas fa-bell mr-1"></i> Min Threshold</label>
-                                            <input type="number" id="pf-min" value="${p.minStock}" class="w-full border border-red-200 dark:border-red-900/50 rounded-xl px-4 py-3 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none font-bold text-red-700 dark:text-red-400 shadow-sm bg-red-50 dark:bg-[#0a0a0a] transition-all">
+                                            <input type="number" id="pf-min" value="${window.formatNumber(p.minStock)}" class="w-full border border-red-200 dark:border-red-900/50 rounded-xl px-4 py-3 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none font-bold text-red-700 dark:text-red-400 shadow-sm bg-red-50 dark:bg-[#0a0a0a] transition-all">
                                         </div>
                                     </div>
                                 </div>
@@ -3432,7 +3517,7 @@
                             const wh = appState.warehouses.find(w => w.id === whId);
                             if(wh) name = wh.name;
                         }
-                        sourceSel.innerHTML += `<option value="${whId}" data-qty="${qty}">${name} (Qty: ${qty})</option>`;
+                        sourceSel.innerHTML += `<option value="${whId}" data-qty="${window.formatNumber(qty)}">${name} (Qty: ${window.formatNumber(qty)})</option>`;
                     }
                 });
             },
@@ -3498,7 +3583,7 @@
                             const wh = appState.warehouses.find(w => w.id === whId);
                             if(wh) name = wh.name;
                         }
-                        sourceSel.innerHTML += `<option value="${whId}" data-qty="${qty}">${name} (Qty: ${qty})</option>`;
+                        sourceSel.innerHTML += `<option value="${whId}" data-qty="${window.formatNumber(qty)}">${name} (Qty: ${window.formatNumber(qty)})</option>`;
                     }
                 });
             },
@@ -3684,7 +3769,7 @@
                             <p class="mb-1 text-xs font-bold text-slate-500 dark:text-neutral-400 uppercase tracking-widest">Supplier</p>
                             <p class="mb-4 text-lg font-extrabold text-slate-800 dark:text-white">${s.name}</p>
                             <p class="mb-1 text-xs font-bold text-slate-500 dark:text-neutral-400 uppercase tracking-widest">Total Payable</p>
-                            <p class="text-3xl font-black text-red-600 dark:text-red-500">${cSym}${Number(s.balance).toFixed(2)}</p>
+                            <p class="text-3xl font-black text-red-600 dark:text-red-500">${cSym}${window.formatNumber(Number(s.balance))}</p>
                         </div>
                         
                         ${appState.settings[0]?.enhancedMode ? `
@@ -3732,7 +3817,7 @@
                 const {id: sid, ...cleanS} = s;
                 if(await DB.save('suppliers', cleanS, sid)) {
                     const cSym = appState.settings[0]?.currency || '₹';
-                    showToast(`Payment of ${cSym}${amt.toFixed(2)} recorded.`);
+                    showToast(`Payment of ${cSym}${window.formatNumber(amt)} recorded.`);
                     closeModal();
                 }
             }
@@ -3772,7 +3857,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 uppercase tracking-widest mb-1.5">Opening Balance (Owes)</label>
-                                    <input type="number" step="0.01" id="cf-balance" value="${c.balance}" class="w-full border border-slate-200 dark:border-neutral-700 bg-white dark:bg-[#111] rounded-xl px-4 py-3 focus:ring-pink-500/20 focus:border-pink-500 outline-none font-bold text-red-500 dark:text-red-400 shadow-sm transition-all">
+                                    <input type="number" step="0.01" id="cf-balance" value="${window.formatNumber(c.balance)}" class="w-full border border-slate-200 dark:border-neutral-700 bg-white dark:bg-[#111] rounded-xl px-4 py-3 focus:ring-pink-500/20 focus:border-pink-500 outline-none font-bold text-red-500 dark:text-red-400 shadow-sm transition-all">
                                 </div>
                             </div>
                             <div>
@@ -3822,7 +3907,7 @@
                             <p class="mb-1 text-xs font-bold text-slate-500 dark:text-neutral-400 uppercase tracking-widest">Client Identity</p>
                             <p class="mb-4 text-lg font-extrabold text-slate-800 dark:text-white">${c.name} ${c.company ? `<span class="text-sm font-medium text-slate-500 dark:text-neutral-400">(${c.company})</span>` : ''}</p>
                             <p class="mb-1 text-xs font-bold text-slate-500 dark:text-neutral-400 uppercase tracking-widest">Outstanding Balance</p>
-                            <p class="text-3xl font-black text-emerald-600 dark:text-emerald-500">${cSym}${Number(c.balance).toFixed(2)}</p>
+                            <p class="text-3xl font-black text-emerald-600 dark:text-emerald-500">${cSym}${window.formatNumber(Number(c.balance))}</p>
                         </div>
                         
                         ${appState.settings[0]?.enhancedMode ? `
@@ -3871,7 +3956,7 @@
                 const {id: pid, ...cleanC} = c;
                 if(await DB.save('customers', cleanC, pid)) {
                     const cSym = appState.settings[0]?.currency || '₹';
-                    showToast(`Collection of ${cSym}${amt.toFixed(2)} applied successfully.`);
+                    showToast(`Collection of ${cSym}${window.formatNumber(amt)} applied successfully.`);
                     closeModal();
                 }
             }
@@ -3924,7 +4009,7 @@
 
                             <div>
                                 <label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 uppercase tracking-widest mb-1.5">Opening Balance (Owed)</label>
-                                <input type="number" step="0.01" id="sf-balance" value="${s.balance}" class="w-full sm:w-1/3 border border-slate-200 dark:border-neutral-700 rounded-xl px-4 py-3 focus:ring-fuchsia-500/20 focus:border-fuchsia-500 outline-none shadow-sm bg-slate-50 dark:bg-[#111] font-black text-red-500 dark:text-red-400 transition-all">
+                                <input type="number" step="0.01" id="sf-balance" value="${window.formatNumber(s.balance)}" class="w-full sm:w-1/3 border border-slate-200 dark:border-neutral-700 rounded-xl px-4 py-3 focus:ring-fuchsia-500/20 focus:border-fuchsia-500 outline-none shadow-sm bg-slate-50 dark:bg-[#111] font-black text-red-500 dark:text-red-400 transition-all">
                             </div>
                             
                             <div class="mt-8 flex justify-end gap-3 pt-6 border-t border-slate-100 dark:border-neutral-800">
@@ -3971,7 +4056,7 @@
                         <form id="warehouse-form" onsubmit="window.WarehouseForm.save(event, '${warehouse ? warehouse.id : ''}')" class="space-y-5 bg-slate-50 dark:bg-[#0a0a0a] p-6 rounded-3xl border border-slate-100 dark:border-neutral-800">
                             <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 uppercase tracking-widest mb-1.5">Facility Name / ID *</label><input type="text" id="wf-name" value="${w.name}" required class="w-full border border-slate-200 dark:border-neutral-700 rounded-xl px-4 py-3 focus:ring-orange-500/20 focus:border-orange-500 outline-none shadow-sm bg-white dark:bg-[#111] font-bold text-slate-800 dark:text-white transition-all"></div>
                             <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 uppercase tracking-widest mb-1.5">Geo Location / Address</label><input type="text" id="wf-location" value="${w.location}" class="w-full border border-slate-200 dark:border-neutral-700 rounded-xl px-4 py-3 focus:ring-orange-500/20 focus:border-orange-500 outline-none shadow-sm bg-white dark:bg-[#111] font-medium text-slate-700 dark:text-neutral-200 transition-all"></div>
-                            <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 uppercase tracking-widest mb-1.5">Notes (e.g. Cold storage, Rack limits)</label><input type="text" id="wf-capacity" value="${w.capacity}" placeholder="Optional details..." class="w-full border border-slate-200 dark:border-neutral-700 rounded-xl px-4 py-3 focus:ring-orange-500/20 focus:border-orange-500 outline-none shadow-sm bg-white dark:bg-[#111] font-medium text-slate-700 dark:text-neutral-200 transition-all"></div>
+                            <div><label class="block text-xs font-bold text-slate-600 dark:text-neutral-400 uppercase tracking-widest mb-1.5">Notes (e.g. Cold storage, Rack limits)</label><input type="text" id="wf-capacity" value="${window.formatNumber(w.capacity)}" placeholder="Optional details..." class="w-full border border-slate-200 dark:border-neutral-700 rounded-xl px-4 py-3 focus:ring-orange-500/20 focus:border-orange-500 outline-none shadow-sm bg-white dark:bg-[#111] font-medium text-slate-700 dark:text-neutral-200 transition-all"></div>
                             
                             <div class="bg-white dark:bg-[#111] p-4 rounded-xl border border-slate-200 dark:border-neutral-700 mt-4 flex items-center gap-4 cursor-pointer hover:border-orange-300 dark:hover:border-orange-600 transition-colors group" onclick="document.getElementById('wf-ismain').click()">
                                 <div class="relative flex items-center justify-center">
@@ -4036,7 +4121,7 @@
                             <div class="flex items-center gap-4 shrink-0">
                                 <div class="bg-slate-50 dark:bg-neutral-900 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-neutral-700 flex flex-col items-center">
                                     <span class="text-[9px] font-bold text-slate-400 dark:text-neutral-500 uppercase tracking-widest">Recorded</span>
-                                    <span class="font-black text-slate-700 dark:text-neutral-300">${qty}</span>
+                                    <span class="font-black text-slate-700 dark:text-neutral-300">${window.formatNumber(qty)}</span>
                                 </div>
                                 <i class="fas fa-chevron-right text-slate-300 dark:text-neutral-600 text-xs"></i>
                                 <div class="relative">
@@ -4177,7 +4262,7 @@
                         </div>
                         <div class="flex justify-between items-center bg-white dark:bg-[#111] p-2 rounded border border-slate-200 dark:border-neutral-700">
                             <span class="text-[10px] font-bold text-slate-500 dark:text-neutral-400 uppercase tracking-widest">Standing Bal</span>
-                            <span class="font-black text-sm ${c.balance > 0 ? 'text-red-500 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}">${cSym}${Number(c.balance||0).toFixed(2)}</span>
+                            <span class="font-black text-sm ${c.balance > 0 ? 'text-red-500 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}">${cSym}${window.formatNumber(Number(c.balance||0))}</span>
                         </div>
                     `;
                     infoDiv.classList.remove('hidden');
@@ -4204,9 +4289,13 @@
                             </div>
                             <div class="font-extrabold text-slate-800 dark:text-neutral-200 text-sm leading-snug line-clamp-2">${p.name}</div>
                         </div>
-                        <div class="flex justify-between items-end mt-2">
-                            <span class="text-[10px] font-bold text-slate-500 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-800 px-2 py-1 rounded-md border border-slate-200 dark:border-neutral-700">In: ${p.stock}</span>
-                            <span class="font-black text-brand-600 dark:text-brand-400 text-base">${cSym}${Number(p.price).toFixed(2)}</span>
+                        <div class="flex justify-between items-end gap-1 mt-2 w-full min-w-0 overflow-hidden"> 
+                            <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-800 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md border border-slate-200 dark:border-neutral-700 whitespace-nowrap min-w-0">
+                                In: ${window.formatNumber(p.stock)}
+                            </span> 
+                            <span class="font-black text-brand-600 dark:text-brand-400 text-xs sm:text-base min-w-0">
+                                ${cSym}${Number(p.price)}
+                            </span> 
                         </div>
                     </div>
                 `).join('') || '<div class="col-span-full text-center text-slate-400 dark:text-neutral-600 font-medium py-10"><i class="fas fa-box-open text-4xl mb-3 opacity-20 block"></i>No available products match search.</div>';
@@ -4326,7 +4415,7 @@
                                        class="text-center text-sm font-black text-slate-800 dark:text-white bg-transparent outline-none appearance-none hide-scroll mx-1">
                                 <button onclick="window.POS.updateQty('${item.id}', 1)" class="w-8 h-8 text-slate-500 dark:text-neutral-400 hover:bg-white dark:hover:bg-neutral-800 hover:text-slate-800 dark:hover:text-white hover:shadow-sm rounded-lg flex items-center justify-center font-bold transition-all"><i class="fas fa-plus text-[10px]"></i></button>
                             </div>
-                            <div class="text-base font-black text-slate-900 dark:text-white">${cSym}${item.lineAfterDisc.toFixed(2)}</div>
+                            <div class="text-base font-black text-slate-900 dark:text-white">${cSym}${item.lineAfterDisc}</div>
                         </div>
                     </div>
                     `;
@@ -4368,17 +4457,17 @@
                     }
                 });
 
-                document.getElementById('pos-subtotal').innerText = `${cSym}${subtotal.toFixed(2)}`;
-                document.getElementById('pos-discount-amt').innerText = `-${cSym}${totalDiscount.toFixed(2)}`;
+                document.getElementById('pos-subtotal').innerText = `${cSym}${window.formatNumber(subtotal)}`;
+                document.getElementById('pos-discount-amt').innerText = `-${cSym}${window.formatNumber(totalDiscount)}`;
                 
                 const taxAmtEl = document.getElementById('pos-tax-amt');
                 if(taxAmtEl) {
                     if (settings.taxInclusive && !window.POS.excludeTax) {
-                        taxAmtEl.innerText = `(${cSym}${taxTotal.toFixed(2)} Included)`;
+                        taxAmtEl.innerText = `(${cSym}${window.formatNumber(taxTotal)} Included)`;
                         taxAmtEl.classList.replace('text-slate-500', 'text-slate-400');
                         taxAmtEl.classList.add('italic', 'text-[10px]');
                     } else {
-                        taxAmtEl.innerText = `+${cSym}${taxTotal.toFixed(2)}`;
+                        taxAmtEl.innerText = `+${cSym}${window.formatNumber(taxTotal)}`;
                         taxAmtEl.classList.replace('text-slate-400', 'text-slate-500');
                         taxAmtEl.classList.remove('italic', 'text-[10px]');
                     }
@@ -4476,10 +4565,10 @@
                                                     <div class="text-[10px] text-slate-400 font-mono mt-1 font-medium">SKU: ${i.sku} ${settings.enableGst && !saleData.excludeTax && i.taxRate ? `<span class="ml-2 px-1.5 py-0.5 bg-slate-100 rounded text-slate-500 border border-slate-200">Tax: ${i.taxRate}%</span>` : ''}</div>
                                                 </td>
                                                 <td class="p-4 text-center font-bold text-slate-700">${i.qty}</td>
-                                                <td class="p-4 text-right font-medium text-slate-600">${i.price.toFixed(2)}</td>
-                                                <td class="p-4 text-right font-medium ${i.discountAmt > 0 ? 'text-red-500' : 'text-slate-400'}">${(i.discountAmt||0) > 0 ? '-' + (i.discountAmt||0).toFixed(2) : '0.00'}</td>
-                                                ${settings.enableGst ? `<td class="p-4 text-right font-medium text-slate-600">${(i.taxAmt||0).toFixed(2)}</td>` : ''}
-                                                <td class="p-4 text-right font-extrabold text-slate-900">${amount.toFixed(2)}</td>
+                                                <td class="p-4 text-right font-medium text-slate-600">${i.price}</td>
+                                                <td class="p-4 text-right font-medium ${i.discountAmt > 0 ? 'text-red-500' : 'text-slate-400'}">${(i.discountAmt||0) > 0 ? '-' + i.discountAmt||0 : '0.00'}</td>
+                                                ${settings.enableGst ? `<td class="p-4 text-right font-medium text-slate-600">${i.taxAmt||0}</td>` : ''}
+                                                <td class="p-4 text-right font-extrabold text-slate-900">${amount}</td>
                                             </tr>
                                             `;
                                         }).join('')}
@@ -4490,18 +4579,18 @@
                             <div class="flex justify-end mb-10">
                                 <div class="w-full md:w-2/3 bg-slate-50 p-6 rounded-3xl border border-slate-200">
                                     <div class="flex justify-between text-slate-600 text-sm py-2">
-                                        <span class="font-bold">Subtotal:</span><span class="font-bold">${cSym}${saleData.subtotal.toFixed(2)}</span>
+                                        <span class="font-bold">Subtotal:</span><span class="font-bold">${cSym}${saleData.subtotal}</span>
                                     </div>
                                     ${saleData.discount > 0 ? `
                                     <div class="flex justify-between text-red-500 text-sm py-2">
-                                        <span class="font-bold">Total Discount:</span><span class="font-extrabold">-${cSym}${saleData.discount.toFixed(2)}</span>
+                                        <span class="font-bold">Total Discount:</span><span class="font-extrabold">-${cSym}${saleData.discount}</span>
                                     </div>` : ''}
                                     ${saleData.tax > 0 && settings.enableGst ? `
                                     <div class="flex justify-between text-slate-600 text-sm py-2">
-                                        <span class="font-bold">Total Tax ${settings.taxInclusive && !saleData.excludeTax ? '(Included)' : ''}:</span><span class="font-bold">+${cSym}${saleData.tax.toFixed(2)}</span>
+                                        <span class="font-bold">Total Tax ${settings.taxInclusive && !saleData.excludeTax ? '(Included)' : ''}:</span><span class="font-bold">+${cSym}${saleData.tax}</span>
                                     </div>` : ''}
                                     <div class="flex justify-between text-slate-900 text-2xl font-black py-4 border-t-2 border-slate-300 mt-2">
-                                        <span>Grand Total:</span><span class="">${cSym}${saleData.total.toFixed(2)}</span>
+                                        <span>Grand Total:</span><span class="">${cSym}${saleData.total}</span>
                                     </div>
                                 </div>
                             </div>
@@ -4637,19 +4726,19 @@
                         <td class="p-4">
                             <div class="flex items-center gap-1">
                                 <span class="text-slate-400 dark:text-neutral-500 font-bold">${cSym}</span>
-                                <input type="number" step="0.01" value="${i.price}" onchange="window.SalesManager.updateEditSaleItem(${idx}, 'price', this.value)" class="w-24 border border-slate-200 dark:border-neutral-700 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 shadow-sm font-bold bg-white dark:bg-[#0a0a0a] dark:text-white transition-all text-center">
+                                <input type="number" step="0.01" value="${window.formatNumber(i.price)}" onchange="window.SalesManager.updateEditSaleItem(${idx}, 'price', this.value)" class="w-24 border border-slate-200 dark:border-neutral-700 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 shadow-sm font-bold bg-white dark:bg-[#0a0a0a] dark:text-white transition-all text-center">
                             </div>
                         </td>
                         <td class="p-4 text-center">
-                            <input type="number" value="${i.qty}" min="1" onchange="window.SalesManager.updateEditSaleItem(${idx}, 'qty', this.value)" class="w-16 border border-slate-200 dark:border-neutral-700 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 shadow-sm font-bold bg-white dark:bg-[#0a0a0a] dark:text-white transition-all text-center">
+                            <input type="number" value="${window.formatNumber(i.qty)}" min="1" onchange="window.SalesManager.updateEditSaleItem(${idx}, 'qty', this.value)" class="w-16 border border-slate-200 dark:border-neutral-700 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 shadow-sm font-bold bg-white dark:bg-[#0a0a0a] dark:text-white transition-all text-center">
                         </td>
                         <td class="p-4">
                             <div class="flex items-center gap-1">
                                 <span class="text-red-400 dark:text-red-500 font-bold">${cSym}</span>
-                                <input type="number" step="0.01" value="${i.discountAmt||0}" onchange="window.SalesManager.updateEditSaleItem(${idx}, 'discountAmt', this.value)" class="w-20 border border-red-200 dark:border-red-900/50 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 shadow-sm font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10 transition-all text-center">
+                                <input type="number" step="0.01" value="${window.formatNumber(i.discountAmt||0)}" onchange="window.SalesManager.updateEditSaleItem(${idx}, 'discountAmt', this.value)" class="w-20 border border-red-200 dark:border-red-900/50 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 shadow-sm font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10 transition-all text-center">
                             </div>
                         </td>
-                        <td class="p-4 text-right font-black text-slate-800 dark:text-white">${cSym}${(i.price * i.qty - (i.discountAmt||0)).toFixed(2)}</td>
+                        <td class="p-4 text-right font-black text-slate-800 dark:text-white">${cSym}${window.formatNumber(i.price * i.qty - (i.discountAmt||0))}</td>
                         <td class="p-4 text-center"><button onclick="window.SalesManager.removeEditSaleItem(${idx})" class="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-600 dark:hover:text-red-300 transition-colors"><i class="fas fa-trash text-sm"></i></button></td>
                     </tr>
                 `).join('');
@@ -4716,7 +4805,7 @@
                                         </div>
                                     </div>
                                     <div class="w-full lg:w-[400px] bg-white dark:bg-[#111] p-6 rounded-3xl border border-slate-100 dark:border-neutral-800 shadow-sm space-y-3">
-                                        <div class="flex justify-between text-slate-500 dark:text-neutral-400 font-bold text-sm"><span>Subtotal:</span><span>${cSym}${sale.subtotal.toFixed(2)}</span></div>
+                                        <div class="flex justify-between text-slate-500 dark:text-neutral-400 font-bold text-sm"><span>Subtotal:</span><span>${cSym}${window.formatNumber(sale.subtotal)}</span></div>
                                         <div class="flex justify-between items-center text-red-500 dark:text-red-400 font-bold border-b border-slate-100 dark:border-neutral-800 pb-3">
                                             <span>Global Discount:</span>
                                             <div class="flex items-center gap-1.5 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-lg border border-red-100 dark:border-red-900/50">
@@ -4724,8 +4813,8 @@
                                                 <input type="number" step="0.01" value="${globalDisc}" onchange="window.SalesManager.editingSale.discount = parseFloat(this.value)||0; window.SalesManager.renderEditModal()" class="w-20 bg-transparent outline-none text-right font-black focus:border-b focus:border-red-300 dark:focus:border-red-700">
                                             </div>
                                         </div>
-                                        <div class="flex justify-between text-slate-500 dark:text-neutral-400 font-bold text-sm pt-2"><span>Tax Aggregate:</span><span>+${cSym}${sale.tax.toFixed(2)}</span></div>
-                                        <div class="flex justify-between font-black text-2xl border-t-2 border-slate-800 dark:border-neutral-700 pt-4 text-slate-900 dark:text-white tracking-tight"><span>Revised Total:</span><span class="text-brand-600 dark:text-brand-400">${cSym}${sale.total.toFixed(2)}</span></div>
+                                        <div class="flex justify-between text-slate-500 dark:text-neutral-400 font-bold text-sm pt-2"><span>Tax Aggregate:</span><span>+${cSym}${window.formatNumber(sale.tax)}</span></div>
+                                        <div class="flex justify-between font-black text-2xl border-t-2 border-slate-800 dark:border-neutral-700 pt-4 text-slate-900 dark:text-white tracking-tight"><span>Revised Total:</span><span class="text-brand-600 dark:text-brand-400">${cSym}${window.formatNumber(sale.total)}</span></div>
                                     </div>
                                 </div>
                             </div>
@@ -4950,8 +5039,8 @@
                                 <div class="text-[10px] font-bold text-slate-500 dark:text-neutral-400 uppercase mt-1 tracking-widest flex items-center gap-1.5"><i class="fas fa-arrow-right text-brand-400"></i> ${item.warehouseName}</div>
                             </td>
                             <td class="px-8 py-4 text-center font-bold text-slate-700 dark:text-neutral-300 bg-slate-50/50 dark:bg-neutral-900/30">${item.qty}</td>
-                            <td class="px-8 py-4 text-right text-slate-600 dark:text-neutral-400 font-medium">${cSym}${item.cost.toFixed(2)}</td>
-                            <td class="px-8 py-4 text-right font-black text-slate-900 dark:text-white">${cSym}${lineTotal.toFixed(2)}</td>
+                            <td class="px-8 py-4 text-right text-slate-600 dark:text-neutral-400 font-medium">${cSym}${window.formatNumber(item.cost)}</td>
+                            <td class="px-8 py-4 text-right font-black text-slate-900 dark:text-white">${cSym}${window.formatNumber(lineTotal)}</td>
                             <td class="px-8 py-4 text-center">
                                 <button onclick="window.POManager.removeItem(${index})" class="w-8 h-8 rounded-lg text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors opacity-0 group-hover:opacity-100 mx-auto flex items-center justify-center"><i class="fas fa-trash text-sm"></i></button>
                             </td>
@@ -4961,7 +5050,7 @@
                 
                 const transCostEl = document.getElementById('po-transport-cost');
                 const transTotal = transCostEl ? (parseFloat(transCostEl.value) || 0) : 0;
-                document.getElementById('po-total-display').innerText = `${cSym}${(total + transTotal).toFixed(2)}`;
+                document.getElementById('po-total-display').innerText = `${cSym}${window.formatNumber(total + transTotal)}`;
             },
             submit: async () => {
                 const supplierId = document.getElementById('po-supplier').value;
