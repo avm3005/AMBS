@@ -161,7 +161,7 @@
             <div class="absolute top-[60%] -right-[10%] w-[40%] h-[40%] rounded-full bg-blue-500/10 dark:bg-blue-500/5 blur-[100px]"></div>
         </div>
 
-        <div id="auth-main-card" class="bg-white/80 dark:bg-[#111]/80 backdrop-blur-xl p-8 md:p-10 rounded-[2rem] shadow-2xl shadow-slate-200/50 dark:shadow-black border border-white dark:border-neutral-800 w-full max-w-[440px] transition-all duration-500 text-center relative z-10 overflow-hidden">
+        <div id="auth-main-card" class="bg-white/80 dark:bg-[#111]/80 backdrop-blur-xl p-8 md:p-10 rounded-[2rem] shadow-2xl shadow-slate-200/50 dark:shadow-black border border-white dark:border-neutral-800 w-full max-w-[440px] mx-4 md:mx-0 transition-all duration-500 text-center relative z-10 overflow-hidden">
             
             <div id="auth-loading" class="flex flex-col items-center justify-center py-10">
                 <div class="w-12 h-12 border-4 border-slate-200 dark:border-neutral-800 border-t-brand-500 dark:border-t-brand-500 rounded-full animate-spin mb-6"></div>
@@ -322,7 +322,7 @@
             </div>
 
             <div id="pin-section" class="hidden flex-col md:flex-row gap-8 md:gap-12 text-left">
-                <div class="w-full md:w-1/2 flex flex-col md:border-r border-slate-200 dark:border-neutral-800 md:pr-8">
+                <div class="w-full md:w-1/2 flex flex-col border-b md:border-b-0 pb-8 md:pb-0 md:border-r border-slate-200 dark:border-neutral-800 md:pr-8">
                     <h3 class="text-xs font-extrabold text-slate-500 dark:text-neutral-500 uppercase tracking-widest mb-4">Saved Profiles</h3>
                     <div id="saved-accounts-list" class="space-y-3 flex-1 overflow-y-auto max-h-[300px] hide-scroll pr-1"></div>
                     
@@ -360,7 +360,9 @@
     <div id="app-screen" class="w-full h-full flex hidden font-sans antialiased relative">
         
         <!-- Premium Sidebar (Docked items to top, White in Light Mode, Black in Dark Mode) -->
-        <aside id="sidebar" class="w-64 bg-transparent flex flex-col h-full flex-shrink-0 z-20 transition-all duration-300 relative">            <!-- Navigation inserted by JS -->
+        <div id="sidebar-backdrop" class="fixed inset-0 bg-slate-900/60 dark:bg-black/80 z-40 hidden md:hidden transition-opacity" onclick="window.UI.toggleSidebar()"></div>
+
+        <aside id="sidebar" class="w-64 absolute md:relative -translate-x-full md:translate-x-0 bg-[#fcfcfc] dark:bg-black md:bg-transparent flex flex-col h-full flex-shrink-0 z-50 md:z-20 transition-transform duration-300 shadow-2xl md:shadow-none">            <!-- Navigation inserted by JS -->
             <div class="flex-1 overflow-y-auto sidebar-scroll py-2 px-3" id="sidebar-nav">
             </div>
 
@@ -382,17 +384,18 @@
         <main class="flex-1 flex flex-col h-full overflow-hidden relative">
             
             <!-- Header (Glassmorphism) -->
-            <header class="h-16 bg-transparent backdrop-blur-md flex items-center justify-between px-6 md:px-8 flex-shrink-0 z-10 sticky top-0">
-                <div class="flex items-center gap-4 flex-shrink-0">
-                    <h2 id="page-title" class="text-xl font-bold text-slate-800 dark:text-white hidden sm:block tracking-tight">Dashboard</h2>
-                    <!-- Cloud Sync Indicator -->
-                    <div id="sync-status-indicator" class="hidden flex items-center justify-center w-6 h-6 rounded-full bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-700" title="Synced">
+            <header class="h-16 bg-transparent backdrop-blur-md flex items-center justify-between px-4 md:px-8 flex-shrink-0 z-10 sticky top-0 gap-2">
+                <div class="flex items-center gap-2 sm:gap-4 min-w-0">
+                    <button class="md:hidden flex-shrink-0 w-10 h-10 rounded-xl bg-slate-100 dark:bg-neutral-800 text-slate-600 dark:text-neutral-300 flex items-center justify-center transition-colors active:scale-95" onclick="window.UI.toggleSidebar()">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h2 id="page-title" class="text-xl font-bold text-slate-800 dark:text-white tracking-tight truncate">Dashboard</h2>
+                    <div id="sync-status-indicator" class="hidden flex items-center justify-center w-6 h-6 flex-shrink-0 rounded-full bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-700" title="Synced">
                         <div class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
                     </div>
                 </div>
 
-                <!-- Global Search -->
-                <div class="flex-1 max-w-2xl mx-8 relative hidden md:block">
+                <div class="flex-1 max-w-2xl mx-4 md:mx-8 relative hidden md:block">
                     <div class="relative group">
                         <input type="text" id="global-search" placeholder="Search orders, dates, menus..." class="w-full pl-11 pr-10 py-2 bg-slate-100/80 dark:bg-neutral-900 border border-transparent focus:bg-white dark:focus:bg-[#0a0a0a] focus:border-brand-500/30 rounded-xl text-sm outline-none transition-all shadow-sm placeholder-slate-400 dark:placeholder-neutral-500 text-slate-700 dark:text-neutral-200 font-medium group-hover:bg-slate-100 dark:group-hover:bg-neutral-800">
                         <i class="fas fa-search absolute left-4 top-2.5 text-slate-400 dark:text-neutral-500 group-focus-within:text-brand-500 transition-colors"></i>
@@ -400,15 +403,13 @@
                     </div>
                 </div>
 
-                <div class="flex items-center gap-4 flex-shrink-0">
-                    <!-- Mobile Search Trigger -->
-                    <button class="md:hidden w-10 h-10 rounded-full bg-slate-100 dark:bg-neutral-800 text-slate-500 dark:text-neutral-400 hover:bg-slate-200 dark:hover:bg-neutral-700 flex items-center justify-center transition-colors" onclick="document.getElementById('global-search').focus()">
+                <div class="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                    <button class="md:hidden flex-shrink-0 w-10 h-10 rounded-full bg-slate-100 dark:bg-neutral-800 text-slate-500 dark:text-neutral-400 hover:bg-slate-200 dark:hover:bg-neutral-700 flex items-center justify-center transition-colors" onclick="window.SearchUI.openMobile()">
                         <i class="fas fa-search"></i>
                     </button>
-                    <!-- Company Name Button -->
-                    <button class="font-bold text-slate-700 dark:text-neutral-200 hover:text-brand-600 dark:hover:text-brand-400 transition-colors truncate max-w-[200px] bg-white dark:bg-[#111] border border-slate-200 dark:border-neutral-700 hover:border-brand-200 dark:hover:border-brand-800 px-4 py-2 rounded-xl shadow-sm flex items-center gap-2 text-sm" id="user-avatar-btn" onclick="window.UI.showCompanyInfo()">
-                        <div class="w-6 h-6 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center text-[10px]"><i class="fas fa-building"></i></div>
-                        <span>Company</span>
+                    <button class="font-bold text-slate-700 dark:text-neutral-200 hover:text-brand-600 dark:hover:text-brand-400 transition-colors max-w-[110px] sm:max-w-[200px] bg-white dark:bg-[#111] border border-slate-200 dark:border-neutral-700 hover:border-brand-200 dark:hover:border-brand-800 px-3 sm:px-4 py-2 rounded-xl shadow-sm flex items-center gap-2 text-sm shrink-0" id="user-avatar-btn" onclick="window.UI.showCompanyInfo()">
+                        <div class="w-6 h-6 rounded-full shrink-0 bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center text-[10px]"><i class="fas fa-building"></i></div>
+                        <span class="truncate">Company</span>
                     </button>
                 </div>
             </header>
@@ -416,10 +417,16 @@
             <!-- Search Results Overlay -->
             <div id="search-overlay" class="hidden absolute inset-0 mt-16 bg-[#fcfcfc]/95 dark:bg-black/95 backdrop-blur-md z-20 overflow-y-auto p-6 md:p-8">
                 <div class="max-w-5xl mx-auto">
-                    <div class="flex justify-between items-end border-b border-slate-200 dark:border-neutral-800 pb-4 mb-6">
-                        <h2 class="text-3xl font-extrabold text-slate-800 dark:text-white tracking-tight"><i class="fas fa-search text-brand-500 mr-3"></i>Search Results</h2>
-                        <button onclick="window.SearchUI.closeSearch()" class="text-sm font-bold text-slate-500 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-white bg-slate-100 dark:bg-neutral-900 hover:bg-slate-200 dark:hover:bg-neutral-800 px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-2">
-                            <span>Close</span> <span class="bg-white dark:bg-black px-1.5 py-0.5 rounded text-[10px] border border-slate-200 dark:border-neutral-700">ESC</span>
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-slate-200 dark:border-neutral-800 pb-4 mb-6 gap-4">
+                        <h2 class="text-3xl font-extrabold text-slate-800 dark:text-white tracking-tight hidden sm:block"><i class="fas fa-search text-brand-500 mr-3"></i>Search Results</h2>
+                        
+                        <div class="w-full sm:hidden relative">
+                            <input type="text" id="mobile-overlay-search" placeholder="Search orders, menus, SKUs..." class="w-full pl-11 pr-4 py-3 bg-slate-100 dark:bg-neutral-900 border border-transparent focus:bg-white dark:focus:bg-[#0a0a0a] focus:border-brand-500/30 rounded-xl text-sm outline-none transition-all shadow-sm text-slate-700 dark:text-neutral-200 font-medium">
+                            <i class="fas fa-search absolute left-4 top-3.5 text-slate-400 dark:text-neutral-500"></i>
+                        </div>
+
+                        <button onclick="window.SearchUI.closeSearch()" class="text-sm font-bold text-slate-500 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-white bg-slate-100 dark:bg-neutral-900 hover:bg-slate-200 dark:hover:bg-neutral-800 px-4 py-3 sm:py-2 rounded-xl transition-all shadow-sm flex items-center gap-2 w-full sm:w-auto justify-center">
+                            <span>Close</span> <span class="bg-white dark:bg-black px-1.5 py-0.5 rounded text-[10px] border border-slate-200 dark:border-neutral-700 hidden sm:inline">ESC</span>
                         </button>
                     </div>
                     <div id="search-results-content"></div>
@@ -654,6 +661,10 @@
         };
 
         window.UI = {
+            toggleSidebar: () => {
+                document.getElementById('sidebar').classList.toggle('-translate-x-full');
+                document.getElementById('sidebar-backdrop')?.classList.toggle('hidden');
+            },
             showAlerts: () => {
                 const mainWh = appState.warehouses.find(w => w.isMain);
                 let lowStockItems = [];
@@ -772,10 +783,24 @@
         // NEW SEARCH SERVICE (Ctrl+M)
         // ==========================================
         window.SearchUI = {
+            openMobile: () => {
+                document.getElementById('page-content').classList.add('hidden');
+                document.getElementById('search-overlay').classList.remove('hidden');
+                const mobileInput = document.getElementById('mobile-overlay-search');
+                if(mobileInput) {
+                    mobileInput.focus();
+                    if(!mobileInput.value) {
+                        document.getElementById('search-results-content').innerHTML = `<div class="text-center py-20 flex flex-col items-center"><div class="w-20 h-20 bg-slate-100 dark:bg-neutral-900 text-slate-300 dark:text-neutral-600 rounded-full flex items-center justify-center text-3xl mb-6"><i class="fas fa-search"></i></div><span class="text-lg font-bold text-slate-700 dark:text-neutral-300">Start typing to search...</span></div>`;
+                    }
+                }
+            },
             closeSearch: () => {
                 const searchInput = document.getElementById('global-search');
+                const mobileInput = document.getElementById('mobile-overlay-search');
                 const clearBtn = document.getElementById('global-search-clear');
+                
                 if(searchInput) searchInput.value = '';
+                if(mobileInput) mobileInput.value = '';
                 if(clearBtn) clearBtn.classList.add('hidden');
                 
                 document.getElementById('search-overlay').classList.add('hidden');
@@ -1462,7 +1487,7 @@
                 if(s && s.companyName) {
                     localStorage.setItem('companyName', s.companyName); 
                     const btn = document.getElementById('user-avatar-btn');
-                    if(btn) btn.innerHTML = `<div class="w-6 h-6 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center text-[10px]"><i class="fas fa-building"></i></div><span class="font-bold tracking-tight">${s.companyName}</span>`;
+                    if(btn) btn.innerHTML = `<div class="w-6 h-6 rounded-full shrink-0 bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center text-[10px]"><i class="fas fa-building"></i></div><span class="font-bold tracking-tight truncate">${s.companyName}</span>`;
                     
                     if (currentUser) {
                         let accounts = window.AccountManager.getAccounts();
@@ -1509,6 +1534,12 @@
             });
 
             if (viewId === 'general_settings') document.getElementById('page-title').innerText = 'Settings';
+
+            // Auto-close sidebar on mobile after navigating
+            if (window.innerWidth < 768) {
+                document.getElementById('sidebar').classList.add('-translate-x-full');
+                document.getElementById('sidebar-backdrop')?.classList.add('hidden');
+            }
 
             if (Views[viewId]) Views[viewId](); else Views.placeholder(viewId);
         };
@@ -2316,7 +2347,7 @@
                     `<option value="Paid">Paid Instantly</option><option value="Credit" disabled>Credit (Pay Later)</option>`;
                 
                 container.innerHTML = `
-                    <div class="flex flex-col lg:flex-row gap-6 h-[calc(100vh-130px)] max-w-[1800px] mx-auto">
+                    <div class="flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-130px)] h-auto lg:h-[calc(100vh-130px)] max-w-[1800px] mx-auto">
                         
                         <!-- Products Selection Panel -->
                         <div class="flex-1 bg-white dark:bg-[#111] rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800 flex flex-col overflow-hidden">
@@ -2674,7 +2705,7 @@
                 const cSym = settings.currency;
                 
                 container.innerHTML = `
-                    <div class="flex flex-col lg:flex-row gap-6 h-[calc(100vh-130px)] max-w-[1800px] mx-auto">
+                    <div class="flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-130px)] h-auto lg:h-[calc(100vh-130px)] max-w-[1800px] mx-auto">
                         <!-- Order Creator Panel -->
                         <div class="w-full lg:w-[420px] flex-shrink-0 bg-white dark:bg-[#111] rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800 p-6 md:p-8 flex flex-col gap-5 overflow-y-auto hide-scroll">
                             <h3 class="font-extrabold text-2xl text-slate-800 dark:text-white tracking-tight mb-2"><i class="fas fa-file-signature text-violet-500 mr-2"></i>Draft Order</h3>
@@ -2977,7 +3008,7 @@
             stock_transfer: () => {
                 const container = document.getElementById('page-content');
                 container.innerHTML = `
-                    <div class="flex flex-col lg:flex-row gap-6 h-[calc(100vh-130px)] max-w-[1800px] mx-auto">
+                    <div class="flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-130px)] h-auto lg:h-[calc(100vh-130px)] max-w-[1800px] mx-auto">
                         <!-- Left Panel: Logistics Config -->
                         <div class="flex-1 bg-white dark:bg-[#111] rounded-3xl shadow-sm border border-slate-100 dark:border-neutral-800 flex flex-col overflow-hidden">
                             <div class="p-6 md:p-8 border-b border-slate-100 dark:border-neutral-800 bg-white dark:bg-[#111] shrink-0">
@@ -3584,7 +3615,7 @@
                     initTheme(); // instantly apply theme
                     
                     const btn = document.getElementById('user-avatar-btn');
-                    if(btn) btn.innerHTML = `<div class="w-6 h-6 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center text-[10px]"><i class="fas fa-building"></i></div><span class="font-bold tracking-tight">${data.companyName}</span>`;
+                    if(btn) btn.innerHTML = `<div class="w-6 h-6 rounded-full shrink-0 bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center text-[10px]"><i class="fas fa-building"></i></div><span class="font-bold tracking-tight truncate">${data.companyName}</span>`;
                     
                     if (currentUser) {
                         let accounts = window.AccountManager.getAccounts();
@@ -3609,7 +3640,7 @@
                 const s = appState.settings[0];
                 if(s && s.companyName) {
                     const btn = document.getElementById('user-avatar-btn');
-                    if(btn) btn.innerHTML = `<div class="w-6 h-6 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center text-[10px]"><i class="fas fa-building"></i></div><span class="font-bold tracking-tight">${s.companyName}</span>`;
+                    if(btn) btn.innerHTML = `<div class="w-6 h-6 rounded-full shrink-0 bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center text-[10px]"><i class="fas fa-building"></i></div><span class="font-bold tracking-tight truncate">${s.companyName}</span>`;
                 }
                 if(s && s.theme) {
                     localStorage.setItem('appTheme', s.theme);
@@ -5085,21 +5116,30 @@
             }
         });
 
-        document.getElementById('global-search')?.addEventListener('input', (e) => {
+        const handleSearchInput = (e) => {
             const query = e.target.value.toLowerCase();
             const clearBtn = document.getElementById('global-search-clear');
+            
             if(query) {
-                clearBtn.classList.remove('hidden');
+                if(clearBtn) clearBtn.classList.remove('hidden');
                 document.getElementById('page-content').classList.add('hidden');
                 document.getElementById('search-overlay').classList.remove('hidden');
                 const sidebar = document.getElementById('sidebar');
-                sidebar.classList.remove('w-64'); sidebar.classList.add('w-0', 'overflow-hidden');
+                if(sidebar) { sidebar.classList.remove('w-64'); sidebar.classList.add('w-0', 'overflow-hidden'); }
                 window.SearchUI.renderResults(query);
             } else {
-                // Automatically close search and restore UI when the search bar is empty
-                window.SearchUI.closeSearch();
+                if (e.target.id === 'global-search') {
+                    // On desktop, auto-close if empty
+                    window.SearchUI.closeSearch();
+                } else {
+                    // On mobile, just clear the results back to the waiting state
+                    document.getElementById('search-results-content').innerHTML = `<div class="text-center py-20 flex flex-col items-center"><div class="w-20 h-20 bg-slate-100 dark:bg-neutral-900 text-slate-300 dark:text-neutral-600 rounded-full flex items-center justify-center text-3xl mb-6"><i class="fas fa-search"></i></div><span class="text-lg font-bold text-slate-700 dark:text-neutral-300">Start typing to search...</span></div>`;
+                }
             }
-        });
+        };
+
+        document.getElementById('global-search')?.addEventListener('input', handleSearchInput);
+        document.getElementById('mobile-overlay-search')?.addEventListener('input', handleSearchInput);
 
         // Initialize Call
         initAuth();
